@@ -1,0 +1,42 @@
+services:
+  smart-home:
+    build:
+      context: .
+      target: dev
+    container_name: smart-home-nuxt
+    ports:
+      - "0.0.0.0:3000:3000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=3000
+      - NODE_ENV=development
+      - DATABASE_URL=postgres://smarthome:smarthome@postgres:5432/smarthome
+      - LAN_IP=${LAN_IP:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: npm run dev -- --host 0.0.0.0 --port 3000
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: smart-home-postgres
+    environment:
+      - POSTGRES_DB=smarthome
+      - POSTGRES_USER=smarthome
+      - POSTGRES_PASSWORD=smarthome
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smarthome -d smarthome"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pg_data:
