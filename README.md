@@ -49,6 +49,10 @@ POST /api/controller/report
 Content-Type: application/json
 ```
 
+Готовый скетч для Arduino Uno:
+
+`client/arduino/arduino_uno_report_client.ino`
+
 Пример `curl` запроса:
 
 ```bash
