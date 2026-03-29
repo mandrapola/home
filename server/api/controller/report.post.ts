@@ -47,8 +47,17 @@ const normalizeReadings = (payload: ControllerPayload): SensorReading[] => {
 export default defineEventHandler(async (event) => {
   const body = await readBody<ControllerPayload>(event)
   const controllerId = Number(body.controller_id)
+  const ip =
+    getHeader(event, 'x-forwarded-for') ||
+    event.node.req.socket.remoteAddress ||
+    'unknown'
+
+  console.info(
+    `[controller/report] incoming request ip=${ip} controller_id=${String(body.controller_id ?? '')} body=${JSON.stringify(body)}`
+  )
 
   if (!Number.isInteger(controllerId) || controllerId <= 0) {
+    console.warn(`[controller/report] invalid controller_id from ip=${ip}`)
     throw createError({
       statusCode: 400,
       statusMessage: 'controller_id must be a positive integer'
@@ -58,6 +67,7 @@ export default defineEventHandler(async (event) => {
   const readings = normalizeReadings(body)
 
   if (readings.length === 0) {
+    console.warn(`[controller/report] no valid readings from ip=${ip} controller_id=${controllerId}`)
     throw createError({
       statusCode: 400,
       statusMessage: 'No valid sensor readings provided'
@@ -76,6 +86,7 @@ export default defineEventHandler(async (event) => {
     )
 
     if (controllerCheck.rowCount === 0) {
+      console.warn(`[controller/report] controller not found id=${controllerId} ip=${ip}`)
       throw createError({
         statusCode: 404,
         statusMessage: `Controller ${controllerId} not found`
@@ -90,8 +101,12 @@ export default defineEventHandler(async (event) => {
     }
 
     await client.query('COMMIT')
+    console.info(
+      `[controller/report] stored readings=${readings.length} controller_id=${controllerId} ip=${ip}`
+    )
   } catch (error) {
     await client.query('ROLLBACK')
+    console.error(`[controller/report] db error controller_id=${controllerId} ip=${ip}`, error)
     throw error
   } finally {
     client.release()

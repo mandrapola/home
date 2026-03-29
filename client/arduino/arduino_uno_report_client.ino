@@ -2,7 +2,7 @@
   Arduino Uno -> Smart Home API client
   Sends measurements to:
     POST /api/controller/report
-  every 5 minutes.
+  every 5 seconds.
 
   Hardware target:
     Arduino Uno + Ethernet Shield (W5100/W5500)
@@ -18,7 +18,7 @@ int serverPort = 3000;
 
 // ===== Controller settings =====
 const int controllerId = 1;
-const unsigned long sendIntervalMs = 300000UL;  // 5 minutes
+const unsigned long sendIntervalMs = 5000UL;  // 5 seconds
 
 // Optional: replace with real sensor pins/libraries
 const int TEMP_PIN = A0;
@@ -55,11 +55,11 @@ void postMeasurements() {
   payload += "\"controller_id\":";
   payload += String(controllerId);
   payload += ",\"thermometer\":";
-  payload += String(temperature, 2);
+  payload += String(2, temperature);
   payload += ",\"pressure\":";
-  payload += String(pressure, 2);
+  payload += String(2, pressure);
   payload += ",\"humidity\":";
-  payload += String(humidity, 2);
+  payload += String(2, humidity);
   payload += "}";
 
   if (!client.connect(serverHost, serverPort)) {
