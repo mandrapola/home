@@ -1,6 +1,16 @@
+import { ensureControllerPinConfigs } from '../../utils/controller-pin-config'
+import { pruneControllerHistory } from '../../utils/controller-history'
+import { applyControllerScenarios } from '../../utils/controller-scenarios'
+import { ensureControllerSchema } from '../../utils/controller-schema'
+
 interface SensorReading {
   pin: string
   value: number
+}
+
+interface DigitalOutputCommand {
+  pin: string
+  value: 0 | 1
 }
 
 interface ControllerPayload {
@@ -76,22 +86,45 @@ export default defineEventHandler(async (event) => {
 
   const pool = getDbPool()
   const client = await pool.connect()
+  let sendIntervalSeconds = 30
+  let digitalOutputs: Record<string, 0 | 1> = {}
 
   try {
+    await ensureControllerSchema(client)
     await client.query('BEGIN')
 
-    const controllerCheck = await client.query<{ id: number }>(
-      'SELECT id FROM controllers WHERE id = $1',
+    let controllerCheck = await client.query<{ id: number; send_interval_seconds: number }>(
+      'SELECT id, send_interval_seconds FROM controllers WHERE id = $1',
       [controllerId]
     )
 
     if (controllerCheck.rowCount === 0) {
-      console.warn(`[controller/report] controller not found id=${controllerId} ip=${ip}`)
-      throw createError({
-        statusCode: 404,
-        statusMessage: `Controller ${controllerId} not found`
-      })
+      await client.query(
+        `INSERT INTO controllers (id, name, discription, send_interval_seconds)
+         VALUES ($1, $2, $3, 30)
+         ON CONFLICT (id) DO NOTHING`,
+        [
+          controllerId,
+          `controller-${controllerId}`,
+          `Auto-registered controller from ${ip}`
+        ]
+      )
+
+      controllerCheck = await client.query<{ id: number; send_interval_seconds: number }>(
+        'SELECT id, send_interval_seconds FROM controllers WHERE id = $1',
+        [controllerId]
+      )
+
+      console.info(`[controller/report] auto-registered controller id=${controllerId} ip=${ip}`)
     }
+
+    sendIntervalSeconds = controllerCheck.rows[0].send_interval_seconds
+
+    await ensureControllerPinConfigs(
+      client,
+      controllerId,
+      readings.map((reading) => reading.pin)
+    )
 
     for (const reading of readings) {
       await client.query(
@@ -99,6 +132,44 @@ export default defineEventHandler(async (event) => {
         [reading.pin, reading.value, controllerId]
       )
     }
+
+    await pruneControllerHistory(client)
+
+    await applyControllerScenarios(client, controllerId, readings)
+
+    await client.query(
+      `UPDATE controller_pin_config
+       SET desired_digital_value = 0,
+           desired_digital_updated_at = NULL
+       WHERE controller_id = $1
+         AND digital_style = 'power'
+         AND desired_digital_value = 1
+         AND power_on_duration_seconds IS NOT NULL
+         AND desired_digital_updated_at IS NOT NULL
+         AND desired_digital_updated_at + (power_on_duration_seconds::text || ' seconds')::interval <= NOW()`,
+      [controllerId]
+    )
+
+    const digitalOutputsResult = await client.query<DigitalOutputCommand>(
+      `SELECT pin,
+              CASE
+                WHEN COALESCE(invert_digital_logic, FALSE)
+                  THEN CASE WHEN desired_digital_value > 0 THEN 0 ELSE 1 END
+                ELSE CASE WHEN desired_digital_value > 0 THEN 1 ELSE 0 END
+              END AS value
+       FROM controller_pin_config
+       WHERE controller_id = $1
+         AND digital_style = 'power'
+         AND desired_digital_value IS NOT NULL
+         AND pin ~ '^D[0-9]+$'
+       ORDER BY sort_order ASC, pin ASC`,
+      [controllerId]
+    )
+
+    digitalOutputs = digitalOutputsResult.rows.reduce<Record<string, 0 | 1>>((acc, row) => {
+      acc[row.pin] = row.value > 0 ? 1 : 0
+      return acc
+    }, {})
 
     await client.query('COMMIT')
     console.info(
@@ -112,5 +183,8 @@ export default defineEventHandler(async (event) => {
     client.release()
   }
 
-  return {}
+  return {
+    send_interval_seconds: sendIntervalSeconds,
+    digital_outputs: digitalOutputs
+  }
 })

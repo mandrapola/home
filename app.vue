@@ -9,6 +9,7 @@
       <nav class="nav">
         <NuxtLink to="/" class="nav__link" active-class="nav__link--active">Дашборд</NuxtLink>
         <NuxtLink to="/scenes" class="nav__link" active-class="nav__link--active">Сценарии</NuxtLink>
+        <NuxtLink to="/parameters" class="nav__link" active-class="nav__link--active">Параметры</NuxtLink>
         <NuxtLink to="/schedule" class="nav__link" active-class="nav__link--active">Расписание</NuxtLink>
         <NuxtLink to="/settings" class="nav__link" active-class="nav__link--active">Настройки</NuxtLink>
       </nav>

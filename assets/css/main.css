@@ -172,9 +172,8 @@ h3 {
   background: var(--surface-soft);
   border-radius: 14px;
   padding: 0.8rem;
-  cursor: pointer;
   display: grid;
-  gap: 0.15rem;
+  gap: 0.7rem;
   transition: 0.2s ease;
 }
 
@@ -191,15 +190,66 @@ h3 {
   font-weight: 700;
 }
 
+.controller-item__select {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  display: grid;
+  gap: 0.15rem;
+  color: inherit;
+  font: inherit;
+}
+
 .controller-item__meta,
 .controller-item__desc {
   font-size: 0.84rem;
   color: var(--muted);
 }
 
+.controller-item__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.controller-item__settings {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 0.45rem 0.8rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .right-stack {
   display: grid;
   gap: 1rem;
+}
+
+.settings-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 24, 19, 0.45);
+  backdrop-filter: blur(3px);
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 1.2rem;
+}
+
+.settings-modal {
+  width: min(1080px, 100%);
+  max-height: min(90vh, 920px);
+  overflow: auto;
+}
+
+.settings-modal__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
 }
 
 .panel-head {
@@ -223,9 +273,30 @@ h3 {
   background: var(--surface-soft);
 }
 
+.sensor-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
 .sensor-card__label {
   color: var(--muted);
   font-size: 0.84rem;
+}
+
+.sensor-card__settings-icon {
+  width: 1.9rem;
+  height: 1.9rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .sensor-card__value {
@@ -234,9 +305,166 @@ h3 {
   font-weight: 800;
 }
 
+.sensor-card__value--state {
+  font-size: 1.2rem;
+  line-height: 1.3;
+}
+
+.sensor-card__control {
+  margin-top: 0.85rem;
+}
+
+.sensor-card__power-time {
+  margin: 0 0 0.55rem;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.sensor-card__power-time--countdown {
+  color: var(--accent);
+}
+
+.sensor-card__power-time--elapsed {
+  color: var(--danger);
+}
+
+.sensor-card__switch {
+  width: 100%;
+  justify-content: center;
+  display: inline-flex;
+  align-items: center;
+}
+
+.sensor-card__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.sensor-card__badge-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1rem;
+}
+
+.sensor-card--digital-power-on {
+  background: rgba(23, 123, 82, 0.14);
+  border-color: rgba(23, 123, 82, 0.45);
+}
+
+.sensor-card--digital-power-on.sensor-card__badge,
+.sensor-card--digital-power-on .sensor-card__badge {
+  background: rgba(23, 123, 82, 0.16);
+  color: var(--accent);
+}
+
+.sensor-card--digital-power-off {
+  background: rgba(176, 64, 63, 0.1);
+  border-color: rgba(176, 64, 63, 0.35);
+}
+
+.sensor-card--digital-power-off.sensor-card__badge,
+.sensor-card--digital-power-off .sensor-card__badge {
+  background: rgba(176, 64, 63, 0.14);
+  color: var(--danger);
+}
+
+.sensor-card--digital-access-on {
+  background: rgba(42, 111, 151, 0.14);
+  border-color: rgba(42, 111, 151, 0.35);
+}
+
+.sensor-card--digital-access-on.sensor-card__badge,
+.sensor-card--digital-access-on .sensor-card__badge {
+  background: rgba(42, 111, 151, 0.16);
+  color: #2a6f97;
+}
+
+.sensor-card--digital-access-off {
+  background: rgba(95, 116, 104, 0.12);
+  border-color: rgba(95, 116, 104, 0.3);
+}
+
+.sensor-card--digital-access-off.sensor-card__badge,
+.sensor-card--digital-access-off .sensor-card__badge {
+  background: rgba(95, 116, 104, 0.14);
+  color: #4f6258;
+}
+
+.sensor-card--digital-security-on {
+  background: rgba(176, 64, 63, 0.12);
+  border-color: rgba(176, 64, 63, 0.35);
+}
+
+.sensor-card--digital-security-on.sensor-card__badge,
+.sensor-card--digital-security-on .sensor-card__badge {
+  background: rgba(176, 64, 63, 0.16);
+  color: var(--danger);
+}
+
+.sensor-card--digital-security-off {
+  background: rgba(23, 123, 82, 0.12);
+  border-color: rgba(23, 123, 82, 0.35);
+}
+
+.sensor-card--digital-security-off.sensor-card__badge,
+.sensor-card--digital-security-off .sensor-card__badge {
+  background: rgba(23, 123, 82, 0.16);
+  color: var(--accent);
+}
+
+.sensor-card--digital-signal-on {
+  background: rgba(236, 135, 66, 0.14);
+  border-color: rgba(236, 135, 66, 0.38);
+}
+
+.sensor-card--digital-signal-on.sensor-card__badge,
+.sensor-card--digital-signal-on .sensor-card__badge {
+  background: rgba(236, 135, 66, 0.16);
+  color: var(--accent-2);
+}
+
+.sensor-card--digital-signal-off {
+  background: rgba(95, 116, 104, 0.12);
+  border-color: rgba(95, 116, 104, 0.3);
+}
+
+.sensor-card--digital-signal-off.sensor-card__badge,
+.sensor-card--digital-signal-off .sensor-card__badge {
+  background: rgba(95, 116, 104, 0.14);
+  color: #4f6258;
+}
+
 .sensor-card__unit {
   font-size: 0.9rem;
   font-weight: 600;
+}
+
+.sensor-card__trend {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 0.45rem;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.sensor-card__trend--up {
+  color: var(--accent);
+}
+
+.sensor-card__trend--down {
+  color: var(--danger);
+}
+
+.sensor-card__trend--flat {
+  color: var(--muted);
 }
 
 .sensor-card__time {
@@ -363,6 +591,117 @@ h3 {
   color: #fff;
 }
 
+.settings-save-button {
+  border: 0;
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.settings-save-button {
+  background: var(--accent);
+  color: #fff;
+}
+
+.settings-save-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.pin-config-list {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.pin-config-card {
+  display: grid;
+  gap: 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 1rem;
+  background: var(--surface-soft);
+}
+
+.pin-config-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.pin-config-grid--controller {
+  grid-template-columns: repeat(3, minmax(200px, 1fr));
+}
+
+.field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.field--checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  align-self: end;
+}
+
+.field--action {
+  align-self: end;
+}
+
+.field__label {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.field__hint {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.field__input,
+.field__textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.7rem 0.8rem;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+}
+
+.field__textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.settings-error {
+  color: var(--danger);
+  margin-bottom: 0.8rem;
+}
+
+.settings-secondary-button {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.7rem 0.9rem;
+  font: inherit;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.settings-secondary-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.settings-secondary-button--danger {
+  border-color: rgba(176, 64, 63, 0.28);
+  color: var(--danger);
+}
+
 .slider-wrap {
   display: grid;
   gap: 0.45rem;
@@ -402,6 +741,10 @@ input[type='range'] {
   .charts-grid {
     grid-template-columns: 1fr;
   }
+
+  .pin-config-grid {
+    grid-template-columns: repeat(2, minmax(140px, 1fr));
+  }
 }
 
 @media (max-width: 640px) {
@@ -423,6 +766,10 @@ input[type='range'] {
   }
 
   .sensor-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pin-config-grid {
     grid-template-columns: 1fr;
   }
 }

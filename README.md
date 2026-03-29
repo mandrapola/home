@@ -126,6 +126,14 @@ docker build -t smart-home-control .
 docker run --rm -p 3000:3000 smart-home-control
 ```
 
+## API тест
+
+Тест очистки истории пинов (регресс на lowercase-пины):
+
+```bash
+docker compose exec -T smart-home npm run test:api
+```
+
 ## Что реализовано
 
 - Дашборд с устройствами и ключевыми метриками дома

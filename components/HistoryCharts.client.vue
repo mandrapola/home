@@ -5,20 +5,28 @@ interface Reading {
   id: number | string
   pin: string
   value: number
+  raw_value: number
+  display_value: number
+  display_text: string
+  label: string
+  unit: string | null
+  show_on_chart: boolean
+  chart_range_hours: number
+  average_interval_minutes: number
   controller_id: number
   created_at: string
 }
 
 interface ChartView {
   pin: string
+  label: string
+  unit: string | null
   labels: string[]
   values: number[]
 }
 
 const props = defineProps<{
   history: Reading[]
-  pinLabel: Record<string, string>
-  valueUnit: Record<string, string>
 }>()
 
 const canvases = ref<Record<string, HTMLCanvasElement | null>>({})
@@ -27,7 +35,9 @@ const chartMap = new Map<string, Chart>()
 const chartPalette: Record<string, { line: string; fill: string }> = {
   thermometer: { line: '#d66b2c', fill: 'rgba(214, 107, 44, 0.22)' },
   pressure: { line: '#2a6f97', fill: 'rgba(42, 111, 151, 0.22)' },
-  humidity: { line: '#2d936c', fill: 'rgba(45, 147, 108, 0.22)' }
+  humidity: { line: '#2d936c', fill: 'rgba(45, 147, 108, 0.22)' },
+  air_temperature: { line: '#d66b2c', fill: 'rgba(214, 107, 44, 0.22)' },
+  air_humidity: { line: '#2d936c', fill: 'rgba(45, 147, 108, 0.22)' }
 }
 
 const groupedCharts = computed<ChartView[]>(() => {
@@ -47,8 +57,10 @@ const groupedCharts = computed<ChartView[]>(() => {
 
     return {
       pin,
+      label: sorted[0]?.label ?? pin,
+      unit: sorted[0]?.unit ?? null,
       labels: sorted.map((item) => new Date(item.created_at).toLocaleTimeString('ru-RU')),
-      values: sorted.map((item) => item.value)
+      values: sorted.map((item) => item.display_value)
     }
   })
 })
@@ -81,7 +93,7 @@ const renderCharts = async () => {
         labels: chartConfig.labels,
         datasets: [
           {
-            label: props.pinLabel[chartConfig.pin] || chartConfig.pin,
+            label: chartConfig.label,
             data: chartConfig.values,
             borderColor: colors.line,
             backgroundColor: colors.fill,
@@ -109,7 +121,7 @@ const renderCharts = async () => {
           y: {
             ticks: {
               callback(value) {
-                return `${value} ${props.valueUnit[chartConfig.pin] || ''}`.trim()
+                return `${value} ${chartConfig.unit || ''}`.trim()
               }
             }
           }
@@ -142,8 +154,8 @@ onBeforeUnmount(() => {
   <div v-else class="charts-grid">
     <article v-for="chart in groupedCharts" :key="chart.pin" class="chart-card">
       <div class="chart-card__head">
-        <h4>{{ pinLabel[chart.pin] || chart.pin }}</h4>
-        <p class="muted">{{ valueUnit[chart.pin] || '' }}</p>
+        <h4>{{ chart.label }}</h4>
+        <p class="muted">{{ chart.unit || '' }}</p>
       </div>
       <div class="chart-card__canvas-wrap">
         <canvas :ref="(el) => (canvases[chart.pin] = el as HTMLCanvasElement | null)" />
