@@ -1,42 +1,84 @@
 services:
   smart-home:
     build:
-      context: .
-      target: dev
-    container_name: smart-home-nuxt
+      context: ./php-app
+      dockerfile: Dockerfile
+    container_name: smart-home-php
     ports:
-      - "0.0.0.0:3000:3000"
-    environment:
-      - HOST=0.0.0.0
-      - PORT=3000
-      - NODE_ENV=development
-      - DATABASE_URL=postgres://smarthome:smarthome@postgres:5432/smarthome
-      - LAN_IP=${LAN_IP:-}
+      - "3000:80"
     depends_on:
-      postgres:
+      mysql:
         condition: service_healthy
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_NAME=smarthome
+      - DB_USER=smarthome
+      - DB_PASSWORD=smarthome
+      - LAN_IP=${LAN_IP:-}
+    volumes:
+      - ./php-app:/var/www/html
+    command: >
+      bash -lc "a2enmod rewrite &&
+      sed -ri -e 's!/var/www/html!/var/www/html/public!g'
+      /etc/apache2/sites-available/*.conf
+      /etc/apache2/apache2.conf
+      /etc/apache2/conf-available/*.conf &&
+      apache2-foreground"
+
+  home-openwrt:
+    image: node:20-alpine
+    container_name: home-openwrt-gateway
+    working_dir: /app/home-openwrt
+    ports:
+      - "3001:3000"
+    environment:
+      - PORT=3000
+      - CLOUD_BASE_URL=https://home.aidvor.ru
+      - CLOUD_HEALTH_PATH=/api/ping
+      - CLOUD_REPORT_PATH=/api/controller/report
+      - CLOUD_SETTINGS_PATH_TEMPLATE=/api/controllers/{id}/settings
+      - HEARTBEAT_INTERVAL_MS=5000
+      - CLOUD_REQUEST_TIMEOUT_MS=1500
+      - STORAGE_PATH=/tmp/home-openwrt-storage
+      - STORAGE_CHECK_INTERVAL_MS=10000
+      - MANUAL_PINS=D3,D4,D5,D6
+      - MANUAL_PIN_INVERT=${MANUAL_PIN_INVERT:-}
+      - DEFAULT_SEND_INTERVAL_SECONDS=5
+    depends_on:
+      - smart-home
     volumes:
       - .:/app
-      - /app/node_modules
-    command: npm run dev -- --host 0.0.0.0 --port 3000
+    command: sh -c "mkdir -p /tmp/home-openwrt-storage && node src/server.js"
 
-  postgres:
-    image: postgres:16-alpine
-    container_name: smart-home-postgres
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: smart-home-cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
     environment:
-      - POSTGRES_DB=smarthome
-      - POSTGRES_USER=smarthome
-      - POSTGRES_PASSWORD=smarthome
+      - TUNNEL_METRICS=0.0.0.0:2000
+    depends_on:
+      - smart-home
+
+  mysql:
+    image: mysql:8.0
+    container_name: smart-home-mysql
+    environment:
+      - MYSQL_DATABASE=smarthome
+      - MYSQL_USER=smarthome
+      - MYSQL_PASSWORD=smarthome
+      - MYSQL_ROOT_PASSWORD=smarthome_root
     ports:
-      - "5432:5432"
+      - "3306:3306"
     volumes:
-      - pg_data:/var/lib/postgresql/data
-      - ./db/init:/docker-entrypoint-initdb.d
+      - mysql_data:/var/lib/mysql
+      - ./db/mysql:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U smarthome -d smarthome"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -psmarthome_root --silent"]
       interval: 5s
       timeout: 5s
       retries: 10
 
 volumes:
-  pg_data:
+  mysql_data:

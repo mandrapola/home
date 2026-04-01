@@ -1,17 +1,8 @@
 {
-  "name": "smart-home-control",
+  "name": "smart-home-tools",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "nuxt dev",
-    "build": "nuxt build",
-    "preview": "nuxt preview",
-    "test:api": "node --test tests/api/history-cleanup.test.mjs"
-  },
-  "dependencies": {
-    "chart.js": "^4.5.1",
-    "nuxt": "^3.19.2",
-    "pg": "^8.16.3",
-    "vue": "^3.5.22"
+    "test:api": "API_BASE_URL=${API_BASE_URL:-http://localhost:3000} node --test tests/api/history-cleanup.test.mjs"
   }
 }
