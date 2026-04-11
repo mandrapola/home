@@ -141,6 +141,7 @@
                 const sourcePin = findPin(conditionForm.pin_id.value);
                 if (!sourcePin) return;
                 const thresholdInput = conditionForm.threshold;
+                const prevOperator = String(conditionForm.operator.value || '').toLowerCase();
 
                 if (isDigitalPinName(sourcePin.pin)) {
                     conditionForm.operator.value = 'eq';
@@ -177,11 +178,12 @@
 
                 if (isCurrentTimePin(sourcePin.pin)) {
                     conditionForm.operator.innerHTML = '<option value="gt">&gt;</option><option value="lt">&lt;</option>';
-                    conditionForm.operator.value = ['gt', 'lt'].includes(conditionForm.operator.value) ? conditionForm.operator.value : 'gt';
+                    conditionForm.operator.value = ['gt', 'lt'].includes(prevOperator) ? prevOperator : 'gt';
                     thresholdInput.type = 'time';
                     thresholdInput.step = '1';
                 } else {
                     conditionForm.operator.innerHTML = '<option value="gt">&gt;</option><option value="gte">&gt;=</option><option value="lt">&lt;</option><option value="lte">&lt;=</option><option value="eq">=</option><option value="ne">!=</option>';
+                    conditionForm.operator.value = ['gt', 'gte', 'lt', 'lte', 'eq', 'ne'].includes(prevOperator) ? prevOperator : 'gt';
                     thresholdInput.type = 'number';
                     thresholdInput.step = '0.01';
                 }

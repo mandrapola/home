@@ -143,8 +143,7 @@ class ControllerReportController extends Controller
 
     private function isDigitalPin(string $pin): bool
     {
-        return preg_match('/^D[0-9]+$/i', $pin) === 1
-            || preg_match('/^RELAY_[0-9]+$/i', $pin) === 1;
+        return preg_match('/^RELAY_[0-9]+$/i', $pin) === 1;
     }
 
     private function isAnalogPin(string $pin): bool
@@ -500,7 +499,8 @@ class ControllerReportController extends Controller
                 $invertDigitalLogic = ((int) ($row->invert_digital_logic ?? 0)) > 0;
 
                 $wireDesired = $invertDigitalLogic ? (1 - $desired) : $desired;
-                $digitalOutputs[strtolower((string) $row->pin)] = ((int) $wireDesired) > 0 ? 1 : 0;
+                $pinKey = strtolower($this->normalizePin((string) $row->pin));
+                $digitalOutputs[$pinKey] = ((int) $wireDesired) > 0 ? 1 : 0;
             }
 
             return [

@@ -145,6 +145,22 @@ curl -X POST http://localhost:3000/api/controller/report \
 
 - `db/mysql/000_clean_hosting_schema.sql`
 
+## Деплой на хостинг по FTP
+
+1. Подготовьте конфиг:
+```bash
+cp deploy/ftp.env.example deploy/ftp.env
+```
+
+2. Заполните `deploy/ftp.env` параметрами вашего хостинга.
+
+3. Запустите деплой:
+```bash
+bash scripts/deploy-ftp.sh
+```
+
+Скрипт копирует папку `php-app` в `FTP_REMOTE_DIR` и не затирает локальные чувствительные файлы (`.env`) и runtime-кеш/логи.
+
 Если volume ранее создавался под другую схему:
 
 ```bash
