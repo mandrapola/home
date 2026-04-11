@@ -1,0 +1,33 @@
+.app-dialog{ width:95%; border:1px solid #d6deef; border-radius:12px; padding:16px; }
+.app-dialog--sm{ max-width:560px; }
+.modal-form{ display:grid; gap:10px; }
+.modal-form--single{ grid-template-columns:1fr; }
+.modal-title{ margin:0 0 6px; }
+.modal-actions{ display:flex; justify-content:flex-end; gap:8px; }
+.switch{ border-radius:999px; padding:4px 12px; }
+.checkbox-row{ display:flex; align-items:center; gap:8px; margin:0; }
+
+.pin-chart{
+  margin-top:8px;
+  min-height:140px;
+  border:1px solid #d6deef;
+  border-radius:10px;
+  background:#f7f9ff;
+  color:#2563eb;
+  padding:8px;
+}
+
+.pin-chart-svg{
+  display:block;
+  width:100%;
+  height:110px;
+}
+
+.pin-chart-legend{
+  margin-top:6px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  font-size:12px;
+  color:#64748b;
+}

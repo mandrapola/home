@@ -9,10 +9,9 @@ docker compose up -d --build
 ```
 
 Сервисы:
-- `smart-home` (PHP/Apache): `http://localhost:3000`
-- `mysql`: `localhost:3306`
-- `home-openwrt` gateway: `http://localhost:3001`
-- `cloudflared` (опционально, через `.env`)
+- `server` (PHP/Apache): `http://localhost:3000`
+- `db` (MySQL): `localhost:3306`
+- `getaway` (home-openwrt gateway): `http://localhost:3001`
 
 Node в корне репозитория используется только как вспомогательный tooling (например, `npm run test:api`).
 
@@ -20,10 +19,10 @@ Node в корне репозитория используется только 
 npm run test:api
 ```
 
-Для запуска теста из контейнера `home-openwrt` укажите адрес PHP-сервера:
+Для запуска теста из контейнера `getaway` укажите адрес PHP-сервера:
 
 ```bash
-API_BASE_URL=http://smart-home npm run test:api
+API_BASE_URL=http://server npm run test:api
 ```
 
 ## Актуальная структура сервера
@@ -45,7 +44,7 @@ API_BASE_URL=http://smart-home npm run test:api
 curl -X POST http://localhost:3000/api/controller/report \
   -H "Content-Type: application/json" \
   -d '{
-    "controller_id": 1,
+    "controller_id": "019d5529-ceee-7748-b9a8-a2e3ce1e8b8f",
     "readings": [
       { "pin": "D3", "value": 0 },
       { "pin": "air_temperature", "value": 23.4 },
@@ -59,14 +58,22 @@ curl -X POST http://localhost:3000/api/controller/report \
 ```json
 {
   "send_interval_seconds": 5,
-  "digital_outputs": {
-    "D3": 0,
-    "D4": 0,
-    "D5": 0,
-    "D6": 0
-  }
+  "digital_outputs": {},
+  "pairing_code": "4821",
+  "pairing_code_expires_at": "2026-04-05T10:30:00+00:00"
 }
 ```
+
+`pairing_code` передается только когда пользователь запустил привязку контроллера.
+
+## Привязка контроллера к пользователю
+
+1. Пользователь входит в веб-интерфейс (`/dashboard`) и выбирает контроллер.
+2. Нажимает `Запросить 4-значный код`.
+3. Сервер сохраняет pending-сессию привязки на 5 минут.
+4. Контроллер получает `pairing_code` в ответе `/api/controller/report` и отображает его на TM1637.
+5. Пользователь вводит код в форме и нажимает `Привязать контроллер`.
+6. Сервер подтверждает код и создает связь `controller_user` с ролью `owner`.
 
 ## Страницы UI (PHP)
 
@@ -128,11 +135,15 @@ curl -X POST http://localhost:3000/api/controller/report \
 - расписание (клиентский режим);
 - API для контроллера и управления пинами.
 
-Legacy-код Nuxt удален из корня проекта.
+Старый Nuxt-код удален из корня проекта.
 
 ## Важное по БД
 
 Для первой инициализации используется `db/mysql/001_schema.sql`.
+
+Для установки на обычный хостинг (чистая структура без данных, совместимо с MySQL/MariaDB) используйте:
+
+- `db/mysql/000_clean_hosting_schema.sql`
 
 Если volume ранее создавался под другую схему:
 

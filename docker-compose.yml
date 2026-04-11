@@ -1,40 +1,48 @@
 services:
-  smart-home:
+  server:
     build:
       context: ./php-app
       dockerfile: Dockerfile
-    container_name: smart-home-php
+    container_name: server
     ports:
       - "3000:80"
     depends_on:
-      mysql:
+      db:
         condition: service_healthy
     environment:
-      - DB_HOST=mysql
+      - DB_HOST=db
       - DB_PORT=3306
       - DB_NAME=smarthome
       - DB_USER=smarthome
       - DB_PASSWORD=smarthome
-      - LAN_IP=${LAN_IP:-}
+      - PROXY_HMAC_REQUIRED=${PROXY_HMAC_REQUIRED:-false}
+      - PROXY_HMAC_KEYS=${PROXY_HMAC_KEYS:-}
+      - PROXY_HMAC_PROXY_ID=${PROXY_HMAC_PROXY_ID:-}
+      - PROXY_HMAC_SECRET=${PROXY_HMAC_SECRET:-}
+      - PROXY_HMAC_MAX_SKEW_SECONDS=${PROXY_HMAC_MAX_SKEW_SECONDS:-60}
+      - PROXY_HMAC_NONCE_TTL_SECONDS=${PROXY_HMAC_NONCE_TTL_SECONDS:-300}
     volumes:
       - ./php-app:/var/www/html
     command: >
       bash -lc "a2enmod rewrite &&
-      sed -ri -e 's!/var/www/html!/var/www/html/public!g'
+      mkdir -p /var/www/html/storage/logs /var/www/html/storage/framework/cache /var/www/html/storage/framework/sessions /var/www/html/storage/framework/views /var/www/html/bootstrap/cache &&
+      chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache &&
+      chmod -R ug+rwx /var/www/html/storage /var/www/html/bootstrap/cache &&
+      sed -ri -e 's!/var/www/html(/public)*!/var/www/html/public!g'
       /etc/apache2/sites-available/*.conf
       /etc/apache2/apache2.conf
       /etc/apache2/conf-available/*.conf &&
       apache2-foreground"
 
-  home-openwrt:
+  getaway:
     image: node:20-alpine
-    container_name: home-openwrt-gateway
+    container_name: getaway
     working_dir: /app/home-openwrt
     ports:
       - "3001:3000"
     environment:
       - PORT=3000
-      - CLOUD_BASE_URL=https://home.aidvor.ru
+      - CLOUD_BASE_URL=http://server
       - CLOUD_HEALTH_PATH=/api/ping
       - CLOUD_REPORT_PATH=/api/controller/report
       - CLOUD_SETTINGS_PATH_TEMPLATE=/api/controllers/{id}/settings
@@ -45,25 +53,18 @@ services:
       - MANUAL_PINS=D3,D4,D5,D6
       - MANUAL_PIN_INVERT=${MANUAL_PIN_INVERT:-}
       - DEFAULT_SEND_INTERVAL_SECONDS=5
+      - PROXY_HMAC_ENABLED=${PROXY_HMAC_ENABLED:-false}
+      - PROXY_HMAC_PROXY_ID=${PROXY_HMAC_PROXY_ID:-}
+      - PROXY_HMAC_SECRET=${PROXY_HMAC_SECRET:-}
     depends_on:
-      - smart-home
+      - server
     volumes:
       - .:/app
     command: sh -c "mkdir -p /tmp/home-openwrt-storage && node src/server.js"
 
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: smart-home-cloudflared
-    restart: unless-stopped
-    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
-    environment:
-      - TUNNEL_METRICS=0.0.0.0:2000
-    depends_on:
-      - smart-home
-
-  mysql:
+  db:
     image: mysql:8.0
-    container_name: smart-home-mysql
+    container_name: db
     environment:
       - MYSQL_DATABASE=smarthome
       - MYSQL_USER=smarthome
