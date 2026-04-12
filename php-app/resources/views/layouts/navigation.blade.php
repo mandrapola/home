@@ -1,4 +1,4 @@
-<nav class="navbar navbar-expand-lg bg-white border-bottom">
+<nav class="navbar navbar-expand-lg theme-navbar">
     <div class="container">
         <a class="navbar-brand" href="{{ route('dashboard') }}">{{ config('app.name', 'Laravel') }}</a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
@@ -19,7 +19,7 @@
                 <li class="nav-item">
                     <a class="nav-link {{ request()->routeIs('profile.edit') ? 'active' : '' }}" href="{{ route('profile.edit') }}">{{ __('Profile') }}</a>
                 </li>
-                <li class="nav-item text-secondary small d-none d-lg-block">{{ Auth::user()->email }}</li>
+                <li class="nav-item text-muted small d-none d-lg-block">{{ Auth::user()->email }}</li>
                 <li class="nav-item">
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf

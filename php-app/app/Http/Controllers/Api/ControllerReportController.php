@@ -154,41 +154,59 @@ class ControllerReportController extends Controller
 
     private function defaultPinConfig(string $pin): array
     {
-        $normalizedLower = strtolower($pin);
-        $isDigital = $this->isDigitalPin($pin);
-        $isAnalog = $this->isAnalogPin($pin);
+        $normalizedPin = strtoupper(trim($pin));
+        $normalizedLower = strtolower($normalizedPin);
+        $isDigital = $this->isDigitalPin($normalizedPin);
+        $isAnalog = $this->isAnalogPin($normalizedPin);
 
-        $label = $pin;
-        if ($isDigital) {
-            $label = 'Цифровой порт ' . strtoupper($pin);
-        } elseif ($normalizedLower === 'air_temperature') {
-            $label = 'Температура воздуха';
-        } elseif ($normalizedLower === 'air_humidity') {
-            $label = 'Влажность воздуха';
-        } elseif ($isAnalog) {
-            $label = 'Аналоговый порт ' . strtoupper($pin);
-        }
+        $known = [
+            'RELAY_1' => ['label' => 'Реле 1 (полив/линия 1)', 'digital_style' => 'power', 'unit' => null, 'show_on_chart' => 0, 'chart_range_hours' => 1],
+            'RELAY_2' => ['label' => 'Реле 2 (полив/линия 2)', 'digital_style' => 'power', 'unit' => null, 'show_on_chart' => 0, 'chart_range_hours' => 1],
+            'RELAY_3' => ['label' => 'Реле 3 (вентиляция/линия 3)', 'digital_style' => 'power', 'unit' => null, 'show_on_chart' => 0, 'chart_range_hours' => 1],
+            'RELAY_4' => ['label' => 'Реле 4 (освещение/линия 4)', 'digital_style' => 'power', 'unit' => null, 'show_on_chart' => 0, 'chart_range_hours' => 1],
+            'SOIL_MOISTURE_RAW' => ['label' => 'Влажность почвы (сырой ADC)', 'digital_style' => 'sensor_humidity', 'unit' => 'ADC', 'show_on_chart' => 1, 'chart_range_hours' => 24],
+            'LIGHT_LEVEL_RAW' => ['label' => 'Уровень освещенности (сырой ADC)', 'digital_style' => 'sensor_light', 'unit' => 'ADC', 'show_on_chart' => 1, 'chart_range_hours' => 24],
+            'TANK_LEVEL_RAW' => ['label' => 'Уровень воды в баке (сырой ADC)', 'digital_style' => 'sensor_level', 'unit' => 'ADC', 'show_on_chart' => 1, 'chart_range_hours' => 24],
+            'WATER_PRESSURE_RAW' => ['label' => 'Давление воды (сырой ADC)', 'digital_style' => 'sensor_pressure', 'unit' => 'ADC', 'show_on_chart' => 1, 'chart_range_hours' => 24],
+            'ANALOG_SPARE_1_RAW' => ['label' => 'Аналоговый вход A4 (резерв)', 'digital_style' => 'sensor', 'unit' => 'ADC', 'show_on_chart' => 1, 'chart_range_hours' => 24],
+            'ANALOG_SPARE_2_RAW' => ['label' => 'Аналоговый вход A5 (резерв)', 'digital_style' => 'sensor', 'unit' => 'ADC', 'show_on_chart' => 1, 'chart_range_hours' => 24],
+            'AIR_HUMIDITY' => ['label' => 'Влажность воздуха', 'digital_style' => 'sensor_humidity', 'unit' => '%', 'show_on_chart' => 1, 'chart_range_hours' => 24],
+            'AIR_TEMPERATURE' => ['label' => 'Температура воздуха', 'digital_style' => 'sensor_temperature', 'unit' => '°C', 'show_on_chart' => 1, 'chart_range_hours' => 24],
+        ];
 
-        $unit = null;
-        if ($normalizedLower === 'air_temperature') {
-            $unit = '°C';
-        } elseif ($normalizedLower === 'air_humidity') {
-            $unit = '%';
-        } elseif ($isAnalog) {
-            $unit = 'ADC';
+        $mapped = $known[$normalizedPin] ?? null;
+        $label = $mapped['label'] ?? $normalizedPin;
+        $unit = $mapped['unit'] ?? null;
+        $digitalStyle = $mapped['digital_style'] ?? ($isDigital ? 'power' : 'sensor');
+        $showOnChart = (int) ($mapped['show_on_chart'] ?? ($isAnalog ? 1 : 0));
+        $chartRangeHours = (int) ($mapped['chart_range_hours'] ?? ($isAnalog ? 24 : 1));
+
+        if (! $mapped) {
+            if ($isDigital) {
+                $label = 'Цифровой порт ' . $normalizedPin;
+            } elseif ($normalizedLower === 'air_temperature') {
+                $label = 'Температура воздуха';
+                $unit = '°C';
+            } elseif ($normalizedLower === 'air_humidity') {
+                $label = 'Влажность воздуха';
+                $unit = '%';
+            } elseif ($isAnalog) {
+                $label = 'Аналоговый порт ' . $normalizedPin;
+                $unit = 'ADC';
+            }
         }
 
         return [
-            'pin' => $pin,
+            'pin' => $normalizedPin,
             'label' => $label,
             'unit' => $unit,
             'average_interval_minutes' => 5,
-            'digital_style' => $isDigital ? 'power' : 'sensor',
+            'digital_style' => $digitalStyle,
             'invert_digital_logic' => 0,
             'desired_digital_value' => $isDigital ? 0 : null,
             'power_on_duration_seconds' => null,
-            'show_on_chart' => $isAnalog ? 1 : 0,
-            'chart_range_hours' => $isAnalog ? 24 : 1,
+            'show_on_chart' => $showOnChart,
+            'chart_range_hours' => $chartRangeHours,
             'enable_scenario' => 1,
         ];
     }

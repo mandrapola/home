@@ -152,7 +152,7 @@ class PairingController extends Controller
 
         $pins = DB::table('pin')
             ->where('controller_id', $controllerId)
-            ->where('digital_style', 'sensor')
+            ->where('digital_style', 'like', 'sensor%')
             ->where('show_on_chart', 1)
             ->orderBy('pin')
             ->select(['id', 'pin', 'average_interval_minutes', 'chart_range_hours'])

@@ -6,13 +6,14 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ config('app.name', 'Laravel') }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" href="{{ asset('assets/theme.css') }}">
 </head>
-<body class="bg-body-tertiary">
-    <div class="container py-5">
+<body class="theme-body">
+    <div class="container py-4 py-lg-5">
         <div class="row justify-content-center">
             <div class="col-12 col-md-8 col-lg-5">
                 <div class="text-center mb-3">
-                    <a href="/" class="text-decoration-none fs-4 fw-semibold text-body-emphasis">{{ config('app.name', 'Laravel') }}</a>
+                    <a href="/" class="text-decoration-none fs-4 fw-semibold">{{ config('app.name', 'Laravel') }}</a>
                 </div>
                 <div class="card shadow-sm">
                     <div class="card-body p-4">

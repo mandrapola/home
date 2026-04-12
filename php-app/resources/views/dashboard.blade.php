@@ -70,41 +70,7 @@
     <dialog id="pinSettingsDialog" class="app-dialog app-dialog--sm">
         <form method="dialog" id="pinSettingsForm" class="modal-form modal-form--single">
             <h3 class="modal-title" id="pinSettingsTitle">Настройки пина</h3>
-
-            <label>
-                Название<br>
-                <input name="label" required class="form-full form-control">
-            </label>
-
-            <label data-field-group="analog">
-                Единица<br>
-                <input name="unit" class="form-full form-control">
-            </label>
-
-            <label data-field-group="analog">
-                Среднее за, мин<br>
-                <input name="average_interval_minutes" type="number" min="1" step="1" class="form-full form-control">
-            </label>
-
-            <label data-field-group="analog">
-                Диапазон графика, ч<br>
-                <input name="chart_range_hours" type="number" min="1" step="1" class="form-full form-control">
-            </label>
-
-            <label data-field-group="digital">
-                Таймер auto-off, сек<br>
-                <input name="power_on_duration_seconds" type="time" step="1" class="form-full form-control">
-            </label>
-
-            <label class="checkbox-row" data-field-group="digital">
-                <input name="invert_digital_logic" type="checkbox" class="form-check-input">
-                Инверсия логики
-            </label>
-
-            <label class="checkbox-row" data-field-group="analog">
-                <input name="show_on_chart" type="checkbox" class="form-check-input">
-                Показывать на графике
-            </label>
+            <div id="pinSettingsFields"></div>
 
             <p id="pinSettingsError" class="error modal-error"></p>
 
@@ -114,6 +80,22 @@
             </div>
         </form>
     </dialog>
+
+    <template id="pin-card-template-power">@include('dashboard.pin-cards.power')</template>
+    <template id="pin-card-template-sensor">@include('dashboard.pin-cards.sensor')</template>
+    <template id="pin-card-template-sensor_humidity">@include('dashboard.pin-cards.sensor_humidity')</template>
+    <template id="pin-card-template-sensor_light">@include('dashboard.pin-cards.sensor_light')</template>
+    <template id="pin-card-template-sensor_level">@include('dashboard.pin-cards.sensor_level')</template>
+    <template id="pin-card-template-sensor_pressure">@include('dashboard.pin-cards.sensor_pressure')</template>
+    <template id="pin-card-template-sensor_temperature">@include('dashboard.pin-cards.sensor_temperature')</template>
+
+    <template id="pin-form-template-power">@include('dashboard.pin-forms.power_form')</template>
+    <template id="pin-form-template-sensor">@include('dashboard.pin-forms.sensor_form')</template>
+    <template id="pin-form-template-sensor_humidity">@include('dashboard.pin-forms.sensor_humidity_form')</template>
+    <template id="pin-form-template-sensor_light">@include('dashboard.pin-forms.sensor_light_form')</template>
+    <template id="pin-form-template-sensor_level">@include('dashboard.pin-forms.sensor_level_form')</template>
+    <template id="pin-form-template-sensor_pressure">@include('dashboard.pin-forms.sensor_pressure_form')</template>
+    <template id="pin-form-template-sensor_temperature">@include('dashboard.pin-forms.sensor_temperature_form')</template>
 
     <script src="{{ asset('assets/dashboard.js') }}"></script>
 </x-app-layout>

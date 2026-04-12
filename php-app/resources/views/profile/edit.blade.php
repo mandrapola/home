@@ -34,7 +34,7 @@
                     @endif
 
                     <div id="profileEditForm" class="collapse">
-                        <form method="post" action="{{ route('profile.update') }}" class="border rounded p-3 bg-light">
+                        <form method="post" action="{{ route('profile.update') }}" class="border rounded p-3 theme-form-panel">
                             @csrf
                             @method('patch')
 

@@ -368,14 +368,14 @@
                         } else {
                             item.cond.forEach((c) => {
                                 const row = document.createElement('div');
-                                row.className = 'border rounded p-2 bg-light-subtle';
+                                row.className = 'border rounded p-2 scenario-condition-row';
                                 row.innerHTML = `
                                     <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
                                         <div class="small"><strong>${c.source_pin_label || c.source_pin}</strong> ${opLabel(c.operator)} ${c.source_pin === 'CURRENT_TIME' ? formatSecondsAsTime(c.threshold) : c.threshold}</div>
                                         <div class="d-flex align-items-center gap-2">
                                             <button type="button" class="btn btn-outline-secondary btn-sm js-edit-condition">Ред.</button>
                                             <button type="button" class="btn btn-outline-danger btn-sm js-del-condition">Удалить</button>
-                                            <span class="small text-muted">${Number(c.current_state || 0) > 0 ? 'TRUE' : 'FALSE'}</span>
+                                            <span class="small scenario-condition-state">${Number(c.current_state || 0) > 0 ? 'TRUE' : 'FALSE'}</span>
                                         </div>
                                     </div>
                                 `;
@@ -538,8 +538,22 @@
     </script>
 
     <style>
-        .app-dialog { width: 95%; max-width: 560px; border: 1px solid #d6deef; border-radius: 12px; padding: 16px; }
+        .app-dialog { width: 95%; max-width: 560px; border: 1px solid var(--line); border-radius: 12px; padding: 16px; background: rgba(21, 33, 49, 0.96); color: var(--text); }
         .modal-form { display: grid; gap: 10px; }
         .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+        .scenario-condition-row {
+            background: rgba(10, 20, 33, 0.82);
+            border-color: var(--line) !important;
+            color: var(--text);
+        }
+        .scenario-condition-row .small,
+        .scenario-condition-row strong {
+            color: var(--text);
+        }
+        .scenario-condition-state {
+            color: #cfe2ff;
+            font-weight: 600;
+            letter-spacing: .2px;
+        }
     </style>
 </x-app-layout>
