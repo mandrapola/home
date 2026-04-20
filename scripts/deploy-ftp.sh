@@ -26,9 +26,6 @@ source "${DEPLOY_ENV}"
 
 FTP_PORT="${FTP_PORT:-21}"
 FTP_SSL="${FTP_SSL:-false}"
-FTP_PARALLEL="${FTP_PARALLEL:-4}"
-FTP_PGET="${FTP_PGET:-4}"
-FTP_CONNECTION_LIMIT="${FTP_CONNECTION_LIMIT:-8}"
 
 if [[ "${FTP_SSL}" == "true" ]]; then
   if [[ "${FTP_SSL_VERIFY:-true}" == "false" ]]; then
@@ -45,17 +42,11 @@ echo "Deploy php-app -> ${FTP_HOST}:${FTP_REMOTE_DIR}"
 lftp -u "${FTP_USER}","${FTP_PASS}" -p "${FTP_PORT}" "${FTP_HOST}" <<EOF
 set net:max-retries 2
 set net:timeout 20
-set net:connection-limit ${FTP_CONNECTION_LIMIT}
 set cmd:fail-exit true
-set xfer:clobber true
-set ftp:sync-mode off
 ${SSL_SETTINGS}
 lcd "${APP_DIR}"
 cd "${FTP_REMOTE_DIR}"
 mirror -R --delete --verbose \
-  --parallel=${FTP_PARALLEL} \
-  --use-pget-n=${FTP_PGET} \
-  --only-newer \
   --exclude-glob .git/ \
   --exclude-glob .github/ \
   --exclude-glob node_modules/ \
@@ -67,7 +58,7 @@ mirror -R --delete --verbose \
   --exclude-glob .env \
   --exclude-glob .env.* \
   --exclude-glob docker-compose.yml \
-  .
+  
 bye
 EOF
 

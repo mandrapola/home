@@ -18,7 +18,7 @@
 
 // ===== Network =====
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0x01 };
-char serverHost[] = "192.168.0.201";
+char serverHost[] = "192.168.0.1";
 const uint16_t serverPort = 3001;
 const char reportPath[] = "/api/controller/report";
 
@@ -232,12 +232,12 @@ static void applyDigitalOutputsFromCsv(const char *csv) {
 static void updatePairingDisplayFromCsv(const char *csv) {
   char monitorValue[24];
   if (!findCsvString(csv, "monitor", monitorValue, sizeof(monitorValue))) {
-    pairingDisplay.clear();
+    showConnectionErrorOnDisplay();
     return;
   }
 
   if (monitorValue[0] == '\0' || strcasecmp(monitorValue, "null") == 0) {
-    pairingDisplay.clear();
+    showConnectionErrorOnDisplay();
     return;
   }
 
@@ -272,7 +272,7 @@ static void updatePairingDisplayFromCsv(const char *csv) {
     }
   }
   if (!hasDigit) {
-    pairingDisplay.clear();
+    showConnectionErrorOnDisplay();
     return;
   }
 
@@ -292,16 +292,37 @@ static void showConnectionErrorOnDisplay() {
   pairingDisplay.setSegments(segments);
 }
 
-static bool readHttpBody(EthernetClient &c, char *out, size_t outSize) {
+static bool readHttpBody(EthernetClient &c, char *out, size_t outSize, int *httpStatusCode) {
   bool inBody = false;
   size_t bodyLen = 0;
   char window[4] = { 0, 0, 0, 0 };
+  char statusLine[48];
+  size_t statusLineLen = 0;
+  bool statusParsed = false;
+
+  if (httpStatusCode) {
+    *httpStatusCode = 0;
+  }
 
   unsigned long startedAt = millis();
   while ((millis() - startedAt) < 5000UL) {
     while (c.available()) {
       char ch = (char) c.read();
       if (!inBody) {
+        if (!statusParsed) {
+          if (ch != '\r' && ch != '\n' && statusLineLen + 1 < sizeof(statusLine)) {
+            statusLine[statusLineLen++] = ch;
+            statusLine[statusLineLen] = '\0';
+          }
+          if (ch == '\n') {
+            int parsed = 0;
+            if (sscanf(statusLine, "HTTP/%*d.%*d %d", &parsed) == 1 && httpStatusCode) {
+              *httpStatusCode = parsed;
+            }
+            statusParsed = true;
+          }
+        }
+
         window[0] = window[1];
         window[1] = window[2];
         window[2] = window[3];
@@ -323,6 +344,22 @@ static bool readHttpBody(EthernetClient &c, char *out, size_t outSize) {
 
   out[bodyLen] = '\0';
   return inBody;
+}
+
+static void showHttpStatusErrorOnDisplay(int statusCode) {
+  const uint8_t SEG_E_CHAR = (uint8_t) (SEG_A | SEG_D | SEG_E | SEG_F | SEG_G);
+
+  if (statusCode == 403 || statusCode == 404 || statusCode == 500) {
+    uint8_t digits[3];
+    digits[0] = pairingDisplay.encodeDigit((uint8_t) ((statusCode / 100) % 10));
+    digits[1] = pairingDisplay.encodeDigit((uint8_t) ((statusCode / 10) % 10));
+    digits[2] = pairingDisplay.encodeDigit((uint8_t) (statusCode % 10));
+    const uint8_t segments[] = { SEG_E_CHAR, digits[0], digits[1], digits[2] };
+    pairingDisplay.setSegments(segments);
+    return;
+  }
+
+  showConnectionErrorOnDisplay();
 }
 
 static bool readDht11Stable(float *humidity, float *temperature) {
@@ -394,8 +431,10 @@ static void postMeasurements() {
 
   Serial.println(F("Request sent"));
 
-  if (!readHttpBody(client, responseBody, sizeof(responseBody))) {
+  int httpStatusCode = 0;
+  if (!readHttpBody(client, responseBody, sizeof(responseBody), &httpStatusCode)) {
     Serial.println(F("Invalid HTTP response"));
+    showConnectionErrorOnDisplay();
     client.stop();
     return;
   }
@@ -404,6 +443,15 @@ static void postMeasurements() {
 
   Serial.println(F("Response CSV:"));
   Serial.println(responseBody);
+
+  if (httpStatusCode >= 400) {
+    Serial.print(F("HTTP error: "));
+    Serial.println(httpStatusCode);
+    showHttpStatusErrorOnDisplay(httpStatusCode);
+    Serial.println(F("Request finished"));
+    Serial.println();
+    return;
+  }
 
   long nextIntervalSec = findCsvLong(responseBody, "send_interval_seconds", -1);
   if (nextIntervalSec >= 1 && nextIntervalSec <= 3600) {
@@ -444,7 +492,7 @@ void setup() {
   }
 
   pairingDisplay.setBrightness(0x0f, true);
-  pairingDisplay.clear();
+  showConnectionErrorOnDisplay();
 
   dht.begin();
   delay(1500);
