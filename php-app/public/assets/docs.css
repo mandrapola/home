@@ -1,0 +1,178 @@
+:root {
+    --bg: #0b1320;
+    --bg-soft: #102033;
+    --card: #16283f;
+    --line: #2b4565;
+    --text: #e9f2ff;
+    --muted: #9eb3cc;
+    --accent: #38bdf8;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: "Segoe UI", Tahoma, sans-serif;
+    color: var(--text);
+    background: linear-gradient(160deg, var(--bg), var(--bg-soft));
+}
+
+.wrap {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+.top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    gap: 12px;
+}
+
+.btn {
+    text-decoration: none;
+    color: #052033;
+    background: linear-gradient(135deg, var(--accent), #67e8f9);
+    padding: 9px 14px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 14px;
+    display: inline-block;
+}
+
+.hero,
+.card,
+.block {
+    border: 1px solid var(--line);
+    background: rgba(22, 40, 63, 0.8);
+    border-radius: 16px;
+}
+
+.hero {
+    padding: 18px;
+    margin-bottom: 14px;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+}
+
+.card,
+.block {
+    padding: 14px 16px;
+    margin-bottom: 12px;
+}
+
+h1,
+h2,
+h3 {
+    margin: 0 0 10px;
+}
+
+p,
+li {
+    color: var(--muted);
+}
+
+p {
+    margin: 0 0 10px;
+}
+
+ul,
+ol {
+    margin: 0;
+    padding-left: 18px;
+}
+
+.go,
+.back {
+    color: #c8eeff;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.go {
+    margin-top: 8px;
+    display: inline-block;
+}
+
+.item {
+    border-top: 1px solid var(--line);
+    padding-top: 10px;
+    margin-top: 10px;
+}
+
+pre {
+    border: 1px dashed var(--line);
+    border-radius: 12px;
+    padding: 10px;
+    background: rgba(8, 16, 28, 0.6);
+    color: #c8ddf5;
+    overflow: auto;
+}
+
+code {
+    color: #d5f1ff;
+}
+
+.field-list {
+    display: grid;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.field-item {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 10px 12px;
+    background: rgba(8, 16, 28, 0.45);
+}
+
+.field-title {
+    margin: 0 0 6px;
+    font-size: 1.05rem;
+    color: var(--text);
+    font-weight: 700;
+}
+
+.field-desc {
+    margin: 0;
+    font-size: 0.92rem;
+    line-height: 1.5;
+}
+
+.field-note {
+    margin-top: 12px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 10px 12px;
+    background: rgba(8, 16, 28, 0.45);
+    font-size: 0.92rem;
+    line-height: 1.5;
+}
+
+.api-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+    font-size: 0.93rem;
+}
+
+.api-table th,
+.api-table td {
+    border: 1px solid var(--line);
+    padding: 8px 10px;
+    vertical-align: top;
+}
+
+.api-table th {
+    text-align: left;
+    color: var(--text);
+    background: rgba(8, 16, 28, 0.55);
+}

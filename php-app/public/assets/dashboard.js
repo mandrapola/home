@@ -1,4 +1,6 @@
         (function () {
+            const i18n = window.dashboardI18n || {};
+            const t = (key, fallback) => i18n[key] || fallback || key;
             const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
             const controllersListEl = document.getElementById('controllers-list');
             const controllersEmptyEl = document.getElementById('controllers-empty');
@@ -29,6 +31,30 @@
             let chartsRequestToken = 0;
             let isPinsLoading = false;
             let pinsAutoRefreshTimer = null;
+            const powerPinsPendingSyncUntil = new Map();
+            const powerPinsPendingExpectedValue = new Map();
+
+            function markPowerPinPendingSync(pinId, expectedValue, ttlMs = 10000) {
+                const key = String(pinId);
+                powerPinsPendingSyncUntil.set(key, Date.now() + Math.max(1000, Number(ttlMs) || 10000));
+                powerPinsPendingExpectedValue.set(key, Number(expectedValue) > 0 ? 1 : 0);
+            }
+
+            function clearPowerPinPendingSync(pinId) {
+                const key = String(pinId);
+                powerPinsPendingSyncUntil.delete(key);
+                powerPinsPendingExpectedValue.delete(key);
+            }
+
+            function isPowerPinPendingSync(pinId) {
+                const key = String(pinId);
+                const until = Number(powerPinsPendingSyncUntil.get(key) || 0);
+                if (!Number.isFinite(until) || until <= Date.now()) {
+                    clearPowerPinPendingSync(key);
+                    return false;
+                }
+                return true;
+            }
 
             function setControllerSettingsError(message) {
                 controllerSettingsError.textContent = message || '';
@@ -95,36 +121,6 @@
                 pinSettingsError.textContent = message || '';
             }
 
-            function secondsToTimeString(totalSeconds) {
-                const seconds = Number(totalSeconds);
-                if (!Number.isFinite(seconds) || seconds <= 0) {
-                    return '';
-                }
-                const safe = Math.max(0, Math.trunc(seconds));
-                const h = Math.floor(safe / 3600).toString().padStart(2, '0');
-                const m = Math.floor((safe % 3600) / 60).toString().padStart(2, '0');
-                const s = Math.floor(safe % 60).toString().padStart(2, '0');
-                return `${h}:${m}:${s}`;
-            }
-
-            function timeStringToSeconds(value) {
-                const text = String(value || '').trim();
-                if (!text) {
-                    return null;
-                }
-                const parts = text.split(':');
-                if (parts.length < 2 || parts.length > 3) {
-                    return null;
-                }
-                const h = Number(parts[0] || 0);
-                const m = Number(parts[1] || 0);
-                const s = Number(parts[2] || 0);
-                if (![h, m, s].every((n) => Number.isFinite(n) && n >= 0)) {
-                    return null;
-                }
-                return (Math.trunc(h) * 3600) + (Math.trunc(m) * 60) + Math.trunc(s);
-            }
-
             function openPinSettings(pin) {
                 if (!pin) return;
                 editingPin = pin;
@@ -140,17 +136,13 @@
 
                 const labelEl = pinSettingsForm.querySelector('input[name="label"]');
                 const unitEl = pinSettingsForm.querySelector('input[name="unit"]');
-                const avgEl = pinSettingsForm.querySelector('input[name="average_interval_minutes"]');
                 const rangeEl = pinSettingsForm.querySelector('input[name="chart_range_hours"]');
-                const powerTimerEl = pinSettingsForm.querySelector('input[name="power_on_duration_seconds"]');
                 const invertEl = pinSettingsForm.querySelector('input[name="invert_digital_logic"]');
                 const showOnChartEl = pinSettingsForm.querySelector('input[name="show_on_chart"]');
 
                 if (labelEl) labelEl.value = pin.label || pin.pin || '';
                 if (unitEl) unitEl.value = pin.unit || '';
-                if (avgEl) avgEl.value = String(pin.average_interval_minutes ?? 5);
                 if (rangeEl) rangeEl.value = String(pin.chart_range_hours ?? 24);
-                if (powerTimerEl) powerTimerEl.value = secondsToTimeString(pin.power_on_duration_seconds);
                 if (invertEl) invertEl.checked = Number(pin.invert_digital_logic || 0) > 0;
                 if (showOnChartEl) showOnChartEl.checked = Number(pin.show_on_chart || 0) > 0;
 
@@ -174,10 +166,10 @@
                     card.innerHTML = `
                         <div class="d-flex justify-content-between align-items-start gap-2">
                             <button type="button" class="btn btn-link text-start p-0 text-decoration-none flex-grow-1 controller-select">
-                                <div class="fw-semibold text-body label">${controller.name || 'Контроллер'}</div>
+                                <div class="fw-semibold text-body label">${controller.name || t('controller', 'Controller')}</div>
                                 <div class="text-muted small">${controller.discription}</div>
                             </button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm controller-settings" title="Настройки">⚙</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm controller-settings" title="${t('settings', 'Settings')}">⚙</button>
                         </div>
                     `;
                     card.querySelector('.controller-select').addEventListener('click', () => {
@@ -220,9 +212,20 @@
                 pinsAutoRefreshTimer = setTimeout(tick, getPinsAutoRefreshIntervalMs());
             }
 
+            function sensorIconByStyle(style) {
+                const key = String(style || '').toLowerCase();
+                if (key === 'sensor_humidity') return '💧';
+                if (key === 'sensor_temperature') return '🌡️';
+                if (key === 'sensor_light') return '☀️';
+                if (key === 'sensor_pressure') return '🔵';
+                if (key === 'sensor_level') return '🛢️';
+                return '📟';
+            }
+
             function renderPinCard(pin, existingCol = null) {
                 const isPowerPin = String(pin.digital_style || '') === 'power';
                 const showChart = !isPowerPin && Number(pin.show_on_chart || 0) > 0;
+                const isMonitored = Number(pin.is_monitored || 0) > 0;
                 const rawValue = pin.value;
                 let displayValue = rawValue === null || rawValue === undefined ? '—' : String(rawValue);
                 let unit = pin.unit ? ` ${pin.unit}` : '';
@@ -237,7 +240,7 @@
                 const scenarioEnabled = Number(pin.enable_scenario ?? 1) > 0;
                 const statusUnit = isPowerPin ? '' : unit;
                 const col = document.createElement('div');
-                col.className = 'col-12';
+                col.className = 'col-12 col-md-6 col-xl-3';
                 col.dataset.pinId = String(pin.id);
                 const styleKey = resolveStyleTemplateKey('pin-card-template', pin.digital_style);
                 const article = cloneTemplateRoot(`pin-card-template-${styleKey}`);
@@ -254,9 +257,20 @@
                 const powerSwitchEl = col.querySelector('.pin-power-switch');
                 const scenarioSwitchEl = col.querySelector('.pin-scenario-switch');
 
-                if (labelEl) labelEl.textContent = pin.label || pin.pin;
-                if (codeEl) codeEl.textContent = pin.pin;
+                if (labelEl) {
+                    labelEl.textContent = pin.label || pin.pin;
+                    labelEl.title = pin.label || pin.pin || '';
+                }
+                if (codeEl) {
+                    if (isPowerPin) {
+                        codeEl.remove();
+                    } else {
+                        codeEl.classList.add('pin-code--icon');
+                        codeEl.innerHTML = `<span aria-hidden="true">${sensorIconByStyle(pin.digital_style)}</span>`;
+                    }
+                }
                 if (statusEl) statusEl.textContent = `${displayValue}${statusUnit}`;
+                if (statusEl) statusEl.classList.toggle('pin-status--monitored', isMonitored);
 
                 if (powerSwitchEl) {
                     powerSwitchEl.checked = desiredChecked;
@@ -264,15 +278,14 @@
                 if (scenarioSwitchEl) {
                     scenarioSwitchEl.checked = scenarioEnabled;
                 }
-
                 if (chartMetaEl || chartEl) {
                     if (showChart) {
                         if (chartMetaEl) {
-                            chartMetaEl.textContent = `Усреднение: ${Number(pin.average_interval_minutes || 5)} мин · Диапазон: ${Number(pin.chart_range_hours || 24)} ч`;
+                            chartMetaEl.textContent = `Диапазон: ${Number(pin.chart_range_hours || 24)} ч`;
                         }
                         if (chartEl) {
                             chartEl.dataset.pinId = String(pin.id);
-                            chartEl.textContent = 'Загрузка графика...';
+                            chartEl.textContent = t('chart_loading', 'Loading chart...');
                         }
                     } else {
                         if (chartMetaEl) chartMetaEl.remove();
@@ -295,7 +308,13 @@
                         powerSwitchEl.addEventListener('change', async () => {
                             const nextValue = powerSwitchEl.checked ? 1 : 0;
                             const prevValue = Number(pin.desired_digital_value || 0) > 0 ? 1 : 0;
+                            const prevDesiredUpdatedAt = pin.desired_digital_updated_at ?? null;
+                            const prevEnableScenario = Number(pin.enable_scenario ?? 0);
+                            markPowerPinPendingSync(pin.id, nextValue, getPinsAutoRefreshIntervalMs());
                             setPowerStatus(nextValue);
+                            pin.desired_digital_value = nextValue;
+                            pin.desired_digital_updated_at = new Date().toISOString();
+                            pin.enable_scenario = 0;
                             powerSwitchEl.disabled = true;
                             try {
                                 const response = await fetch(
@@ -316,12 +335,17 @@
                                 if (!response.ok) {
                                     powerSwitchEl.checked = prevValue === 1;
                                     setPowerStatus(prevValue);
-                                    pinsMessageEl.textContent = data.message || 'Не удалось изменить состояние пина.';
+                                    pin.desired_digital_value = prevValue;
+                                    pin.desired_digital_updated_at = prevDesiredUpdatedAt;
+                                    pin.enable_scenario = prevEnableScenario;
+                                    clearPowerPinPendingSync(pin.id);
+                                    pinsMessageEl.textContent = data.message || t('failed_change_pin_state', 'Failed to change pin state.');
                                     return;
                                 }
 
                                 pin.desired_digital_value = Number(data?.pin?.desired_digital_value ?? nextValue);
                                 pin.enable_scenario = Number(data?.pin?.enable_scenario ?? 0);
+                                pin.desired_digital_updated_at = data?.pin?.desired_digital_updated_at ?? pin.desired_digital_updated_at ?? null;
                                 if (scenarioSwitchEl) {
                                     scenarioSwitchEl.checked = false;
                                 }
@@ -330,7 +354,11 @@
                             } catch (_) {
                                 powerSwitchEl.checked = prevValue === 1;
                                 setPowerStatus(prevValue);
-                                pinsMessageEl.textContent = 'Не удалось изменить состояние пина.';
+                                pin.desired_digital_value = prevValue;
+                                pin.desired_digital_updated_at = prevDesiredUpdatedAt;
+                                pin.enable_scenario = prevEnableScenario;
+                                clearPowerPinPendingSync(pin.id);
+                                pinsMessageEl.textContent = t('failed_change_pin_state', 'Failed to change pin state.');
                             } finally {
                                 powerSwitchEl.disabled = false;
                             }
@@ -358,14 +386,21 @@
                                 const data = await response.json();
                                 if (!response.ok) {
                                     scenarioSwitchEl.checked = prevEnabled;
-                                    pinsMessageEl.textContent = data.message || 'Не удалось изменить состояние сценариев для пина.';
+                                    clearPowerPinPendingSync(pin.id);
+                                    pinsMessageEl.textContent = data.message || t('failed_change_pin_scenarios', 'Failed to change scenario state for pin.');
                                     return;
                                 }
                                 pin.enable_scenario = nextEnabled ? 1 : 0;
+                                clearPowerPinPendingSync(pin.id);
+                                if (data?.pin) {
+                                    pin.desired_digital_value = Number(data.pin.desired_digital_value ?? pin.desired_digital_value ?? 0);
+                                    pin.desired_digital_updated_at = data.pin.desired_digital_updated_at ?? pin.desired_digital_updated_at ?? null;
+                                }
                                 pinsMessageEl.textContent = '';
                             } catch (_) {
                                 scenarioSwitchEl.checked = prevEnabled;
-                                pinsMessageEl.textContent = 'Не удалось изменить состояние сценариев для пина.';
+                                clearPowerPinPendingSync(pin.id);
+                                pinsMessageEl.textContent = t('failed_change_pin_scenarios', 'Failed to change scenario state for pin.');
                             } finally {
                                 scenarioSwitchEl.disabled = false;
                             }
@@ -382,30 +417,61 @@
                 return col;
             }
 
+            function extractRelayOrder(pinName) {
+                const text = String(pinName || '').toLowerCase();
+                const match = text.match(/^relay_(\d+)$/);
+                return match ? Number(match[1]) : Number.POSITIVE_INFINITY;
+            }
+
+            function sortPinsForDashboard(pins) {
+                return [...pins].sort((a, b) => {
+                    const aStyle = String(a?.digital_style || '').toLowerCase();
+                    const bStyle = String(b?.digital_style || '').toLowerCase();
+                    const aIsPower = aStyle === 'power';
+                    const bIsPower = bStyle === 'power';
+
+                    if (aIsPower !== bIsPower) {
+                        return aIsPower ? -1 : 1;
+                    }
+
+                    if (aIsPower && bIsPower) {
+                        const aRelay = extractRelayOrder(a?.pin);
+                        const bRelay = extractRelayOrder(b?.pin);
+                        if (aRelay !== bRelay) {
+                            return aRelay - bRelay;
+                        }
+                    }
+
+                    const aPin = String(a?.pin || '').toLowerCase();
+                    const bPin = String(b?.pin || '').toLowerCase();
+                    return aPin.localeCompare(bPin, 'ru');
+                });
+            }
+
             function renderPins(pins) {
-                currentPins = Array.isArray(pins) ? pins : [];
+                currentPins = sortPinsForDashboard(Array.isArray(pins) ? pins : []);
                 pinsListEl.innerHTML = '';
-                if (!Array.isArray(pins) || pins.length === 0) {
-                    pinsMessageEl.textContent = 'Для выбранного контроллера нет пинов.';
+                if (!Array.isArray(currentPins) || currentPins.length === 0) {
+                    pinsMessageEl.textContent = t('pins_not_found', 'No pins found for selected controller.');
                     return;
                 }
 
                 pinsMessageEl.textContent = '';
-                pins.forEach((pin) => {
+                currentPins.forEach((pin) => {
                     renderPinCard(pin);
                 });
                 void loadPinCharts();
             }
 
             function updatePinsInPlace(pins) {
-                currentPins = Array.isArray(pins) ? pins : [];
-                if (!Array.isArray(pins) || pins.length === 0) {
+                currentPins = sortPinsForDashboard(Array.isArray(pins) ? pins : []);
+                if (!Array.isArray(currentPins) || currentPins.length === 0) {
                     pinsListEl.innerHTML = '';
-                    pinsMessageEl.textContent = 'Для выбранного контроллера нет пинов.';
+                    pinsMessageEl.textContent = t('pins_not_found', 'No pins found for selected controller.');
                     return;
                 }
 
-                const nextById = new Map(pins.map((pin) => [String(pin.id), pin]));
+                const nextById = new Map(currentPins.map((pin) => [String(pin.id), pin]));
                 pinsListEl.querySelectorAll('[data-pin-id]').forEach((node) => {
                     const pinId = String(node.getAttribute('data-pin-id') || '');
                     if (!nextById.has(pinId)) {
@@ -413,11 +479,22 @@
                     }
                 });
 
-                pins.forEach((pin) => {
+                currentPins.forEach((pin) => {
                     const pinId = String(pin.id);
                     const existingCol = pinsListEl.querySelector(`[data-pin-id="${pinId}"]`);
-                    const updatedCol = renderPinCard(pin, existingCol);
-                    pinsListEl.appendChild(updatedCol);
+                    if (
+                        existingCol &&
+                        String(pin.digital_style || '').toLowerCase() === 'power' &&
+                        isPowerPinPendingSync(pinId)
+                    ) {
+                        const expected = powerPinsPendingExpectedValue.get(pinId);
+                        const actual = Number(pin.value || 0) > 0 ? 1 : 0;
+                        if (expected !== undefined && actual !== expected) {
+                            return;
+                        }
+                        clearPowerPinPendingSync(pinId);
+                    }
+                    renderPinCard(pin, existingCol);
                 });
 
                 pinsMessageEl.textContent = '';
@@ -427,13 +504,13 @@
             function renderSparkline(container, points, unit) {
                 if (!container) return;
                 if (!Array.isArray(points) || points.length === 0) {
-                    container.textContent = 'Нет данных для графика в выбранном диапазоне.';
+                    container.textContent = t('chart_no_data_range', 'No chart data for selected range.');
                     return;
                 }
 
                 const values = points.map((p) => Number(p.value)).filter((v) => Number.isFinite(v));
                 if (values.length === 0) {
-                    container.textContent = 'Нет корректных данных для графика.';
+                    container.textContent = t('chart_no_valid_data', 'No valid chart data.');
                     return;
                 }
 
@@ -460,12 +537,12 @@
                 const unitText = unit ? ` ${unit}` : '';
 
                 container.innerHTML = `
-                    <svg viewBox="0 0 ${width} ${height}" class="pin-chart-svg" preserveAspectRatio="none" aria-label="График изменения значения">
+                    <svg viewBox="0 0 ${width} ${height}" class="pin-chart-svg" preserveAspectRatio="none" aria-label="${t('chart', 'Chart')}">
                         <polyline points="${path}" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></polyline>
                     </svg>
                     <div class="pin-chart-legend">
-                        <span>min: ${minText}${unitText}</span>
-                        <span>max: ${maxText}${unitText}</span>
+                        <span>${t('min', 'min')}: ${minText}${unitText}</span>
+                        <span>${t('max', 'max')}: ${maxText}${unitText}</span>
                         <span>${firstAt} → ${lastAt}</span>
                     </div>
                 `;
@@ -535,8 +612,8 @@
                 try {
                     if (!selectedControllerId) {
                         pinsListEl.innerHTML = '';
-                        pinsTitleEl.textContent = 'Пины контроллера';
-                        pinsMessageEl.textContent = 'Выберите контроллер слева.';
+                        pinsTitleEl.textContent = t('pins_controller', 'Controller Pins');
+                        pinsMessageEl.textContent = t('select_controller_left', 'Select a controller on the left.');
                         refreshPinsBtn.disabled = true;
                         return;
                     }
@@ -545,7 +622,7 @@
                     pinsTitleEl.textContent = `Пины: ${selected?.name || selectedControllerId}`;
                     if (!silent) {
                         pinsListEl.innerHTML = '';
-                        pinsMessageEl.textContent = 'Загрузка...';
+                        pinsMessageEl.textContent = t('loading', 'Loading...');
                     }
                     refreshPinsBtn.disabled = false;
 
@@ -554,7 +631,7 @@
                     });
                     const data = await response.json();
                     if (!response.ok) {
-                        pinsMessageEl.textContent = data.message || 'Не удалось загрузить пины.';
+                        pinsMessageEl.textContent = data.message || t('failed_load_pins', 'Failed to load pins.');
                         return;
                     }
                     if (silent) {
@@ -587,7 +664,7 @@
                 if (!editingControllerId) return;
                 setControllerSettingsError('');
                 controllerSettingsSaveBtn.disabled = true;
-                controllerSettingsSaveBtn.textContent = 'Сохранение...';
+                controllerSettingsSaveBtn.textContent = t('saving', 'Saving...');
 
                 try {
                     const response = await fetch('/api/pairing/my-controllers/' + encodeURIComponent(editingControllerId) + '/settings', {
@@ -605,7 +682,7 @@
                     });
                     const data = await response.json();
                     if (!response.ok) {
-                        setControllerSettingsError(data.message || 'Не удалось сохранить настройки.');
+                        setControllerSettingsError(data.message || t('failed_save_settings', 'Failed to save settings.'));
                         return;
                     }
 
@@ -613,10 +690,10 @@
                     await loadControllers();
                     schedulePinsAutoRefresh();
                 } catch (_) {
-                    setControllerSettingsError('Не удалось сохранить настройки.');
+                    setControllerSettingsError(t('failed_save_settings', 'Failed to save settings.'));
                 } finally {
                     controllerSettingsSaveBtn.disabled = false;
-                    controllerSettingsSaveBtn.textContent = 'Сохранить';
+                    controllerSettingsSaveBtn.textContent = t('save', 'Save');
                 }
             });
             pinSettingsForm.addEventListener('submit', async (event) => {
@@ -625,22 +702,17 @@
 
                 setPinSettingsError('');
                 pinSettingsSaveBtn.disabled = true;
-                pinSettingsSaveBtn.textContent = 'Сохранение...';
+                pinSettingsSaveBtn.textContent = t('saving', 'Saving...');
 
                 const labelEl = pinSettingsForm.querySelector('input[name="label"]');
                 const unitEl = pinSettingsForm.querySelector('input[name="unit"]');
-                const avgEl = pinSettingsForm.querySelector('input[name="average_interval_minutes"]');
                 const rangeEl = pinSettingsForm.querySelector('input[name="chart_range_hours"]');
-                const powerTimerEl = pinSettingsForm.querySelector('input[name="power_on_duration_seconds"]');
                 const invertEl = pinSettingsForm.querySelector('input[name="invert_digital_logic"]');
                 const showOnChartEl = pinSettingsForm.querySelector('input[name="show_on_chart"]');
-                const powerDurationSeconds = powerTimerEl ? timeStringToSeconds(powerTimerEl.value) : null;
                 const payload = {
                     label: String(labelEl?.value || '').trim(),
                     unit: String(unitEl?.value || '').trim() || null,
-                    average_interval_minutes: Number(avgEl?.value || 5),
                     chart_range_hours: Number(rangeEl?.value || 24),
-                    power_on_duration_seconds: powerDurationSeconds,
                     invert_digital_logic: Boolean(invertEl?.checked),
                     show_on_chart: Boolean(showOnChartEl?.checked),
                 };

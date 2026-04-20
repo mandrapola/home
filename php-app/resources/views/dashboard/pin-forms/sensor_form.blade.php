@@ -1,24 +1,24 @@
 <label>
-    Название<br>
+    {{ __('Name') }}<br>
     <input name="label" required class="form-full form-control">
 </label>
 
 <label>
-    Единица<br>
+    {{ __('Unit') }}<br>
     <input name="unit" class="form-full form-control">
 </label>
 
 <label>
-    Среднее за, мин<br>
-    <input name="average_interval_minutes" type="number" min="1" step="1" class="form-full form-control">
-</label>
-
-<label>
-    Диапазон графика, ч<br>
+    {{ __('Chart Range, h') }}<br>
     <input name="chart_range_hours" type="number" min="1" step="1" class="form-full form-control">
 </label>
 
 <label class="checkbox-row">
     <input name="show_on_chart" type="checkbox" class="form-check-input">
-    Показывать на графике
+    {{ __('Show on Chart') }}
+</label>
+
+<label class="checkbox-row">
+    <input name="is_monitored" type="checkbox" class="form-check-input">
+    {{ __('Monitoring') }}
 </label>

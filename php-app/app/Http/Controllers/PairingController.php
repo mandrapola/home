@@ -106,15 +106,15 @@ class PairingController extends Controller
                 'pin',
                 'label',
                 'unit',
-                'average_interval_minutes',
                 'chart_range_hours',
-                'power_on_duration_seconds',
                 'digital_style',
                 'invert_digital_logic',
                 'value',
                 'value_updated_at',
                 'desired_digital_value',
+                'desired_digital_updated_at',
                 'show_on_chart',
+                'is_monitored',
                 'enable_scenario',
             ])
             ->get();
@@ -155,13 +155,13 @@ class PairingController extends Controller
             ->where('digital_style', 'like', 'sensor%')
             ->where('show_on_chart', 1)
             ->orderBy('pin')
-            ->select(['id', 'pin', 'average_interval_minutes', 'chart_range_hours'])
+            ->select(['id', 'pin', 'chart_range_hours'])
             ->get();
 
         $result = [];
+        $avgMinutes = max(1, (int) config('smarthome.pin_data_average_interval_minutes', 5));
         foreach ($pins as $pin) {
             $pinId = (string) $pin->id;
-            $avgMinutes = max(1, (int) ($pin->average_interval_minutes ?? 5));
             $rangeHours = max(1, (int) ($pin->chart_range_hours ?? 24));
 
             $rows = DB::select(
@@ -237,9 +237,7 @@ class PairingController extends Controller
         $validated = $request->validate([
             'label' => ['required', 'string', 'max:255'],
             'unit' => ['nullable', 'string', 'max:32'],
-            'average_interval_minutes' => ['required', 'integer', 'min:1', 'max:1440'],
             'chart_range_hours' => ['required', 'integer', 'min:1', 'max:720'],
-            'power_on_duration_seconds' => ['nullable', 'integer', 'min:0', 'max:86400'],
             'invert_digital_logic' => ['required', 'boolean'],
             'show_on_chart' => ['required', 'boolean'],
         ]);
@@ -250,9 +248,7 @@ class PairingController extends Controller
             ->update([
                 'label' => (string) $validated['label'],
                 'unit' => isset($validated['unit']) && trim((string) $validated['unit']) !== '' ? (string) $validated['unit'] : null,
-                'average_interval_minutes' => (int) $validated['average_interval_minutes'],
                 'chart_range_hours' => (int) $validated['chart_range_hours'],
-                'power_on_duration_seconds' => isset($validated['power_on_duration_seconds']) ? (int) $validated['power_on_duration_seconds'] : null,
                 'invert_digital_logic' => ! empty($validated['invert_digital_logic']) ? 1 : 0,
                 'show_on_chart' => ! empty($validated['show_on_chart']) ? 1 : 0,
             ]);
@@ -266,9 +262,7 @@ class PairingController extends Controller
                 'pin',
                 'label',
                 'unit',
-                'average_interval_minutes',
                 'chart_range_hours',
-                'power_on_duration_seconds',
                 'digital_style',
                 'invert_digital_logic',
                 'value',

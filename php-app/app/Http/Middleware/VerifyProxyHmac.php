@@ -13,18 +13,10 @@ class VerifyProxyHmac
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $required = filter_var((string) env('PROXY_HMAC_REQUIRED', 'false'), FILTER_VALIDATE_BOOL);
-
         $proxyId = trim((string) $request->header('X-Proxy-Id', ''));
         $timestampRaw = trim((string) $request->header('X-Timestamp', ''));
         $nonce = trim((string) $request->header('X-Nonce', ''));
         $signature = strtolower(trim((string) $request->header('X-Signature', '')));
-
-        $headersProvided = $proxyId !== '' || $timestampRaw !== '' || $nonce !== '' || $signature !== '';
-
-        if (! $required && ! $headersProvided) {
-            return $next($request);
-        }
 
         if ($proxyId === '' || $timestampRaw === '' || $nonce === '' || $signature === '') {
             return response()->json([

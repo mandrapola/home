@@ -23,14 +23,12 @@ return new class extends Migration
                    p.pin,
                    p.label,
                    p.unit,
-                   p.average_interval_minutes,
                    p.digital_style,
                    p.invert_digital_logic,
                    p.value,
                    p.value_updated_at,
                    p.desired_digital_value,
                    p.desired_digital_updated_at,
-                   p.power_on_duration_seconds,
                    p.show_on_chart,
                    p.chart_range_hours,
                    p.enable_scenario
@@ -44,7 +42,7 @@ return new class extends Migration
 
         if (! Schema::hasColumn('pin', 'show_on_dashboard')) {
             Schema::table('pin', function (Blueprint $table): void {
-                $table->boolean('show_on_dashboard')->default(true)->after('power_on_duration_seconds');
+                $table->boolean('show_on_dashboard')->default(true)->after('desired_digital_updated_at');
             });
         }
 
@@ -54,14 +52,12 @@ return new class extends Migration
                    p.pin,
                    p.label,
                    p.unit,
-                   p.average_interval_minutes,
                    p.digital_style,
                    p.invert_digital_logic,
                    p.value,
                    p.value_updated_at,
                    p.desired_digital_value,
                    p.desired_digital_updated_at,
-                   p.power_on_duration_seconds,
                    p.show_on_dashboard,
                    p.show_on_chart,
                    p.chart_range_hours,

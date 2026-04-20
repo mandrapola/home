@@ -12,11 +12,13 @@
 #include <SPI.h>
 #include <Ethernet.h>
 #include <DHT.h>
+#include <TM1637Display.h>
 #include <stdarg.h>
+#include <stdlib.h>
 
 // ===== Network =====
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0x01 };
-char serverHost[] = "192.168.0.1";
+char serverHost[] = "192.168.0.201";
 const uint16_t serverPort = 3001;
 const char reportPath[] = "/api/controller/report";
 
@@ -28,6 +30,12 @@ unsigned long sendIntervalMs = 30000UL;
 const uint8_t DHT_PIN = 2;
 #define DHTTYPE DHT11
 DHT dht(DHT_PIN, DHTTYPE);
+bool hasLastDhtValues = false;
+float lastHumidity = NAN;
+float lastTemperature = NAN;
+const uint8_t TM1637_DIO_PIN = 7;
+const uint8_t TM1637_CLK_PIN = 8;
+TM1637Display pairingDisplay(TM1637_CLK_PIN, TM1637_DIO_PIN);
 
 const uint8_t DIGITAL_PINS[] = { 3, 9, 5, 6 };
 const char *DIGITAL_KEYS[] = { "relay_1", "relay_2", "relay_3", "relay_4" };
@@ -94,14 +102,26 @@ static bool buildRequestPayload(char *out, size_t outSize, float humidity, float
   }
 
   if (!isnan(humidity)) {
-    if (!appendFmt(out, outSize, &used, "%sair_humidity=%.1f", first ? "" : ";", humidity)) {
+    char humidityBuf[16];
+    dtostrf(humidity, 0, 1, humidityBuf);
+    char *humidityValue = humidityBuf;
+    while (*humidityValue == ' ') {
+      humidityValue++;
+    }
+    if (!appendFmt(out, outSize, &used, "%sair_humidity=%s", first ? "" : ";", humidityValue)) {
       return false;
     }
     first = false;
   }
 
   if (!isnan(temperature)) {
-    if (!appendFmt(out, outSize, &used, "%sair_temperature=%.1f", first ? "" : ";", temperature)) {
+    char temperatureBuf[16];
+    dtostrf(temperature, 0, 1, temperatureBuf);
+    char *temperatureValue = temperatureBuf;
+    while (*temperatureValue == ' ') {
+      temperatureValue++;
+    }
+    if (!appendFmt(out, outSize, &used, "%sair_temperature=%s", first ? "" : ";", temperatureValue)) {
       return false;
     }
   }
@@ -155,6 +175,50 @@ static long findCsvLong(const char *csv, const char *key, long fallback) {
   return fallback;
 }
 
+static bool findCsvString(const char *csv, const char *key, char *out, size_t outSize) {
+  if (outSize == 0) {
+    return false;
+  }
+
+  const size_t keyLen = strlen(key);
+  const char *p = csv;
+
+  while (*p) {
+    while (*p == ';' || *p == ' ' || *p == '\r' || *p == '\n' || *p == '\t') {
+      p++;
+    }
+    if (*p == '\0') {
+      break;
+    }
+
+    const char *eq = strchr(p, '=');
+    if (!eq) {
+      break;
+    }
+
+    size_t tokenKeyLen = (size_t) (eq - p);
+    if (tokenKeyLen == keyLen && strncasecmp(p, key, keyLen) == 0) {
+      const char *valueStart = eq + 1;
+      const char *sep = strchr(valueStart, ';');
+      size_t valueLen = sep ? (size_t) (sep - valueStart) : strlen(valueStart);
+      if (valueLen + 1 > outSize) {
+        valueLen = outSize - 1;
+      }
+      memcpy(out, valueStart, valueLen);
+      out[valueLen] = '\0';
+      return true;
+    }
+
+    const char *sep = strchr(eq + 1, ';');
+    if (!sep) {
+      break;
+    }
+    p = sep + 1;
+  }
+
+  return false;
+}
+
 static void applyDigitalOutputsFromCsv(const char *csv) {
   for (size_t i = 0; i < DIGITAL_COUNT; i++) {
     long v = findCsvLong(csv, DIGITAL_KEYS[i], -1);
@@ -163,6 +227,69 @@ static void applyDigitalOutputsFromCsv(const char *csv) {
     }
     digitalWrite(DIGITAL_PINS[i], v > 0 ? HIGH : LOW);
   }
+}
+
+static void updatePairingDisplayFromCsv(const char *csv) {
+  char monitorValue[24];
+  if (!findCsvString(csv, "monitor", monitorValue, sizeof(monitorValue))) {
+    pairingDisplay.clear();
+    return;
+  }
+
+  if (monitorValue[0] == '\0' || strcasecmp(monitorValue, "null") == 0) {
+    pairingDisplay.clear();
+    return;
+  }
+
+  bool allDigits = true;
+  size_t monitorLen = strlen(monitorValue);
+  if (monitorLen == 4) {
+    for (size_t i = 0; i < monitorLen; i++) {
+      if (monitorValue[i] < '0' || monitorValue[i] > '9') {
+        allDigits = false;
+        break;
+      }
+    }
+    if (allDigits) {
+      int codeValue = atoi(monitorValue);
+      pairingDisplay.showNumberDecEx(codeValue, 0, true, 4, 0);
+      return;
+    }
+  }
+
+  int hh = 0;
+  int mm = 0;
+  if (sscanf(monitorValue, "%d:%d", &hh, &mm) == 2 && hh >= 0 && hh <= 23 && mm >= 0 && mm <= 59) {
+    pairingDisplay.showNumberDecEx((hh * 100) + mm, 0x40, true, 4, 0);
+    return;
+  }
+
+  bool hasDigit = false;
+  for (size_t i = 0; monitorValue[i] != '\0'; i++) {
+    if (monitorValue[i] >= '0' && monitorValue[i] <= '9') {
+      hasDigit = true;
+      break;
+    }
+  }
+  if (!hasDigit) {
+    pairingDisplay.clear();
+    return;
+  }
+
+  float numeric = atof(monitorValue);
+  int shown = (int) (numeric >= 0.0f ? (numeric + 0.5f) : (numeric - 0.5f));
+
+  if (shown > 9999) shown = 9999;
+  if (shown < -999) shown = -999;
+  pairingDisplay.showNumberDec(shown, false, 4, 0);
+}
+
+static void showConnectionErrorOnDisplay() {
+  // "Err " on 4-digit TM1637.
+  const uint8_t SEG_E_CHAR = (uint8_t) (SEG_A | SEG_D | SEG_E | SEG_F | SEG_G);
+  const uint8_t SEG_r_CHAR = (uint8_t) (SEG_E | SEG_G);
+  const uint8_t segments[] = { SEG_E_CHAR, SEG_r_CHAR, SEG_r_CHAR, 0x00 };
+  pairingDisplay.setSegments(segments);
 }
 
 static bool readHttpBody(EthernetClient &c, char *out, size_t outSize) {
@@ -198,15 +325,41 @@ static bool readHttpBody(EthernetClient &c, char *out, size_t outSize) {
   return inBody;
 }
 
-static void postMeasurements() {
-  float humidity = dht.readHumidity();
-  float temperature = dht.readTemperature();
+static bool readDht11Stable(float *humidity, float *temperature) {
+  for (uint8_t attempt = 0; attempt < 3; attempt++) {
+    bool force = attempt > 0;
+    float h = dht.readHumidity(force);
+    float t = dht.readTemperature(force);
 
-  if (isnan(humidity)) {
-    Serial.println(F("DHT11 humidity read failed"));
+    if (!isnan(h) && !isnan(t)) {
+      *humidity = h;
+      *temperature = t;
+      return true;
+    }
+
+    // DHT11 often needs an extra moment after a failed frame.
+    delay(1200);
   }
-  if (isnan(temperature)) {
-    Serial.println(F("DHT11 temperature read failed"));
+
+  return false;
+}
+
+static void postMeasurements() {
+  float humidity = NAN;
+  float temperature = NAN;
+  bool dhtOk = readDht11Stable(&humidity, &temperature);
+
+  if (!dhtOk) {
+    Serial.println(F("DHT11 read failed"));
+    if (hasLastDhtValues) {
+      humidity = lastHumidity;
+      temperature = lastTemperature;
+      Serial.println(F("Using last valid DHT11 values"));
+    }
+  } else {
+    hasLastDhtValues = true;
+    lastHumidity = humidity;
+    lastTemperature = temperature;
   }
 
   if (!buildRequestPayload(requestPayload, sizeof(requestPayload), humidity, temperature)) {
@@ -219,6 +372,7 @@ static void postMeasurements() {
 
   if (!client.connect(serverHost, serverPort)) {
     Serial.println(F("Connection failed"));
+    showConnectionErrorOnDisplay();
     return;
   }
 
@@ -257,6 +411,7 @@ static void postMeasurements() {
   }
 
   applyDigitalOutputsFromCsv(responseBody);
+  updatePairingDisplayFromCsv(responseBody);
 
   Serial.println(F("Request finished"));
   Serial.println();
@@ -287,6 +442,9 @@ void setup() {
     pinMode(DIGITAL_PINS[i], OUTPUT);
     digitalWrite(DIGITAL_PINS[i], LOW);
   }
+
+  pairingDisplay.setBrightness(0x0f, true);
+  pairingDisplay.clear();
 
   dht.begin();
   delay(1500);

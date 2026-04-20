@@ -115,8 +115,9 @@
 <body>
 <div class="shell">
     <div class="top">
-        <div class="brand">Smart Home Control</div>
+        <div class="brand">Aidvor Control</div>
         <div class="nav">
+            <a href="{{ route('home-arduino') }}" class="btn">Гид Aidvor</a>
             @if (Route::has('login'))
                 @auth
                     <a href="{{ url('/dashboard') }}" class="btn btn-primary">Открыть дашборд</a>
@@ -132,7 +133,7 @@
 
     <div class="hero">
         <section class="panel">
-            <h1>Платформа управления<br>умным домом и теплицей</h1>
+            <h1>Платформа управления<br>умным двором</h1>
             <p>Контроллеры отправляют телеметрию на сервер, сценарии принимают решения, а вы управляете всем из единого интерфейса.</p>
             <p>Система поддерживает автоматизацию реле, мониторинг датчиков и режим привязки контроллеров к пользователю.</p>
 

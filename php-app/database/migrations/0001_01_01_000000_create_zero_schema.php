@@ -14,6 +14,7 @@ return new class extends Migration
             $table->string('name');
             $table->string('email')->unique();
             $table->string('time_zone', 64)->default('Europe/Moscow');
+            $table->string('locale', 8)->default('ru');
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->rememberToken();
@@ -127,15 +128,14 @@ return new class extends Migration
             $table->string('pin', 64);
             $table->string('label', 255);
             $table->string('unit', 32)->nullable();
-            $table->integer('average_interval_minutes')->default(5);
             $table->string('digital_style', 32)->default('sensor');
             $table->boolean('invert_digital_logic')->default(false);
             $table->double('value')->nullable();
             $table->timestamp('value_updated_at')->nullable();
             $table->tinyInteger('desired_digital_value')->nullable();
             $table->timestamp('desired_digital_updated_at')->nullable();
-            $table->integer('power_on_duration_seconds')->nullable();
             $table->boolean('show_on_chart')->default(false);
+            $table->boolean('is_monitored')->default(false);
             $table->integer('chart_range_hours')->default(1);
             $table->boolean('enable_scenario')->default(true);
 
@@ -192,15 +192,14 @@ return new class extends Migration
                    p.pin,
                    p.label,
                    p.unit,
-                   p.average_interval_minutes,
                    p.digital_style,
                    p.invert_digital_logic,
                    p.value,
                    p.value_updated_at,
                    p.desired_digital_value,
                    p.desired_digital_updated_at,
-                   p.power_on_duration_seconds,
                    p.show_on_chart,
+                   p.is_monitored,
                    p.chart_range_hours,
                    p.enable_scenario
             FROM pin p

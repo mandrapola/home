@@ -17,10 +17,12 @@ class ProfileController extends Controller
     public function edit(Request $request): View
     {
         $timeZones = \DateTimeZone::listIdentifiers();
+        $locales = ['ru', 'en'];
 
         return view('profile.edit', [
             'user' => $request->user(),
             'timeZones' => $timeZones,
+            'locales' => $locales,
         ]);
     }
 
@@ -32,6 +34,7 @@ class ProfileController extends Controller
         $validated = $request->validated();
         $request->user()->fill([
             'name' => (string) $validated['name'],
+            'locale' => (string) $validated['locale'],
             'time_zone' => (string) $validated['time_zone'],
         ]);
         $request->user()->save();

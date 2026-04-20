@@ -1,0 +1,15 @@
+#!/bin/sh
+# Reference post-install script for opkg package home-aidvor.
+# Main postinst logic is embedded in Makefile (Package/home-aidvor/postinst).
+
+set -e
+
+if [ -n "$IPKG_INSTROOT" ]; then
+  exit 0
+fi
+
+[ -x /etc/init.d/home-aidvor ] && /etc/init.d/home-aidvor enable || true
+[ -x /etc/init.d/home-aidvor ] && /etc/init.d/home-aidvor restart || true
+[ -x /etc/init.d/uhttpd ] && /etc/init.d/uhttpd reload || true
+
+exit 0

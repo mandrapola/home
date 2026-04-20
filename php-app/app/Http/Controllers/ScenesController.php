@@ -45,15 +45,14 @@ class ScenesController extends Controller
                 'pin' => 'CURRENT_TIME',
                 'label' => 'Текущее время',
                 'unit' => null,
-                'average_interval_minutes' => 1,
                 'digital_style' => 'sensor',
                 'invert_digital_logic' => 0,
                 'value' => null,
                 'value_updated_at' => null,
                 'desired_digital_value' => null,
                 'desired_digital_updated_at' => null,
-                'power_on_duration_seconds' => null,
                 'show_on_chart' => 0,
+                'is_monitored' => 0,
                 'chart_range_hours' => 1,
                 'enable_scenario' => 1,
             ]);
@@ -99,6 +98,77 @@ class ScenesController extends Controller
     {
         $op = strtolower(trim($operator));
         return in_array($op, ['gt', 'gte', 'lt', 'lte', 'eq', 'ne'], true) ? $op : 'gt';
+    }
+
+    private function resolveControllerTimeSecondsForUser(string $timeZone): float
+    {
+        $tz = in_array($timeZone, \DateTimeZone::listIdentifiers(), true) ? $timeZone : 'Europe/Moscow';
+        $now = Carbon::now($tz);
+        return ((int) $now->format('H') * 3600) + ((int) $now->format('i') * 60) + (int) $now->format('s');
+    }
+
+    private function recalculateScenarioDesiredValue(string $targetPinId, string $timeZone): int
+    {
+        $scenarioRows = DB::table('scenario')
+            ->where('pin_id', $targetPinId)
+            ->select(['id'])
+            ->get();
+
+        if ($scenarioRows->isEmpty()) {
+            return 0;
+        }
+
+        $scenarioIds = $scenarioRows->pluck('id')->map(fn ($id) => (string) $id)->all();
+        $conditionRows = DB::table('scenario_condition')
+            ->whereIn('scenario_id', $scenarioIds)
+            ->select(['scenario_id', 'pin_id', 'operator', 'threshold'])
+            ->get();
+
+        if ($conditionRows->isEmpty()) {
+            return 0;
+        }
+
+        $conditionsByScenarioId = [];
+        $sourcePinIds = [];
+        foreach ($conditionRows as $condition) {
+            $scenarioId = (string) $condition->scenario_id;
+            $conditionsByScenarioId[$scenarioId] ??= [];
+            $conditionsByScenarioId[$scenarioId][] = $condition;
+            $sourcePinIds[] = (string) $condition->pin_id;
+        }
+
+        $sourceValues = DB::table('pin')
+            ->whereIn('id', array_values(array_unique($sourcePinIds)))
+            ->pluck('value', 'id');
+
+        $controllerCurrentTimeSeconds = $this->resolveControllerTimeSecondsForUser($timeZone);
+
+        foreach ($scenarioIds as $scenarioId) {
+            $scenarioConditions = $conditionsByScenarioId[$scenarioId] ?? [];
+            if (count($scenarioConditions) === 0) {
+                continue;
+            }
+
+            $scenarioTrue = true;
+            foreach ($scenarioConditions as $condition) {
+                $sourcePinId = (string) $condition->pin_id;
+                $sourceValue = $sourcePinId === self::SYSTEM_CURRENT_TIME_PIN_ID
+                    ? $controllerCurrentTimeSeconds
+                    : (is_numeric($sourceValues[$sourcePinId] ?? null) ? (float) $sourceValues[$sourcePinId] : null);
+
+                $threshold = is_numeric($condition->threshold) ? (float) $condition->threshold : 0.0;
+                if (! $this->evaluateCondition((string) $condition->operator, $sourceValue, $threshold)) {
+                    $scenarioTrue = false;
+                    break;
+                }
+            }
+
+            if ($scenarioTrue) {
+                return 1;
+            }
+        }
+
+        return 0;
     }
 
     private function userOwnsController(string|int $userId, string $controllerId): bool
@@ -528,10 +598,28 @@ class ScenesController extends Controller
             return response()->json(['error' => 'forbidden', 'message' => 'Target pin is not available'], 403);
         }
 
+        $enabled = ! empty($validated['enabled']) ? 1 : 0;
+        $updates = ['enable_scenario' => $enabled];
+
+        if ($enabled === 1) {
+            $timeZone = (string) ($user->time_zone ?: 'Europe/Moscow');
+            $desired = $this->recalculateScenarioDesiredValue((string) $pinId, $timeZone);
+            $updates['desired_digital_value'] = $desired;
+            $updates['desired_digital_updated_at'] = now();
+        }
+
         DB::table('pin')
             ->where('id', $pinId)
-            ->update(['enable_scenario' => ! empty($validated['enabled']) ? 1 : 0]);
+            ->update($updates);
 
-        return response()->json(['ok' => true, 'enabled' => ! empty($validated['enabled'])]);
+        $pin = DB::table('pin')
+            ->where('id', $pinId)
+            ->first(['id', 'enable_scenario', 'desired_digital_value', 'desired_digital_updated_at']);
+
+        return response()->json([
+            'ok' => true,
+            'enabled' => $enabled === 1,
+            'pin' => $pin,
+        ]);
     }
 }

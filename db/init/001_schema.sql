@@ -34,7 +34,6 @@ CREATE TABLE IF NOT EXISTS controller_pin_config (
   invert_digital_logic BOOLEAN NOT NULL DEFAULT FALSE,
   desired_digital_value INTEGER,
   desired_digital_updated_at TIMESTAMPTZ,
-  power_on_duration_seconds INTEGER,
   show_on_dashboard BOOLEAN NOT NULL DEFAULT TRUE,
   show_on_chart BOOLEAN NOT NULL DEFAULT FALSE,
   chart_range_hours INTEGER NOT NULL DEFAULT 1,
@@ -79,21 +78,21 @@ VALUES (
 )
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO controller_pin_config (controller_id, pin, label, unit, multiplier, value_offset, precision, average_interval_minutes, value_labels, digital_style, invert_digital_logic, desired_digital_value, desired_digital_updated_at, power_on_duration_seconds, show_on_dashboard, show_on_chart, chart_range_hours, sort_order)
+INSERT INTO controller_pin_config (controller_id, pin, label, unit, multiplier, value_offset, precision, average_interval_minutes, value_labels, digital_style, invert_digital_logic, desired_digital_value, desired_digital_updated_at, show_on_dashboard, show_on_chart, chart_range_hours, sort_order)
 VALUES
-  (1, 'D3', 'Цифровой порт D3', NULL, 1, 0, 0, 5, '{"0":"Выключен","1":"Включен"}'::jsonb, 'power', FALSE, NULL, NULL, NULL, TRUE, FALSE, 1, 0),
-  (1, 'D4', 'Цифровой порт D4', NULL, 1, 0, 0, 5, '{"0":"Выключен","1":"Включен"}'::jsonb, 'power', FALSE, NULL, NULL, NULL, TRUE, FALSE, 1, 1),
-  (1, 'D5', 'Цифровой порт D5', NULL, 1, 0, 0, 5, '{"0":"Выключен","1":"Включен"}'::jsonb, 'power', FALSE, NULL, NULL, NULL, TRUE, FALSE, 1, 2),
-  (1, 'D6', 'Цифровой порт D6', NULL, 1, 0, 0, 5, '{"0":"Выключен","1":"Включен"}'::jsonb, 'power', FALSE, NULL, NULL, NULL, TRUE, FALSE, 1, 3),
-  (1, 'D7', 'Цифровой порт D7', NULL, 1, 0, 0, 5, '{"0":"Выключен","1":"Включен"}'::jsonb, 'power', FALSE, NULL, NULL, NULL, TRUE, FALSE, 1, 4),
-  (1, 'D8', 'Цифровой порт D8', NULL, 1, 0, 0, 5, '{"0":"Выключен","1":"Включен"}'::jsonb, 'power', FALSE, NULL, NULL, NULL, TRUE, FALSE, 1, 5),
-  (1, 'D9', 'Цифровой порт D9', NULL, 1, 0, 0, 5, '{"0":"Выключен","1":"Включен"}'::jsonb, 'power', FALSE, NULL, NULL, NULL, TRUE, FALSE, 1, 6),
-  (1, 'air_temperature', 'Температура воздуха', '°C', 1, 0, 0, 5, '{}'::jsonb, 'power', FALSE, NULL, NULL, NULL, TRUE, TRUE, 24, 7),
-  (1, 'air_humidity', 'Влажность воздуха', '%', 1, 0, 0, 5, '{}'::jsonb, 'power', FALSE, NULL, NULL, NULL, TRUE, TRUE, 24, 8),
-  (1, 'A0', 'Аналоговый порт A0', 'ADC', 1, 0, 0, 5, '{}'::jsonb, 'power', FALSE, NULL, NULL, NULL, TRUE, TRUE, 1, 9),
-  (1, 'A1', 'Аналоговый порт A1', 'ADC', 1, 0, 0, 5, '{}'::jsonb, 'power', FALSE, NULL, NULL, NULL, TRUE, TRUE, 1, 10),
-  (1, 'A2', 'Аналоговый порт A2', 'ADC', 1, 0, 0, 5, '{}'::jsonb, 'power', FALSE, NULL, NULL, NULL, TRUE, TRUE, 1, 11),
-  (1, 'A3', 'Аналоговый порт A3', 'ADC', 1, 0, 0, 5, '{}'::jsonb, 'power', FALSE, NULL, NULL, NULL, TRUE, TRUE, 1, 12),
-  (1, 'A4', 'Аналоговый порт A4', 'ADC', 1, 0, 0, 5, '{}'::jsonb, 'power', FALSE, NULL, NULL, NULL, TRUE, TRUE, 1, 13),
-  (1, 'A5', 'Аналоговый порт A5', 'ADC', 1, 0, 0, 5, '{}'::jsonb, 'power', FALSE, NULL, NULL, NULL, TRUE, TRUE, 1, 14)
+  (1, 'D3', 'Цифровой порт D3', NULL, 1, 0, 0, 5, '{"0":"Выключен","1":"Включен"}'::jsonb, 'power', FALSE, NULL, NULL, TRUE, FALSE, 1, 0),
+  (1, 'D4', 'Цифровой порт D4', NULL, 1, 0, 0, 5, '{"0":"Выключен","1":"Включен"}'::jsonb, 'power', FALSE, NULL, NULL, TRUE, FALSE, 1, 1),
+  (1, 'D5', 'Цифровой порт D5', NULL, 1, 0, 0, 5, '{"0":"Выключен","1":"Включен"}'::jsonb, 'power', FALSE, NULL, NULL, TRUE, FALSE, 1, 2),
+  (1, 'D6', 'Цифровой порт D6', NULL, 1, 0, 0, 5, '{"0":"Выключен","1":"Включен"}'::jsonb, 'power', FALSE, NULL, NULL, TRUE, FALSE, 1, 3),
+  (1, 'D7', 'Цифровой порт D7', NULL, 1, 0, 0, 5, '{"0":"Выключен","1":"Включен"}'::jsonb, 'power', FALSE, NULL, NULL, TRUE, FALSE, 1, 4),
+  (1, 'D8', 'Цифровой порт D8', NULL, 1, 0, 0, 5, '{"0":"Выключен","1":"Включен"}'::jsonb, 'power', FALSE, NULL, NULL, TRUE, FALSE, 1, 5),
+  (1, 'D9', 'Цифровой порт D9', NULL, 1, 0, 0, 5, '{"0":"Выключен","1":"Включен"}'::jsonb, 'power', FALSE, NULL, NULL, TRUE, FALSE, 1, 6),
+  (1, 'air_temperature', 'Температура воздуха', '°C', 1, 0, 0, 5, '{}'::jsonb, 'power', FALSE, NULL, NULL, TRUE, TRUE, 24, 7),
+  (1, 'air_humidity', 'Влажность воздуха', '%', 1, 0, 0, 5, '{}'::jsonb, 'power', FALSE, NULL, NULL, TRUE, TRUE, 24, 8),
+  (1, 'A0', 'Аналоговый порт A0', 'ADC', 1, 0, 0, 5, '{}'::jsonb, 'power', FALSE, NULL, NULL, TRUE, TRUE, 1, 9),
+  (1, 'A1', 'Аналоговый порт A1', 'ADC', 1, 0, 0, 5, '{}'::jsonb, 'power', FALSE, NULL, NULL, TRUE, TRUE, 1, 10),
+  (1, 'A2', 'Аналоговый порт A2', 'ADC', 1, 0, 0, 5, '{}'::jsonb, 'power', FALSE, NULL, NULL, TRUE, TRUE, 1, 11),
+  (1, 'A3', 'Аналоговый порт A3', 'ADC', 1, 0, 0, 5, '{}'::jsonb, 'power', FALSE, NULL, NULL, TRUE, TRUE, 1, 12),
+  (1, 'A4', 'Аналоговый порт A4', 'ADC', 1, 0, 0, 5, '{}'::jsonb, 'power', FALSE, NULL, NULL, TRUE, TRUE, 1, 13),
+  (1, 'A5', 'Аналоговый порт A5', 'ADC', 1, 0, 0, 5, '{}'::jsonb, 'power', FALSE, NULL, NULL, TRUE, TRUE, 1, 14)
 ON CONFLICT (controller_id, pin) DO NOTHING;

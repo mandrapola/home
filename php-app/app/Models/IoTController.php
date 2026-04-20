@@ -10,6 +10,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class IoTController extends Model
 {
+    public const MIN_INTERVAL_SECONDS = 5;
+    public const MAX_INTERVAL_SECONDS = 86400;
+
     protected $table = 'controller';
 
     public $incrementing = false;

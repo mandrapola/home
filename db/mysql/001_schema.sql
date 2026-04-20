@@ -21,7 +21,6 @@ CREATE TABLE IF NOT EXISTS pin (
   value_updated_at TIMESTAMP NULL,
   desired_digital_value TINYINT NULL,
   desired_digital_updated_at TIMESTAMP NULL,
-  power_on_duration_seconds INT NULL,
   show_on_dashboard TINYINT(1) NOT NULL DEFAULT 1,
   show_on_chart TINYINT(1) NOT NULL DEFAULT 0,
   chart_range_hours INT NOT NULL DEFAULT 1,
@@ -81,23 +80,23 @@ ON DUPLICATE KEY UPDATE id = id;
 INSERT INTO pin (
   id, controller_id, pin, label, unit,
   average_interval_minutes, digital_style, invert_digital_logic,
-  desired_digital_value, desired_digital_updated_at, power_on_duration_seconds,
+  desired_digital_value, desired_digital_updated_at,
   show_on_dashboard, show_on_chart, chart_range_hours, enable_scenario
 )
 VALUES
-  ('018ec300-0001-7001-8000-000000000101', '018ec300-0001-7001-8000-000000000001', 'D3', 'Цифровой порт D3', NULL, 5, 'power', 0, 0, NULL, NULL, 1, 0, 1, 1),
-  ('018ec300-0001-7001-8000-000000000102', '018ec300-0001-7001-8000-000000000001', 'D4', 'Цифровой порт D4', NULL, 5, 'power', 0, 0, NULL, NULL, 1, 0, 1, 1),
-  ('018ec300-0001-7001-8000-000000000103', '018ec300-0001-7001-8000-000000000001', 'D5', 'Цифровой порт D5', NULL, 5, 'power', 0, 0, NULL, NULL, 1, 0, 1, 1),
-  ('018ec300-0001-7001-8000-000000000104', '018ec300-0001-7001-8000-000000000001', 'D6', 'Цифровой порт D6', NULL, 5, 'power', 0, 0, NULL, NULL, 1, 0, 1, 1),
-  ('018ec300-0001-7001-8000-000000000105', '018ec300-0001-7001-8000-000000000001', 'CURRENT_TIME', 'Текущее время', 's', 1, 'sensor', 0, NULL, NULL, NULL, 0, 0, 1, 1),
-  ('018ec300-0001-7001-8000-000000000106', '018ec300-0001-7001-8000-000000000001', 'air_temperature', 'Температура воздуха', '°C', 5, 'sensor', 0, NULL, NULL, NULL, 1, 1, 24, 1),
-  ('018ec300-0001-7001-8000-000000000107', '018ec300-0001-7001-8000-000000000001', 'air_humidity', 'Влажность воздуха', '%', 5, 'sensor', 0, NULL, NULL, NULL, 1, 1, 24, 1),
-  ('018ec300-0001-7001-8000-000000000108', '018ec300-0001-7001-8000-000000000001', 'A0', 'Аналоговый порт A0', 'ADC', 5, 'sensor', 0, NULL, NULL, NULL, 1, 1, 24, 1),
-  ('018ec300-0001-7001-8000-000000000109', '018ec300-0001-7001-8000-000000000001', 'A1', 'Аналоговый порт A1', 'ADC', 5, 'sensor', 0, NULL, NULL, NULL, 1, 1, 24, 1),
-  ('018ec300-0001-7001-8000-00000000010a', '018ec300-0001-7001-8000-000000000001', 'A2', 'Аналоговый порт A2', 'ADC', 5, 'sensor', 0, NULL, NULL, NULL, 1, 1, 24, 1),
-  ('018ec300-0001-7001-8000-00000000010b', '018ec300-0001-7001-8000-000000000001', 'A3', 'Аналоговый порт A3', 'ADC', 5, 'sensor', 0, NULL, NULL, NULL, 1, 1, 24, 1),
-  ('018ec300-0001-7001-8000-00000000010c', '018ec300-0001-7001-8000-000000000001', 'A4', 'Аналоговый порт A4', 'ADC', 5, 'sensor', 0, NULL, NULL, NULL, 1, 1, 24, 1),
-  ('018ec300-0001-7001-8000-00000000010d', '018ec300-0001-7001-8000-000000000001', 'A5', 'Аналоговый порт A5', 'ADC', 5, 'sensor', 0, NULL, NULL, NULL, 1, 1, 24, 1)
+  ('018ec300-0001-7001-8000-000000000101', '018ec300-0001-7001-8000-000000000001', 'D3', 'Цифровой порт D3', NULL, 5, 'power', 0, 0, NULL, 1, 0, 1, 1),
+  ('018ec300-0001-7001-8000-000000000102', '018ec300-0001-7001-8000-000000000001', 'D4', 'Цифровой порт D4', NULL, 5, 'power', 0, 0, NULL, 1, 0, 1, 1),
+  ('018ec300-0001-7001-8000-000000000103', '018ec300-0001-7001-8000-000000000001', 'D5', 'Цифровой порт D5', NULL, 5, 'power', 0, 0, NULL, 1, 0, 1, 1),
+  ('018ec300-0001-7001-8000-000000000104', '018ec300-0001-7001-8000-000000000001', 'D6', 'Цифровой порт D6', NULL, 5, 'power', 0, 0, NULL, 1, 0, 1, 1),
+  ('018ec300-0001-7001-8000-000000000105', '018ec300-0001-7001-8000-000000000001', 'CURRENT_TIME', 'Текущее время', 's', 1, 'sensor', 0, NULL, NULL, 0, 0, 1, 1),
+  ('018ec300-0001-7001-8000-000000000106', '018ec300-0001-7001-8000-000000000001', 'air_temperature', 'Температура воздуха', '°C', 5, 'sensor', 0, NULL, NULL, 1, 1, 24, 1),
+  ('018ec300-0001-7001-8000-000000000107', '018ec300-0001-7001-8000-000000000001', 'air_humidity', 'Влажность воздуха', '%', 5, 'sensor', 0, NULL, NULL, 1, 1, 24, 1),
+  ('018ec300-0001-7001-8000-000000000108', '018ec300-0001-7001-8000-000000000001', 'A0', 'Аналоговый порт A0', 'ADC', 5, 'sensor', 0, NULL, NULL, 1, 1, 24, 1),
+  ('018ec300-0001-7001-8000-000000000109', '018ec300-0001-7001-8000-000000000001', 'A1', 'Аналоговый порт A1', 'ADC', 5, 'sensor', 0, NULL, NULL, 1, 1, 24, 1),
+  ('018ec300-0001-7001-8000-00000000010a', '018ec300-0001-7001-8000-000000000001', 'A2', 'Аналоговый порт A2', 'ADC', 5, 'sensor', 0, NULL, NULL, 1, 1, 24, 1),
+  ('018ec300-0001-7001-8000-00000000010b', '018ec300-0001-7001-8000-000000000001', 'A3', 'Аналоговый порт A3', 'ADC', 5, 'sensor', 0, NULL, NULL, 1, 1, 24, 1),
+  ('018ec300-0001-7001-8000-00000000010c', '018ec300-0001-7001-8000-000000000001', 'A4', 'Аналоговый порт A4', 'ADC', 5, 'sensor', 0, NULL, NULL, 1, 1, 24, 1),
+  ('018ec300-0001-7001-8000-00000000010d', '018ec300-0001-7001-8000-000000000001', 'A5', 'Аналоговый порт A5', 'ADC', 5, 'sensor', 0, NULL, NULL, 1, 1, 24, 1)
 ON DUPLICATE KEY UPDATE pin = pin;
 
 CREATE OR REPLACE VIEW controller_pin_config AS
@@ -113,7 +112,6 @@ SELECT p.id,
        p.value_updated_at,
        p.desired_digital_value,
        p.desired_digital_updated_at,
-       p.power_on_duration_seconds,
        p.show_on_dashboard,
        p.show_on_chart,
        p.chart_range_hours,

@@ -1,13 +1,13 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="h4 mb-0">{{ __('Дашбоард') }}</h2>
+        <h2 class="h4 mb-0">{{ __('Dashboard') }}</h2>
     </x-slot>
 
     <link rel="stylesheet" href="{{ asset('assets/dashboard.css') }}">
 
     <div class="row g-3 mb-2">
         <div class="col-12 d-flex justify-content-end">
-            <a href="{{ route('adding-a-new-controller') }}" class="btn btn-primary">Добавить новый контроллер</a>
+            <a href="{{ route('adding-a-new-controller') }}" class="btn btn-primary">{{ __('Add New Controller') }}</a>
         </div>
     </div>
 
@@ -16,10 +16,10 @@
             <div class="card shadow-sm h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h3 class="h6 mb-0">Контроллеры</h3>
-                        <button id="refresh-controllers-btn" class="btn btn-outline-secondary btn-sm">Обновить</button>
+                        <h3 class="h6 mb-0">{{ __('Controllers') }}</h3>
+                        <button id="refresh-controllers-btn" class="btn btn-outline-secondary btn-sm">{{ __('Refresh') }}</button>
                     </div>
-                    <div id="controllers-empty" class="text-muted small d-none">Нет привязанных контроллеров.</div>
+                    <div id="controllers-empty" class="text-muted small d-none">{{ __('No linked controllers.') }}</div>
                     <div id="controllers-list" class="d-grid gap-2"></div>
                 </div>
             </div>
@@ -29,10 +29,10 @@
             <div class="card shadow-sm h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h3 id="pins-title" class="h6 mb-0">Пины контроллера</h3>
-                        <button id="refresh-pins-btn" class="btn btn-outline-secondary btn-sm" disabled>Обновить</button>
+                        <h3 id="pins-title" class="h6 mb-0">{{ __('Controller Pins') }}</h3>
+                        <button id="refresh-pins-btn" class="btn btn-outline-secondary btn-sm" disabled>{{ __('Refresh') }}</button>
                     </div>
-                    <div id="pins-message" class="text-muted small mb-2">Выберите контроллер слева.</div>
+                    <div id="pins-message" class="text-muted small mb-2">{{ __('Select a controller on the left.') }}</div>
                     <div id="pins-list" class="row g-2"></div>
                 </div>
             </div>
@@ -41,42 +41,64 @@
 
     <dialog id="controllerSettingsDialog" class="app-dialog app-dialog--sm">
         <form method="dialog" id="controllerSettingsForm" class="modal-form modal-form--single">
-            <h3 class="modal-title" id="controllerSettingsTitle">Настройки контроллера</h3>
+            <h3 class="modal-title" id="controllerSettingsTitle">{{ __('Controller Settings') }}</h3>
 
             <label>
-                Имя контроллера<br>
+                {{ __('Controller Name') }}<br>
                 <input name="name" required class="form-full form-control">
             </label>
 
             <label>
-                Описание<br>
+                {{ __('Description') }}<br>
                 <input name="discription" class="form-full form-control">
             </label>
 
             <label>
-                Интервал отправки, сек<br>
-                <input name="send_interval_seconds" type="number" min="1" step="1" class="form-full form-control">
+                {{ __('Send Interval, sec') }}<br>
+                <input name="send_interval_seconds" type="number" min="5" step="1" class="form-full form-control">
             </label>
 
             <p id="controllerSettingsError" class="error modal-error"></p>
 
             <div class="modal-actions">
-                <button type="button" id="controllerSettingsCancelBtn" class="switch btn btn-outline-secondary">Закрыть</button>
-                <button type="submit" id="controllerSettingsSaveBtn" class="switch btn btn-primary">Сохранить</button>
+                <button type="button" id="controllerSettingsCancelBtn" class="switch btn btn-outline-secondary">{{ __('Close') }}</button>
+                <button type="submit" id="controllerSettingsSaveBtn" class="switch btn btn-primary">{{ __('Save') }}</button>
             </div>
         </form>
     </dialog>
 
     <dialog id="pinSettingsDialog" class="app-dialog app-dialog--sm">
         <form method="dialog" id="pinSettingsForm" class="modal-form modal-form--single">
-            <h3 class="modal-title" id="pinSettingsTitle">Настройки пина</h3>
+            <h3 class="modal-title" id="pinSettingsTitle">{{ __('Pin Settings') }}</h3>
             <div id="pinSettingsFields"></div>
 
             <p id="pinSettingsError" class="error modal-error"></p>
 
             <div class="modal-actions">
-                <button type="button" id="pinSettingsCancelBtn" class="switch btn btn-outline-secondary">Закрыть</button>
-                <button type="submit" id="pinSettingsSaveBtn" class="switch btn btn-primary">Сохранить</button>
+                <button type="button" id="pinSettingsCancelBtn" class="switch btn btn-outline-secondary">{{ __('Close') }}</button>
+                <button type="submit" id="pinSettingsSaveBtn" class="switch btn btn-primary">{{ __('Save') }}</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog id="pinChartDialog" class="app-dialog app-dialog--lg">
+        <form method="dialog" id="pinChartForm" class="modal-form modal-form--single">
+            <h3 class="modal-title" id="pinChartTitle">{{ __('Pin Chart') }}</h3>
+            <div class="pin-chart-toolbar">
+                <span class="small text-muted mb-0">{{ __('Range') }}:</span>
+                <div id="pinChartRangeButtons" class="btn-group btn-group-sm pin-chart-range-group" role="group" aria-label="Диапазон графика">
+                    <button type="button" class="btn btn-outline-info" data-range-hours="1">1 ч</button>
+                    <button type="button" class="btn btn-outline-info" data-range-hours="3">3 ч</button>
+                    <button type="button" class="btn btn-outline-info" data-range-hours="6">6 ч</button>
+                    <button type="button" class="btn btn-outline-info" data-range-hours="12">12 ч</button>
+                    <button type="button" class="btn btn-outline-info" data-range-hours="24">24 ч</button>
+                    <button type="button" class="btn btn-outline-info" data-range-hours="48">48 ч</button>
+                    <button type="button" class="btn btn-outline-info" data-range-hours="72">72 ч</button>
+                </div>
+            </div>
+            <div id="pinChartBody"></div>
+            <div class="modal-actions">
+                <button type="button" id="pinChartCloseBtn" class="switch btn btn-outline-secondary">{{ __('Close') }}</button>
             </div>
         </form>
     </dialog>
@@ -97,5 +119,46 @@
     <template id="pin-form-template-sensor_pressure">@include('dashboard.pin-forms.sensor_pressure_form')</template>
     <template id="pin-form-template-sensor_temperature">@include('dashboard.pin-forms.sensor_temperature_form')</template>
 
+    <template id="pin-chart-template-sensor">@include('dashboard.pin-charts.sensor_chart')</template>
+    <template id="pin-chart-template-sensor_humidity">@include('dashboard.pin-charts.sensor_humidity_chart')</template>
+    <template id="pin-chart-template-sensor_light">@include('dashboard.pin-charts.sensor_light_chart')</template>
+    <template id="pin-chart-template-sensor_level">@include('dashboard.pin-charts.sensor_level_chart')</template>
+    <template id="pin-chart-template-sensor_pressure">@include('dashboard.pin-charts.sensor_pressure_chart')</template>
+    <template id="pin-chart-template-sensor_temperature">@include('dashboard.pin-charts.sensor_temperature_chart')</template>
+
+    @php
+        $dashboardI18n = [
+            'controller' => __('Controller'),
+            'settings' => __('Settings'),
+            'on' => __('On'),
+            'off' => __('Off'),
+            'scenarios' => __('Scenarios'),
+            'pins_controller' => __('Controller Pins'),
+            'select_controller_left' => __('Select a controller on the left.'),
+            'loading' => __('Loading...'),
+            'pins_not_found' => __('No pins found for selected controller.'),
+            'save' => __('Save'),
+            'saving' => __('Saving...'),
+            'failed_change_pin_state' => __('Failed to change pin state.'),
+            'failed_change_pin_scenarios' => __('Failed to change scenario state for pin.'),
+            'failed_save_settings' => __('Failed to save settings.'),
+            'failed_save_pin_settings' => __('Failed to save pin settings.'),
+            'failed_load_pins' => __('Failed to load pins.'),
+            'chart_open' => __('Open Chart'),
+            'pin_settings' => __('Pin Settings'),
+            'chart' => __('Chart'),
+            'without_unit' => __('without unit'),
+            'chart_loading' => __('Loading chart...'),
+            'chart_failed' => __('Failed to load chart.'),
+            'chart_no_data_range' => __('No chart data for selected range.'),
+            'chart_no_valid_data' => __('No valid chart data.'),
+            'min' => __('min'),
+            'max' => __('max'),
+            'current' => __('current'),
+        ];
+    @endphp
+    <script>
+        window.dashboardI18n = @json($dashboardI18n);
+    </script>
     <script src="{{ asset('assets/dashboard.js') }}"></script>
 </x-app-layout>

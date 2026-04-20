@@ -1,6 +1,6 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="h4 mb-0">{{ __('Сценарии') }}</h2>
+        <h2 class="h4 mb-0">{{ __('Scenes') }}</h2>
     </x-slot>
 
     <div class="card shadow-sm mb-3">
@@ -18,31 +18,31 @@
 
     <dialog id="scenarioDialog" class="app-dialog app-dialog--sm">
         <form method="dialog" id="scenarioForm" class="modal-form">
-            <h3 id="scenarioDialogTitle" class="h6 mb-0">Сценарий</h3>
+            <h3 id="scenarioDialogTitle" class="h6 mb-0">{{ __('Scenario') }}</h3>
             <input type="hidden" name="pin_id">
             <input type="hidden" name="definition_id">
             <label>
-                Название сценария<br>
+                {{ __('Scenario Name') }}<br>
                 <input name="name" required class="form-control">
             </label>
             <div class="modal-actions">
-                <button type="button" id="scenarioCancelBtn" class="btn btn-outline-secondary btn-sm">Закрыть</button>
-                <button type="submit" class="btn btn-primary btn-sm">Сохранить</button>
+                <button type="button" id="scenarioCancelBtn" class="btn btn-outline-secondary btn-sm">{{ __('Close') }}</button>
+                <button type="submit" class="btn btn-primary btn-sm">{{ __('Save') }}</button>
             </div>
         </form>
     </dialog>
 
     <dialog id="conditionDialog" class="app-dialog app-dialog--sm">
         <form method="dialog" id="conditionForm" class="modal-form">
-            <h3 id="conditionDialogTitle" class="h6 mb-0">Условие</h3>
+            <h3 id="conditionDialogTitle" class="h6 mb-0">{{ __('Condition') }}</h3>
             <input type="hidden" name="scenario_id">
             <input type="hidden" name="condition_id">
             <label>
-                Источник (пин)<br>
+                {{ __('Source (Pin)') }}<br>
                 <select name="pin_id" class="form-select" required></select>
             </label>
             <label id="conditionOperatorField">
-                Условие<br>
+                {{ __('Condition') }}<br>
                 <select name="operator" class="form-select">
                     <option value="gt">&gt;</option>
                     <option value="gte">&gt;=</option>
@@ -53,18 +53,54 @@
                 </select>
             </label>
             <label id="conditionThresholdLabel">
-                Порог<br>
+                {{ __('Threshold') }}<br>
                 <input name="threshold" type="number" step="0.01" class="form-control" required>
             </label>
             <div class="modal-actions">
-                <button type="button" id="conditionCancelBtn" class="btn btn-outline-secondary btn-sm">Закрыть</button>
-                <button type="submit" class="btn btn-primary btn-sm">Сохранить</button>
+                <button type="button" id="conditionCancelBtn" class="btn btn-outline-secondary btn-sm">{{ __('Close') }}</button>
+                <button type="submit" class="btn btn-primary btn-sm">{{ __('Save') }}</button>
             </div>
         </form>
     </dialog>
 
+    @php
+        $scenesI18n = [
+            'add_scenario' => __('Add Scenario'),
+            'scenario_on' => __('Scenario ON'),
+            'scenario_off' => __('Scenario OFF'),
+            'result_true' => __('Result TRUE'),
+            'result_false' => __('Result FALSE'),
+            'create_scenario' => __('Create Scenario'),
+            'edit_scenario' => __('Edit Scenario'),
+            'delete' => __('Delete'),
+            'edit_short' => __('Edit'),
+            'add_condition' => __('+ Condition'),
+            'scenarios_not_set' => __('Scenarios are not set for this pin.'),
+            'delete_scenario_confirm_prefix' => __('Delete scenario'),
+            'delete_scenario_confirm_suffix' => __('and all its conditions?'),
+            'add_condition_title' => __('Add Condition'),
+            'conditions_not_set' => __('Conditions are not set (scenario returns FALSE).'),
+            'edit_condition' => __('Edit Condition'),
+            'delete_condition_confirm' => __('Delete condition?'),
+            'source_required' => __('Select source'),
+            'fill_scenario_name' => __('Fill scenario name'),
+            'scenario_not_selected' => __('Scenario is not selected'),
+            'invalid_time' => __('Use time format hh:mm:ss'),
+            'timezone' => __('Time Zone'),
+            'updated' => __('Updated'),
+            'save_error_scenario' => __('Scenario save error'),
+            'save_error_condition' => __('Condition save error'),
+            'delete_error_scenario' => __('Scenario delete error'),
+            'delete_error_condition' => __('Condition delete error'),
+            'toggle_error_scenario' => __('Scenario toggle error'),
+            'load_error' => __('Scenario loading error'),
+        ];
+    @endphp
+
     <script>
         (() => {
+            const i18n = @json($scenesI18n);
+            const tr = (key) => i18n[key] || key;
             const AUTO_REFRESH_MS = 5000;
             const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
             const elMeta = document.getElementById('scenesMeta');
@@ -257,12 +293,12 @@
                             <div class="small text-muted">Сценариев: ${defs.length}</div>
                         </div>
                         <div class="d-flex align-items-center gap-2 flex-wrap">
-                            <button type="button" class="btn btn-outline-primary btn-sm js-add-scenario">Добавить сценарий</button>
+                            <button type="button" class="btn btn-outline-primary btn-sm js-add-scenario">${tr('add_scenario')}</button>
                             <div class="form-check form-switch m-0">
                                 <input class="form-check-input js-toggle-enabled" type="checkbox" ${scenarioEnabled ? 'checked' : ''}>
                             </div>
-                            <span class="badge ${scenarioEnabled ? 'text-bg-success' : 'text-bg-secondary'}">${scenarioEnabled ? 'Сценарий ВКЛ' : 'Сценарий ВЫКЛ'}</span>
-                            <span class="badge ${pinResult ? 'text-bg-warning' : 'text-bg-dark'}">${pinResult ? 'Результат TRUE' : 'Результат FALSE'}</span>
+                            <span class="badge ${scenarioEnabled ? 'text-bg-success' : 'text-bg-secondary'}">${scenarioEnabled ? tr('scenario_on') : tr('scenario_off')}</span>
+                            <span class="badge ${pinResult ? 'text-bg-warning' : 'text-bg-dark'}">${pinResult ? tr('result_true') : tr('result_false')}</span>
                         </div>
                     `;
                     body.appendChild(header);
@@ -270,7 +306,7 @@
                     const addScenarioBtn = header.querySelector('.js-add-scenario');
                     addScenarioBtn.addEventListener('click', (event) => {
                         event.stopPropagation();
-                        scenarioDialogTitle.textContent = 'Создать сценарий';
+                        scenarioDialogTitle.textContent = tr('create_scenario');
                         scenarioForm.pin_id.value = String(target.id);
                         scenarioForm.definition_id.value = '';
                         scenarioForm.name.value = `Сценарий ${defs.length + 1}`;
@@ -289,7 +325,7 @@
                             });
                             await load();
                         } catch (error) {
-                            setError(`Ошибка переключения сценария: ${error.message}`);
+                            setError(`${tr('toggle_error_scenario')}: ${error.message}`);
                             enabledToggle.checked = !enabledToggle.checked;
                         } finally {
                             enabledToggle.disabled = false;
@@ -303,7 +339,7 @@
                     if (!defs.length) {
                         const p = document.createElement('div');
                         p.className = 'text-muted small';
-                        p.textContent = 'Сценарии для этого пина не заданы.';
+                        p.textContent = tr('scenarios_not_set');
                         scenariosBox.appendChild(p);
                     }
 
@@ -318,9 +354,9 @@
                         scenarioHead.innerHTML = `
                             <div class="fw-semibold">${item.def.name}</div>
                             <div class="d-flex align-items-center gap-2">
-                                <button type="button" class="btn btn-outline-secondary btn-sm js-edit-scenario">Ред.</button>
-                                <button type="button" class="btn btn-outline-danger btn-sm js-del-scenario">Удалить</button>
-                                <button type="button" class="btn btn-outline-primary btn-sm js-add-condition">+ Условие</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm js-edit-scenario">${tr('edit_short')}</button>
+                                <button type="button" class="btn btn-outline-danger btn-sm js-del-scenario">${tr('delete')}</button>
+                                <button type="button" class="btn btn-outline-primary btn-sm js-add-condition">${tr('add_condition')}</button>
                                 <span class="badge ${item.scenarioTrue ? 'text-bg-success' : 'text-bg-secondary'}">${item.scenarioTrue ? 'TRUE' : 'FALSE'}</span>
                             </div>
                         `;
@@ -328,7 +364,7 @@
 
                         scenarioHead.querySelector('.js-edit-scenario').addEventListener('click', (event) => {
                             event.stopPropagation();
-                            scenarioDialogTitle.textContent = 'Редактировать сценарий';
+                            scenarioDialogTitle.textContent = tr('edit_scenario');
                             scenarioForm.pin_id.value = String(target.id);
                             scenarioForm.definition_id.value = String(item.def.id);
                             scenarioForm.name.value = String(item.def.name || '');
@@ -336,17 +372,17 @@
                         });
                         scenarioHead.querySelector('.js-del-scenario').addEventListener('click', async (event) => {
                             event.stopPropagation();
-                            if (!window.confirm(`Удалить сценарий "${item.def.name}" и все его условия?`)) return;
+                            if (!window.confirm(`${tr('delete_scenario_confirm_prefix')} "${item.def.name}" ${tr('delete_scenario_confirm_suffix')}`)) return;
                             try {
                                 await fetchJson(`/api/scenes/scenario-definitions/${encodeURIComponent(item.def.id)}`, {method: 'DELETE'});
                                 await load();
                             } catch (error) {
-                                setError(`Ошибка удаления сценария: ${error.message}`);
+                                setError(`${tr('delete_error_scenario')}: ${error.message}`);
                             }
                         });
                         scenarioHead.querySelector('.js-add-condition').addEventListener('click', (event) => {
                             event.stopPropagation();
-                            conditionDialogTitle.textContent = 'Добавить условие';
+                            conditionDialogTitle.textContent = tr('add_condition_title');
                             conditionForm.scenario_id.value = String(item.def.id);
                             conditionForm.condition_id.value = '';
                             fillConditionPins(target.controller_id);
@@ -363,7 +399,7 @@
                         if (!item.cond.length) {
                             const p = document.createElement('div');
                             p.className = 'text-muted small';
-                            p.textContent = 'Условия не заданы (сценарий возвращает FALSE).';
+                            p.textContent = tr('conditions_not_set');
                             condBox.appendChild(p);
                         } else {
                             item.cond.forEach((c) => {
@@ -373,14 +409,14 @@
                                     <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
                                         <div class="small"><strong>${c.source_pin_label || c.source_pin}</strong> ${opLabel(c.operator)} ${c.source_pin === 'CURRENT_TIME' ? formatSecondsAsTime(c.threshold) : c.threshold}</div>
                                         <div class="d-flex align-items-center gap-2">
-                                            <button type="button" class="btn btn-outline-secondary btn-sm js-edit-condition">Ред.</button>
-                                            <button type="button" class="btn btn-outline-danger btn-sm js-del-condition">Удалить</button>
+                                            <button type="button" class="btn btn-outline-secondary btn-sm js-edit-condition">${tr('edit_short')}</button>
+                                            <button type="button" class="btn btn-outline-danger btn-sm js-del-condition">${tr('delete')}</button>
                                             <span class="small scenario-condition-state">${Number(c.current_state || 0) > 0 ? 'TRUE' : 'FALSE'}</span>
                                         </div>
                                     </div>
                                 `;
                                 row.querySelector('.js-edit-condition').addEventListener('click', () => {
-                                    conditionDialogTitle.textContent = 'Редактировать условие';
+                                    conditionDialogTitle.textContent = tr('edit_condition');
                                     conditionForm.scenario_id.value = String(c.scenario_id);
                                     conditionForm.condition_id.value = String(c.id);
                                     fillConditionPins(target.controller_id, c.source_pin_id);
@@ -392,12 +428,12 @@
                                     conditionDialog.showModal();
                                 });
                                 row.querySelector('.js-del-condition').addEventListener('click', async () => {
-                                    if (!window.confirm('Удалить условие?')) return;
+                                    if (!window.confirm(tr('delete_condition_confirm'))) return;
                                     try {
                                         await fetchJson(`/api/scenes/conditions/${encodeURIComponent(c.id)}`, {method: 'DELETE'});
                                         await load();
                                     } catch (error) {
-                                        setError(`Ошибка удаления условия: ${error.message}`);
+                                        setError(`${tr('delete_error_condition')}: ${error.message}`);
                                     }
                                 });
                                 condBox.appendChild(row);
@@ -430,11 +466,11 @@
                 try {
                     setError('');
                     latestData = await fetchJson('/api/scenes/data');
-                    const ts = new Date(latestData.server_time || Date.now()).toLocaleTimeString('ru-RU');
-                    elMeta.textContent = `Часовой пояс: ${latestData.time_zone || '-'} · Обновлено: ${ts}`;
+                    const ts = new Date(latestData.server_time || Date.now()).toLocaleTimeString();
+                    elMeta.textContent = `${tr('timezone')}: ${latestData.time_zone || '-'} · ${tr('updated')}: ${ts}`;
                     render();
                 } catch (error) {
-                    setError(`Ошибка загрузки сценариев: ${error.message}`);
+                    setError(`${tr('load_error')}: ${error.message}`);
                 }
             };
 
@@ -450,7 +486,7 @@
                         name: String(scenarioForm.name.value || '').trim(),
                     };
                     if (!payload.pin_id || !payload.name) {
-                        setError('Заполните название сценария');
+                        setError(tr('fill_scenario_name'));
                         return;
                     }
                     const definitionId = String(scenarioForm.definition_id.value || '');
@@ -468,7 +504,7 @@
                     scenarioDialog.close();
                     await load();
                 } catch (error) {
-                    setError(`Ошибка сохранения сценария: ${error.message}`);
+                    setError(`${tr('save_error_scenario')}: ${error.message}`);
                 }
             });
 
@@ -478,7 +514,7 @@
                     const pinId = String(conditionForm.pin_id.value || '');
                     const sourcePin = findPin(pinId);
                     if (!pinId || !sourcePin) {
-                        setError('Выберите источник');
+                        setError(tr('source_required'));
                         return;
                     }
                     let threshold = 0;
@@ -490,7 +526,7 @@
                     } else if (isCurrentTimePin(sourcePin.pin)) {
                         const parsed = parseTimeToSeconds(conditionForm.threshold.value);
                         if (parsed === null) {
-                            setError('Укажите время в формате чч:мм:сс');
+                            setError(tr('invalid_time'));
                             return;
                         }
                         threshold = parsed;
@@ -505,7 +541,7 @@
                         threshold,
                     };
                     if (!payload.scenario_id) {
-                        setError('Не выбран сценарий');
+                        setError(tr('scenario_not_selected'));
                         return;
                     }
 
@@ -528,7 +564,7 @@
                     conditionDialog.close();
                     await load();
                 } catch (error) {
-                    setError(`Ошибка сохранения условия: ${error.message}`);
+                    setError(`${tr('save_error_condition')}: ${error.message}`);
                 }
             });
 

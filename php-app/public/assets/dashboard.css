@@ -6,6 +6,9 @@
 .modal-actions{ display:flex; justify-content:flex-end; gap:8px; }
 .switch{ border-radius:999px; padding:4px 12px; }
 .checkbox-row{ display:flex; align-items:center; gap:8px; margin:0; }
+.pin-label, .pin-code{ display:block; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pin-status--monitored{ color:#ffd54a; }
+.pin-code--icon{ font-size:1.25rem; line-height:1.2; color:var(--accent); }
 
 .pin-chart{
   margin-top:8px;

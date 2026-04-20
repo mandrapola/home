@@ -9,6 +9,26 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+Route::get('/home-arduino', function () {
+    return view('home-arduino');
+})->name('home-arduino');
+
+Route::get('/home-arduino/controller-build', function () {
+    return view('home-arduino-controller-build');
+})->name('home-arduino.controller-build');
+
+Route::get('/home-arduino/openwrt-proxy', function () {
+    return view('home-arduino-openwrt-proxy');
+})->name('home-arduino.openwrt-proxy');
+
+Route::get('/home-arduino/site-faq', function () {
+    return view('home-arduino-site-faq');
+})->name('home-arduino.site-faq');
+
+Route::get('/home-arduino/server-contract', function () {
+    return view('home-arduino-server-contract');
+})->name('home-arduino.server-contract');
+
 Route::get('/dashboard', function () {
     return view('dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
@@ -35,6 +55,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/my-controllers', [PairingController::class, 'myControllers']);
         Route::get('/my-controllers/{controllerId}/pins', [PairingController::class, 'myControllerPins']);
         Route::get('/my-controllers/{controllerId}/pins/chart-data', [PairingController::class, 'myControllerPinChartData']);
+        Route::put('/my-controllers/{controllerId}/pins/{pinId}/chart-range-hours', [PairingController::class, 'updateMyControllerPinChartRangeHours']);
         Route::put('/my-controllers/{controllerId}/pins/{pinId}/settings', [PairingController::class, 'updateMyControllerPinSettings']);
         Route::put('/my-controllers/{controllerId}/pins/{pinId}/desired-digital-value', [PairingController::class, 'updateMyControllerPinDesiredDigitalValue']);
         Route::put('/my-controllers/{controllerId}/settings', [PairingController::class, 'updateMyControllerSettings']);

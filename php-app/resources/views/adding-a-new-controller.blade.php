@@ -1,8 +1,8 @@
 <x-app-layout>
     <x-slot name="header">
         <div class="d-flex justify-content-between align-items-center gap-2">
-            <h2 class="h4 mb-0">{{ __('Добавление нового контроллера') }}</h2>
-            <a href="{{ route('dashboard') }}" class="btn btn-outline-secondary btn-sm">Назад в дашбоард</a>
+            <h2 class="h4 mb-0">{{ __('Add New Controller') }}</h2>
+            <a href="{{ route('dashboard') }}" class="btn btn-outline-secondary btn-sm">{{ __('Back to Dashboard') }}</a>
         </div>
     </x-slot>
 
@@ -10,12 +10,12 @@
         <div class="col-12 col-lg-5">
             <div class="card shadow-sm h-100">
                 <div class="card-body">
-                    <h3 class="h6 mb-3">1. Запросите код привязки</h3>
+                    <h3 class="h6 mb-3">{{ __('1. Request Pairing Code') }}</h3>
                     <p class="text-muted small mb-3">
-                        Код будет отправлен на все свободные контроллеры. У каждого контроллера код уникальный.
+                        {{ __('Code will be sent to all unpaired controllers. Each controller gets a unique code.') }}
                     </p>
                     <div class="d-grid mt-3">
-                        <button id="start-pairing-btn" class="btn btn-primary">Запросить 4-значный код</button>
+                        <button id="start-pairing-btn" class="btn btn-primary">{{ __('Request 4-Digit Code') }}</button>
                     </div>
                 </div>
             </div>
@@ -23,16 +23,16 @@
         <div class="col-12 col-lg-7">
             <div class="card shadow-sm h-100">
                 <div class="card-body">
-                    <h3 class="h6 mb-3">2. Подтвердите код с TM1637</h3>
+                    <h3 class="h6 mb-3">{{ __('2. Confirm Code from TM1637') }}</h3>
                     <p class="text-muted small mb-3">
-                        После запроса кода контроллер получит его в ответе API и покажет на индикаторе TM1637.
+                        {{ __('After requesting code, the controller receives it in API response and shows it on TM1637.') }}
                     </p>
                     <div class="mb-3">
-                        <label for="pairing-code" class="form-label">Код с индикатора</label>
-                        <input id="pairing-code" type="text" class="form-control" maxlength="4" placeholder="0000">
+                        <label for="pairing-code" class="form-label">{{ __('Code from Display') }}</label>
+                        <input id="pairing-code" type="text" class="form-control" maxlength="4" placeholder="{{ __('0000') }}">
                     </div>
                     <div class="d-grid d-sm-flex gap-2">
-                        <button id="confirm-pairing-btn" class="btn btn-success">Привязать контроллер</button>
+                        <button id="confirm-pairing-btn" class="btn btn-success">{{ __('Pair Controller') }}</button>
                     </div>
                     <div id="pairing-status" class="alert mt-3 d-none" role="alert"></div>
                 </div>
@@ -64,22 +64,22 @@
                 });
                 const data = await response.json();
                 if (!response.ok) {
-                    showStatus('error', data.message || 'Не удалось запустить привязку');
+                    showStatus('error', data.message || '{{ __('Failed to start pairing') }}');
                     return;
                 }
 
                 activeSession = true;
-                showStatus('ok', 'Коды отправлены на свободные контроллеры: ' + data.created_count + '. Введите код с нужного контроллера.');
+                showStatus('ok', '{{ __('Codes sent to unpaired controllers') }}: ' + data.created_count + '. {{ __('Enter code from desired controller.') }}');
             });
 
             confirmBtn.addEventListener('click', async () => {
                 const code = codeInput.value.trim();
                 if (!activeSession) {
-                    showStatus('error', 'Сначала запросите код привязки');
+                    showStatus('error', '{{ __('Request pairing code first') }}');
                     return;
                 }
                 if (code.length !== 4) {
-                    showStatus('error', 'Введите 4-значный код');
+                    showStatus('error', '{{ __('Enter 4-digit code') }}');
                     return;
                 }
 
@@ -90,11 +90,11 @@
                 });
                 const data = await response.json();
                 if (!response.ok) {
-                    showStatus('error', data.message || 'Код не подтверждён');
+                    showStatus('error', data.message || '{{ __('Code is not confirmed') }}');
                     return;
                 }
 
-                showStatus('ok', 'Контроллер успешно привязан к вашему аккаунту.');
+                showStatus('ok', '{{ __('Controller successfully linked to your account.') }}');
                 codeInput.value = '';
                 activeSession = false;
             });

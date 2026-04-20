@@ -58,12 +58,12 @@ DEALLOCATE PREPARE stmt;
 INSERT INTO pin (
   controller_id, pin, label, unit, multiplier, value_offset, precision_value,
   average_interval_minutes, value_labels, digital_style, invert_digital_logic,
-  desired_digital_value, desired_digital_updated_at, power_on_duration_seconds,
+  desired_digital_value, desired_digital_updated_at,
   show_on_dashboard, show_on_chart, chart_range_hours, sort_order
 )
 SELECT c.id, 'CURRENT_TIME', 'Текущее время', 's', 1, 0, 0,
        1, JSON_OBJECT(), 'parameter', 0,
-       NULL, NULL, NULL,
+       NULL, NULL,
        0, 0, 1, -10
 FROM controller c
 LEFT JOIN pin p

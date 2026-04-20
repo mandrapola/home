@@ -27,18 +27,18 @@ API_BASE_URL=http://server npm run test:api
 
 ## Актуальная структура сервера
 
-- `php-app/public/index.php` — роутинг и entrypoint
-- `php-app/src/app.php` — серверная логика API
-- `php-app/src/bootstrap.php` — подключение/инициализация
-- `php-app/views/*.blade.php` — страницы Blade
-- `php-app/public/assets/*.js` — клиентская логика страниц
-- `db/mysql/001_schema.sql` — схема MySQL + seed
+- `php-app/public/index.php` — Laravel entrypoint
+- `php-app/app/Http/Controllers/*` — HTTP/API логика
+- `php-app/app/Services/*` — сервисы доменной логики
+- `php-app/resources/views/*.blade.php` — Blade страницы
+- `php-app/public/assets/*` — клиентские скрипты/стили
+- `db/mysql/000_clean_hosting_schema.sql` — чистая схема БД для хостинга
 
-## Контракт контроллера
+## Контракты обмена
 
-`POST /api/controller/report`
+### 1) Gateway -> Server (`POST /api/controller/report`) — JSON-only
 
-Пример запроса:
+Пример запроса (в cloud):
 
 ```bash
 curl -X POST http://localhost:3000/api/controller/report \
@@ -46,7 +46,7 @@ curl -X POST http://localhost:3000/api/controller/report \
   -d '{
     "controller_id": "019d5529-ceee-7748-b9a8-a2e3ce1e8b8f",
     "readings": [
-      { "pin": "D3", "value": 0 },
+      { "pin": "relay_1", "value": 0 },
       { "pin": "air_temperature", "value": 23.4 },
       { "pin": "air_humidity", "value": 41.2 }
     ]
@@ -58,13 +58,35 @@ curl -X POST http://localhost:3000/api/controller/report \
 ```json
 {
   "send_interval_seconds": 5,
-  "digital_outputs": {},
+  "digital_outputs": {
+    "relay_1": 0,
+    "relay_2": 1,
+    "relay_3": 0,
+    "relay_4": 1
+  },
   "pairing_code": "4821",
   "pairing_code_expires_at": "2026-04-05T10:30:00+00:00"
 }
 ```
 
 `pairing_code` передается только когда пользователь запустил привязку контроллера.
+`digital_outputs` содержит целевые значения `relay_*` для контроллера.
+
+### 2) Controller -> Gateway (`POST http://<gateway>:3001/api/controller/report`) — CSV
+
+Arduino отправляет CSV-строку в формате:
+
+```text
+controller_id=<uuid>;relay_1=0;relay_2=1;...;air_temperature=23.4;air_humidity=41.2
+```
+
+Gateway конвертирует эту строку в JSON для cloud-сервера и конвертирует JSON-ответ cloud обратно в CSV для контроллера.
+
+Коды ошибок API сервера:
+- `401 proxy_auth_failed` — отсутствует/неверна HMAC подпись proxy.
+- `403 forbidden` — контроллер не зарегистрирован и не в режиме привязки.
+- `400 bad_request` — некорректный JSON payload.
+- `400 empty_readings` — отсутствуют валидные числовые readings.
 
 ## Привязка контроллера к пользователю
 
@@ -119,6 +141,7 @@ curl -X POST http://localhost:3000/api/controller/report \
 `home-openwrt` работает как локальный шлюз:
 - в `online` режиме проксирует запросы к глобальному серверу;
 - в `offline` режиме отвечает локально и поддерживает ручное управление пинами.
+- для контроллера сохраняет CSV-протокол, для cloud-сервера использует JSON-протокол.
 
 Основные endpoint'ы gateway:
 - `GET /api/system/status`

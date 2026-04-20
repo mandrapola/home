@@ -16,6 +16,7 @@ class ProfileUpdateRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
+            'locale' => ['required', 'string', 'in:ru,en'],
             'time_zone' => [
                 'required',
                 'string',
