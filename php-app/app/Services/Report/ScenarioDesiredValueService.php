@@ -11,6 +11,79 @@ class ScenarioDesiredValueService
 {
     private const SYSTEM_CURRENT_TIME_PIN_ID = '0195f7e0-0000-7000-8000-000000000002';
 
+    /**
+     * Возвращает усредненные значения источников за текущий bucket усреднения.
+     *
+     * @return array<string, float|null> key = pin.id
+     */
+    private function resolveAveragedSourceValues(string $controllerId): array
+    {
+        $averageIntervalMinutes = max(1, (int) config('smarthome.pin_data_average_interval_minutes', 5));
+        $bucketSeconds = $averageIntervalMinutes * 60;
+        $nowUtc = now('UTC');
+        $nowUnix = $nowUtc->getTimestamp();
+        $bucketStartUnix = intdiv($nowUnix, $bucketSeconds) * $bucketSeconds;
+        $bucketStartUtc = \Illuminate\Support\Carbon::createFromTimestamp($bucketStartUnix, 'UTC');
+        $bucketEndUtc = $bucketStartUtc->copy()->addSeconds($bucketSeconds);
+
+        $sourcePinRows = DB::table('pin')
+            ->where('controller_id', $controllerId)
+            ->select(['id'])
+            ->get();
+
+        $sourceValueByPinId = [];
+        foreach ($sourcePinRows as $sourceRow) {
+            $sourceValueByPinId[(string) $sourceRow->id] = null;
+        }
+
+        if (count($sourceValueByPinId) === 0) {
+            return $sourceValueByPinId;
+        }
+
+        $avgRows = DB::table('pin_data')
+            ->whereIn('pin_id', array_keys($sourceValueByPinId))
+            ->where('created_at', '>=', $bucketStartUtc)
+            ->where('created_at', '<', $bucketEndUtc)
+            ->selectRaw('pin_id, AVG(value) AS avg_value')
+            ->groupBy('pin_id')
+            ->get();
+
+        foreach ($avgRows as $avgRow) {
+            $pinId = (string) $avgRow->pin_id;
+            $sourceValueByPinId[$pinId] = is_numeric($avgRow->avg_value) ? (float) $avgRow->avg_value : null;
+        }
+
+        $missingPinIds = [];
+        foreach ($sourceValueByPinId as $pinId => $value) {
+            if ($value === null) {
+                $missingPinIds[] = $pinId;
+            }
+        }
+
+        if (count($missingPinIds) > 0) {
+            $prevBucketStartUtc = $bucketStartUtc->copy()->subSeconds($bucketSeconds);
+            $prevBucketEndUtc = $bucketStartUtc->copy();
+
+            $prevAvgRows = DB::table('pin_data')
+                ->whereIn('pin_id', $missingPinIds)
+                ->where('created_at', '>=', $prevBucketStartUtc)
+                ->where('created_at', '<', $prevBucketEndUtc)
+                ->selectRaw('pin_id, AVG(value) AS avg_value')
+                ->groupBy('pin_id')
+                ->get();
+
+            foreach ($prevAvgRows as $avgRow) {
+                $pinId = (string) $avgRow->pin_id;
+                if (! array_key_exists($pinId, $sourceValueByPinId) || $sourceValueByPinId[$pinId] !== null) {
+                    continue;
+                }
+                $sourceValueByPinId[$pinId] = is_numeric($avgRow->avg_value) ? (float) $avgRow->avg_value : null;
+            }
+        }
+
+        return $sourceValueByPinId;
+    }
+
     private function evaluateScenarioCondition(string $operator, ?float $sourceValue, float $threshold): bool
     {
         if ($sourceValue === null) {
@@ -82,14 +155,7 @@ class ScenarioDesiredValueService
             return;
         }
 
-        $sourcePinRows = DB::table('pin')
-            ->where('controller_id', $firstControllerId)
-            ->select(['id', 'value'])
-            ->get();
-        $sourceValueByPinId = [];
-        foreach ($sourcePinRows as $sourceRow) {
-            $sourceValueByPinId[(string) $sourceRow->id] = is_numeric($sourceRow->value) ? (float) $sourceRow->value : null;
-        }
+        $sourceValueByPinId = $this->resolveAveragedSourceValues($firstControllerId);
 
         $controllerCurrentTimeSeconds = $this->resolveControllerTimeSeconds($firstControllerId);
 
@@ -175,4 +241,3 @@ class ScenarioDesiredValueService
         }
     }
 }
-

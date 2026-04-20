@@ -54,6 +54,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('api/pairing')->group(function () {
         Route::get('/my-controllers', [PairingController::class, 'myControllers']);
         Route::get('/my-controllers/{controllerId}/pins', [PairingController::class, 'myControllerPins']);
+        Route::get('/my-controllers/{controllerId}/power-events', [PairingController::class, 'myControllerPowerEvents']);
         Route::get('/my-controllers/{controllerId}/pins/chart-data', [PairingController::class, 'myControllerPinChartData']);
         Route::put('/my-controllers/{controllerId}/pins/{pinId}/chart-range-hours', [PairingController::class, 'updateMyControllerPinChartRangeHours']);
         Route::put('/my-controllers/{controllerId}/pins/{pinId}/settings', [PairingController::class, 'updateMyControllerPinSettings']);
