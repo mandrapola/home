@@ -88,17 +88,15 @@
                 <span class="small text-muted mb-0">{{ __('Range') }}:</span>
                 <div id="pinChartRangeButtons" class="btn-group btn-group-sm pin-chart-range-group" role="group" aria-label="Диапазон графика">
                     <button type="button" class="btn btn-outline-info" data-range-hours="1">1 ч</button>
-                    <button type="button" class="btn btn-outline-info" data-range-hours="3">3 ч</button>
-                    <button type="button" class="btn btn-outline-info" data-range-hours="6">6 ч</button>
-                    <button type="button" class="btn btn-outline-info" data-range-hours="12">12 ч</button>
+                    <button type="button" class="btn btn-outline-info" data-range-hours="4">4 ч</button>
+                    <button type="button" class="btn btn-outline-info" data-range-hours="8">8 ч</button>
+                    <button type="button" class="btn btn-outline-info" data-range-hours="16">16 ч</button>
                     <button type="button" class="btn btn-outline-info" data-range-hours="24">24 ч</button>
-                    <button type="button" class="btn btn-outline-info" data-range-hours="48">48 ч</button>
-                    <button type="button" class="btn btn-outline-info" data-range-hours="72">72 ч</button>
                 </div>
             </div>
             <div id="pinChartBody"></div>
             <div class="modal-actions">
-                <button type="button" id="pinChartCloseBtn" class="switch btn btn-outline-secondary">{{ __('Close') }}</button>
+                <button type="submit" id="pinChartCloseBtn" class="switch btn btn-outline-secondary">{{ __('Close') }}</button>
             </div>
         </form>
     </dialog>

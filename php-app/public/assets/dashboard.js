@@ -22,12 +22,18 @@
             const pinSettingsError = document.getElementById('pinSettingsError');
             const pinSettingsCancelBtn = document.getElementById('pinSettingsCancelBtn');
             const pinSettingsSaveBtn = document.getElementById('pinSettingsSaveBtn');
+            const pinChartDialog = document.getElementById('pinChartDialog');
+            const pinChartTitle = document.getElementById('pinChartTitle');
+            const pinChartBody = document.getElementById('pinChartBody');
+            const pinChartCloseBtn = document.getElementById('pinChartCloseBtn');
+            const pinChartRangeButtons = document.getElementById('pinChartRangeButtons');
 
             let controllers = [];
             let currentPins = [];
             let selectedControllerId = null;
             let editingControllerId = null;
             let editingPin = null;
+            let chartPin = null;
             let chartsRequestToken = 0;
             let isPinsLoading = false;
             let pinsAutoRefreshTimer = null;
@@ -156,6 +162,98 @@
                 editingPin = null;
                 setPinSettingsError('');
                 pinSettingsDialog.close();
+            }
+
+            function getPinById(pinId) {
+                const key = String(pinId || '');
+                return currentPins.find((pin) => String(pin.id) === key) || null;
+            }
+
+            function setChartRangeButtonState(rangeHours) {
+                const value = Number(rangeHours || 24);
+                if (!pinChartRangeButtons) return;
+                pinChartRangeButtons.querySelectorAll('button[data-range-hours]').forEach((btn) => {
+                    const btnRange = Number(btn.getAttribute('data-range-hours') || 0);
+                    btn.classList.toggle('active', btnRange === value);
+                });
+            }
+
+            async function fetchChartDataMap() {
+                if (!selectedControllerId) {
+                    return {};
+                }
+                const response = await fetch('/api/pairing/my-controllers/' + encodeURIComponent(selectedControllerId) + '/pins/chart-data', {
+                    headers: { 'Accept': 'application/json' }
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.message || t('chart_failed', 'Failed to load chart.'));
+                }
+                return data && typeof data === 'object' && data.charts && typeof data.charts === 'object'
+                    ? data.charts
+                    : {};
+            }
+
+            async function renderPinChartDialog(pin) {
+                if (!pin || !pinChartBody) return;
+                const current = getPinById(pin.id) || pin;
+                const styleKey = resolveStyleTemplateKey('pin-chart-template', current.digital_style);
+                const chartTemplate = cloneTemplateContent(`pin-chart-template-${styleKey}`);
+                if (!chartTemplate) {
+                    pinChartBody.textContent = t('chart_failed', 'Failed to load chart.');
+                    return;
+                }
+
+                pinChartBody.innerHTML = '';
+                pinChartBody.appendChild(chartTemplate);
+
+                const panel = pinChartBody.querySelector('.pin-chart-panel');
+                const pinMeta = pinChartBody.querySelector('.pin-chart-pin');
+                const rangeMeta = pinChartBody.querySelector('.pin-chart-range');
+                const canvas = pinChartBody.querySelector('.pin-chart-canvas');
+
+                if (pinMeta) {
+                    pinMeta.textContent = current.label || current.pin || '';
+                }
+                if (rangeMeta) {
+                    rangeMeta.textContent = `${Number(current.chart_range_hours || 24)} ч`;
+                }
+                setChartRangeButtonState(current.chart_range_hours || 24);
+                if (panel) panel.dataset.pinId = String(current.id);
+                if (canvas) {
+                    canvas.textContent = t('chart_loading', 'Loading chart...');
+                }
+
+                try {
+                    const charts = await fetchChartDataMap();
+                    const chart = charts[current.id] || { points: [] };
+                    if (!canvas) return;
+                    renderDetailedChart(canvas, Array.isArray(chart.points) ? chart.points : [], current.unit || '');
+                } catch (_) {
+                    if (canvas) {
+                        canvas.textContent = t('chart_failed', 'Failed to load chart.');
+                    }
+                }
+            }
+
+            async function openPinChart(pin) {
+                if (!pin || !pinChartDialog) return;
+                chartPin = getPinById(pin.id) || pin;
+                if (pinChartTitle) {
+                    pinChartTitle.textContent = `${t('chart', 'Chart')}: ${chartPin.label || chartPin.pin || ''}`;
+                }
+                pinChartDialog.showModal();
+                await renderPinChartDialog(chartPin);
+            }
+
+            function closePinChart() {
+                chartPin = null;
+                if (pinChartBody) {
+                    pinChartBody.innerHTML = '';
+                }
+                if (pinChartDialog) {
+                    pinChartDialog.close();
+                }
             }
 
             function renderControllers() {
@@ -298,6 +396,18 @@
                 col.querySelector('.pin-settings').addEventListener('click', () => {
                     openPinSettings(pin);
                 });
+
+                const chartOpenBtn = col.querySelector('.pin-chart-open');
+                if (chartOpenBtn) {
+                    if (showChart) {
+                        chartOpenBtn.disabled = false;
+                        chartOpenBtn.addEventListener('click', () => {
+                            openPinChart(pin).catch(() => {});
+                        });
+                    } else {
+                        chartOpenBtn.remove();
+                    }
+                }
 
                 if (isPowerPin) {
                     const setPowerStatus = (value) => {
@@ -550,6 +660,89 @@
                 `;
             }
 
+            function formatChartTimeLabel(value) {
+                const text = String(value || '');
+                const match = text.match(/\b(\d{2}:\d{2})(?::\d{2})?\b/);
+                return match ? match[1] : text;
+            }
+
+            function renderDetailedChart(container, points, unit) {
+                if (!container) return;
+                if (!Array.isArray(points) || points.length === 0) {
+                    container.textContent = t('chart_no_data_range', 'No chart data for selected range.');
+                    return;
+                }
+
+                const numericPoints = points
+                    .map((point) => ({ value: Number(point.value), at: String(point.at || '') }))
+                    .filter((point) => Number.isFinite(point.value));
+                if (numericPoints.length === 0) {
+                    container.textContent = t('chart_no_valid_data', 'No valid chart data.');
+                    return;
+                }
+
+                const width = 820;
+                const height = 320;
+                const margin = { top: 22, right: 14, bottom: 44, left: 56 };
+                const plotWidth = width - margin.left - margin.right;
+                const plotHeight = height - margin.top - margin.bottom;
+                const values = numericPoints.map((p) => p.value);
+                const minV = Math.min(...values);
+                const maxV = Math.max(...values);
+                const span = Math.max(1e-9, maxV - minV);
+                const paddedMin = minV - span * 0.08;
+                const paddedMax = maxV + span * 0.08;
+                const ySpan = Math.max(1e-9, paddedMax - paddedMin);
+                const xSpan = Math.max(1, numericPoints.length - 1);
+                const unitText = unit ? ` ${unit}` : '';
+
+                const toX = (idx) => margin.left + (plotWidth * idx) / xSpan;
+                const toY = (value) => margin.top + ((paddedMax - value) / ySpan) * plotHeight;
+                const polyline = numericPoints
+                    .map((point, idx) => `${toX(idx).toFixed(2)},${toY(point.value).toFixed(2)}`)
+                    .join(' ');
+
+                const yTicks = 5;
+                const yTickLines = [];
+                const yTickLabels = [];
+                for (let i = 0; i <= yTicks; i += 1) {
+                    const value = paddedMin + ((yTicks - i) * ySpan) / yTicks;
+                    const y = margin.top + (plotHeight * i) / yTicks;
+                    yTickLines.push(`<line x1="${margin.left}" y1="${y.toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${y.toFixed(2)}" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>`);
+                    yTickLabels.push(`<text x="${(margin.left - 8).toFixed(2)}" y="${(y + 4).toFixed(2)}" text-anchor="end" fill="var(--muted)" font-size="11">${value.toFixed(1)}${unitText}</text>`);
+                }
+
+                const xTickIndexes = Array.from(new Set([0, Math.floor(xSpan * 0.25), Math.floor(xSpan * 0.5), Math.floor(xSpan * 0.75), xSpan]))
+                    .filter((idx) => idx >= 0 && idx < numericPoints.length);
+                const xTickLines = [];
+                const xTickLabels = [];
+                xTickIndexes.forEach((idx) => {
+                    const x = toX(idx);
+                    xTickLines.push(`<line x1="${x.toFixed(2)}" y1="${margin.top}" x2="${x.toFixed(2)}" y2="${(height - margin.bottom).toFixed(2)}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>`);
+                    xTickLabels.push(`<text x="${x.toFixed(2)}" y="${(height - margin.bottom + 18).toFixed(2)}" text-anchor="middle" fill="var(--muted)" font-size="11">${formatChartTimeLabel(numericPoints[idx].at)}</text>`);
+                });
+
+                const firstAt = formatChartTimeLabel(numericPoints[0].at);
+                const lastAt = formatChartTimeLabel(numericPoints[numericPoints.length - 1].at);
+
+                container.innerHTML = `
+                    <svg viewBox="0 0 ${width} ${height}" class="pin-chart-svg" preserveAspectRatio="none" aria-label="${t('chart', 'Chart')}">
+                        ${yTickLines.join('')}
+                        ${xTickLines.join('')}
+                        <line x1="${margin.left}" y1="${(height - margin.bottom).toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${(height - margin.bottom).toFixed(2)}" stroke="rgba(255,255,255,0.35)" stroke-width="1.2"/>
+                        <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${(height - margin.bottom).toFixed(2)}" stroke="rgba(255,255,255,0.35)" stroke-width="1.2"/>
+                        <polyline points="${polyline}" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></polyline>
+                        ${yTickLabels.join('')}
+                        ${xTickLabels.join('')}
+                    </svg>
+                    <div class="pin-chart-legend">
+                        <span>${t('min', 'min')}: ${minV.toFixed(2)}${unitText}</span>
+                        <span>${t('max', 'max')}: ${maxV.toFixed(2)}${unitText}</span>
+                        <span>${firstAt} → ${lastAt}</span>
+                    </div>
+                `;
+            }
+
             async function loadPinCharts() {
                 const sensorPins = currentPins.filter((pin) =>
                     String(pin.digital_style || '') !== 'power' && Number(pin.show_on_chart || 0) > 0
@@ -661,6 +854,59 @@
             pinSettingsCancelBtn.addEventListener('click', () => {
                 closePinSettings();
             });
+            if (pinChartCloseBtn) {
+                pinChartCloseBtn.addEventListener('click', () => {
+                    closePinChart();
+                });
+            }
+            if (pinChartRangeButtons) {
+                pinChartRangeButtons.addEventListener('click', async (event) => {
+                    const target = event.target instanceof Element ? event.target.closest('button[data-range-hours]') : null;
+                    if (!target || !chartPin || !selectedControllerId) {
+                        return;
+                    }
+                    const nextRange = Number(target.getAttribute('data-range-hours') || 0);
+                    if (!Number.isFinite(nextRange) || nextRange <= 0) {
+                        return;
+                    }
+
+                    const payload = {
+                        label: String(chartPin.label || chartPin.pin || '').trim(),
+                        unit: String(chartPin.unit || '').trim() || null,
+                        chart_range_hours: nextRange,
+                        invert_digital_logic: Number(chartPin.invert_digital_logic || 0) > 0,
+                        show_on_chart: Number(chartPin.show_on_chart || 0) > 0,
+                        is_monitored: Number(chartPin.is_monitored || 0) > 0,
+                    };
+
+                    try {
+                        const response = await fetch(
+                            '/api/pairing/my-controllers/' + encodeURIComponent(selectedControllerId) + '/pins/' + encodeURIComponent(chartPin.id) + '/settings',
+                            {
+                                method: 'PUT',
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': csrf,
+                                },
+                                body: JSON.stringify(payload),
+                            }
+                        );
+                        const data = await response.json();
+                        if (!response.ok) {
+                            return;
+                        }
+                        chartPin = { ...chartPin, ...(data.pin || {}), chart_range_hours: nextRange };
+                        const index = currentPins.findIndex((p) => String(p.id) === String(chartPin.id));
+                        if (index >= 0) {
+                            currentPins[index] = chartPin;
+                        }
+                        await renderPinChartDialog(chartPin);
+                    } catch (_) {
+                        // keep current chart as is
+                    }
+                });
+            }
             controllerSettingsForm.addEventListener('submit', async (event) => {
                 event.preventDefault();
                 if (!editingControllerId) return;
