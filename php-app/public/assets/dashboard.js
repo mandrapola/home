@@ -139,12 +139,14 @@
                 const rangeEl = pinSettingsForm.querySelector('input[name="chart_range_hours"]');
                 const invertEl = pinSettingsForm.querySelector('input[name="invert_digital_logic"]');
                 const showOnChartEl = pinSettingsForm.querySelector('input[name="show_on_chart"]');
+                const isMonitoredEl = pinSettingsForm.querySelector('input[name="is_monitored"]');
 
                 if (labelEl) labelEl.value = pin.label || pin.pin || '';
                 if (unitEl) unitEl.value = pin.unit || '';
                 if (rangeEl) rangeEl.value = String(pin.chart_range_hours ?? 24);
                 if (invertEl) invertEl.checked = Number(pin.invert_digital_logic || 0) > 0;
                 if (showOnChartEl) showOnChartEl.checked = Number(pin.show_on_chart || 0) > 0;
+                if (isMonitoredEl) isMonitoredEl.checked = Number(pin.is_monitored || 0) > 0;
 
                 setPinSettingsError('');
                 pinSettingsDialog.showModal();
@@ -709,12 +711,14 @@
                 const rangeEl = pinSettingsForm.querySelector('input[name="chart_range_hours"]');
                 const invertEl = pinSettingsForm.querySelector('input[name="invert_digital_logic"]');
                 const showOnChartEl = pinSettingsForm.querySelector('input[name="show_on_chart"]');
+                const isMonitoredEl = pinSettingsForm.querySelector('input[name="is_monitored"]');
                 const payload = {
                     label: String(labelEl?.value || '').trim(),
                     unit: String(unitEl?.value || '').trim() || null,
                     chart_range_hours: Number(rangeEl?.value || 24),
                     invert_digital_logic: Boolean(invertEl?.checked),
                     show_on_chart: Boolean(showOnChartEl?.checked),
+                    is_monitored: Boolean(isMonitoredEl?.checked),
                 };
 
                 try {

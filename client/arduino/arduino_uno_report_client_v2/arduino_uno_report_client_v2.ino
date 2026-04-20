@@ -18,7 +18,7 @@
 
 // ===== Network =====
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0x01 };
-char serverHost[] = "192.168.0.1";
+char serverHost[] = "192.168.0.201";
 const uint16_t serverPort = 3001;
 const char reportPath[] = "/api/controller/report";
 

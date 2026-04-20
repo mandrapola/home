@@ -240,6 +240,7 @@ class PairingController extends Controller
             'chart_range_hours' => ['required', 'integer', 'min:1', 'max:720'],
             'invert_digital_logic' => ['required', 'boolean'],
             'show_on_chart' => ['required', 'boolean'],
+            'is_monitored' => ['required', 'boolean'],
         ]);
 
         DB::table('pin')
@@ -251,6 +252,7 @@ class PairingController extends Controller
                 'chart_range_hours' => (int) $validated['chart_range_hours'],
                 'invert_digital_logic' => ! empty($validated['invert_digital_logic']) ? 1 : 0,
                 'show_on_chart' => ! empty($validated['show_on_chart']) ? 1 : 0,
+                'is_monitored' => ! empty($validated['is_monitored']) ? 1 : 0,
             ]);
 
         $updatedPin = DB::table('pin')
@@ -269,6 +271,7 @@ class PairingController extends Controller
                 'value_updated_at',
                 'desired_digital_value',
                 'show_on_chart',
+                'is_monitored',
             ]);
 
         return response()->json([
