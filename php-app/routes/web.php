@@ -33,6 +33,10 @@ Route::get('/dashboard', function () {
     return view('dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
+Route::get('/report', function () {
+    return view('report');
+})->middleware(['auth', 'verified'])->name('report');
+
 Route::get('/adding-a-new-controller', function () {
     return view('adding-a-new-controller');
 })->middleware(['auth', 'verified'])->name('adding-a-new-controller');
@@ -52,6 +56,7 @@ Route::middleware('auth')->group(function () {
     Route::put('/api/scenes/targets/{pinId}/enabled', [ScenesController::class, 'setTargetScenarioEnabled']);
 
     Route::prefix('api/pairing')->group(function () {
+        Route::get('/report', [PairingController::class, 'myReport']);
         Route::get('/my-controllers', [PairingController::class, 'myControllers']);
         Route::get('/my-controllers/{controllerId}/pins', [PairingController::class, 'myControllerPins']);
         Route::get('/my-controllers/{controllerId}/power-events', [PairingController::class, 'myControllerPowerEvents']);

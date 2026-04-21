@@ -117,8 +117,24 @@ class ScenarioDesiredValueService
         return ((int) $now->format('H') * 3600) + ((int) $now->format('i') * 60) + (int) $now->format('s');
     }
 
+    private function releaseExpiredManualOverrides(string $controllerId): void
+    {
+        $maxManualOnSeconds = max(1, (int) config('smarthome.max_manual_on_seconds', 300));
+        $cutoff = now('UTC')->subSeconds($maxManualOnSeconds);
+
+        DB::table('pin')
+            ->where('controller_id', $controllerId)
+            ->where('digital_style', 'power')
+            ->where('enable_scenario', 0)
+            ->whereNotNull('desired_digital_updated_at')
+            ->where('desired_digital_updated_at', '<=', $cutoff)
+            ->update([
+                'enable_scenario' => 1,
+            ]);
+    }
+
     /**
-     * @return Collection<int, object{id:string,controller_id:string,pin:string,desired_digital_value:int|null,enable_scenario:int, invert_digital_logic:int}>
+     * @return Collection<int, object{id:string,controller_id:string,pin:string,desired_digital_value:int|null,enable_scenario:int}>
      */
     public function findTargetRows(string $controllerId): Collection
     {
@@ -126,12 +142,14 @@ class ScenarioDesiredValueService
             ->where('controller_id', $controllerId)
             ->where('digital_style', 'power')
             ->whereNotNull('desired_digital_value')
-            ->select(['id', 'controller_id', 'pin', 'desired_digital_value', 'enable_scenario', 'invert_digital_logic'])
+            ->select(['id', 'controller_id', 'pin', 'desired_digital_value', 'enable_scenario'])
             ->get();
     }
 
     public function applyDesiredValue(string $controllerId): void
     {
+        $this->releaseExpiredManualOverrides($controllerId);
+
         $rows = $this->findTargetRows($controllerId);
         if ($rows->count() === 0) {
             return;
@@ -200,6 +218,12 @@ class ScenarioDesiredValueService
             $targetPinId = (string) $targetPinRow->id;
             $targetScenarioIds = $scenarioByTargetPinId[$targetPinId] ?? [];
             if (count($targetScenarioIds) === 0) {
+                DB::table('pin')
+                    ->where('id', $targetPinId)
+                    ->update([
+                        'desired_digital_value' => 0,
+                        'desired_digital_updated_at' => now(),
+                    ]);
                 continue;
             }
 

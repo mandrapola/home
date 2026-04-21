@@ -31,7 +31,6 @@
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h3 id="pins-title" class="h6 mb-0">{{ __('Controller Pins') }}</h3>
                         <div class="d-flex align-items-center gap-2">
-                            <button id="open-power-events-btn" class="btn btn-outline-info btn-sm" disabled>{{ __('Report') }}</button>
                             <button id="refresh-pins-btn" class="btn btn-outline-secondary btn-sm" disabled>{{ __('Refresh') }}</button>
                         </div>
                     </div>
@@ -104,26 +103,6 @@
         </form>
     </dialog>
 
-    <dialog id="powerEventsDialog" class="app-dialog app-dialog--lg">
-        <form method="dialog" id="powerEventsForm" class="modal-form modal-form--single">
-            <h3 class="modal-title">{{ __('Report') }}</h3>
-            <div class="d-flex align-items-center justify-content-end gap-2">
-                <button type="button" id="powerEventsRefreshBtn" class="btn btn-outline-secondary btn-sm">{{ __('Refresh') }}</button>
-            </div>
-            <div id="powerEventsBody" class="power-events-body"></div>
-            <div class="small text-muted power-events-legend">
-                <div class="power-events-legend-title">{{ __('Legend') }}:</div>
-                <div><span class="badge text-bg-primary me-1">&nbsp;</span>{{ __('Fact') }}</div>
-                <div><span class="badge text-bg-success me-1">&nbsp;</span>{{ __('Plan: time conditions true and all conditions true') }}</div>
-                <div><span class="badge text-bg-warning me-1">&nbsp;</span>{{ __('Plan: time conditions true but some other conditions false') }}</div>
-                <div><span class="badge text-bg-danger me-1">&nbsp;</span>{{ __('Plan: no time condition and all conditions true now') }}</div>
-            </div>
-            <div class="modal-actions">
-                <button type="submit" id="powerEventsCloseBtn" class="switch btn btn-outline-secondary">{{ __('Close') }}</button>
-            </div>
-        </form>
-    </dialog>
-
     <template id="pin-card-template-power">@include('dashboard.pin-cards.power')</template>
     <template id="pin-card-template-sensor">@include('dashboard.pin-cards.sensor')</template>
     <template id="pin-card-template-sensor_humidity">@include('dashboard.pin-cards.sensor_humidity')</template>
@@ -176,16 +155,6 @@
             'min' => __('min'),
             'max' => __('max'),
             'current' => __('current'),
-            'power_events' => __('Report'),
-            'power_events_loading' => __('Loading...'),
-            'power_events_empty' => __('No power events for current day.'),
-            'started' => __('Started'),
-            'ended' => __('Ended'),
-            'duration' => __('Duration'),
-            'source' => __('Source'),
-            'pin' => __('Pin'),
-            'fact' => __('Fact'),
-            'plan' => __('Plan'),
         ];
     @endphp
     <script>

@@ -10,7 +10,13 @@
 
 <label>
     {{ __('Chart Range, h') }}<br>
-    <input name="chart_range_hours" type="number" min="1" step="1" class="form-full form-control">
+    <select name="chart_range_hours" class="form-full form-control">
+        <option value="1">1ч</option>
+        <option value="4">4ч</option>
+        <option value="8">8ч</option>
+        <option value="16">16ч</option>
+        <option value="24">24ч</option>
+    </select>
 </label>
 
 <label class="checkbox-row">

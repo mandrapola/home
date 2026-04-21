@@ -12,8 +12,9 @@ class PinDataHistoryService
     /**
      * @param array<int, array{pin:string, value:float|int}> $readings
      * @param array<string,string> $pinIdByName
+     * @param array<string,string> $pinStyleByName
      */
-    public function storeReadings(array $readings, array $pinIdByName): void
+    public function storeReadings(array $readings, array $pinIdByName, array $pinStyleByName): void
     {
         $now = now();
         $averageIntervalMinutes = max(1, (int) config('smarthome.pin_data_average_interval_minutes', 5));
@@ -25,6 +26,19 @@ class PinDataHistoryService
             }
 
             $incomingValue = (float) $reading['value'];
+            $pinStyle = strtolower((string) ($pinStyleByName[$pinName] ?? ''));
+            $isPowerPin = ($pinStyle === 'power');
+
+            if ($isPowerPin) {
+                DB::table('pin_data')->insert([
+                    'id' => Uuid::uuid7()->toString(),
+                    'pin_id' => $pinId,
+                    'value' => $incomingValue,
+                    'created_at' => $now,
+                ]);
+                continue;
+            }
+
             $lastRow = DB::table('pin_data')
                 ->where('pin_id', $pinId)
                 ->orderByDesc('created_at')

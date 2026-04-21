@@ -39,6 +39,10 @@ TM1637Display pairingDisplay(TM1637_CLK_PIN, TM1637_DIO_PIN);
 
 const uint8_t DIGITAL_PINS[] = { 3, 9, 5, 6 };
 const char *DIGITAL_KEYS[] = { "relay_1", "relay_2", "relay_3", "relay_4" };
+// Единственная точка инверсии: физическая логика реле на контроллере.
+// true  -> active-low (лог.1 = LOW на пине)
+// false -> active-high (лог.1 = HIGH на пине)
+const bool RELAY_ACTIVE_LOW[] = { true, true, true, true };
 const uint8_t ANALOG_PINS[] = { A0, A1, A2, A3, A4, A5 };
 const char *ANALOG_KEYS[] = {
   "soil_moisture_raw",
@@ -57,6 +61,30 @@ unsigned long lastSendMs = 0;
 
 char requestPayload[320];
 char responseBody[220];
+
+static uint8_t relayLogicalToWire(size_t relayIndex, int logicalValue) {
+  int logical = logicalValue > 0 ? 1 : 0;
+  bool activeLow = RELAY_ACTIVE_LOW[relayIndex];
+  if (!activeLow) {
+    return logical > 0 ? HIGH : LOW;
+  }
+  return logical > 0 ? LOW : HIGH;
+}
+
+static int relayWireToLogical(size_t relayIndex, int wireLevel) {
+  int wire = wireLevel == HIGH ? 1 : 0;
+  bool activeLow = RELAY_ACTIVE_LOW[relayIndex];
+  if (!activeLow) {
+    return wire;
+  }
+  return wire > 0 ? 0 : 1;
+}
+
+static void setAllRelaysOff() {
+  for (size_t i = 0; i < DIGITAL_COUNT; i++) {
+    digitalWrite(DIGITAL_PINS[i], relayLogicalToWire(i, 0));
+  }
+}
 
 static bool appendFmt(char *dst, size_t dstSize, size_t *used, const char *fmt, ...) {
   if (*used >= dstSize) {
@@ -86,7 +114,7 @@ static bool buildRequestPayload(char *out, size_t outSize, float humidity, float
   first = false;
 
   for (size_t i = 0; i < DIGITAL_COUNT; i++) {
-    int v = digitalRead(DIGITAL_PINS[i]) == HIGH ? 1 : 0;
+    int v = relayWireToLogical(i, digitalRead(DIGITAL_PINS[i]));
     if (!appendFmt(out, outSize, &used, "%s%s=%d", first ? "" : ";", DIGITAL_KEYS[i], v)) {
       return false;
     }
@@ -225,7 +253,7 @@ static void applyDigitalOutputsFromCsv(const char *csv) {
     if (v < 0) {
       continue;
     }
-    digitalWrite(DIGITAL_PINS[i], v > 0 ? HIGH : LOW);
+    digitalWrite(DIGITAL_PINS[i], relayLogicalToWire(i, (int) v));
   }
 }
 
@@ -409,6 +437,7 @@ static void postMeasurements() {
 
   if (!client.connect(serverHost, serverPort)) {
     Serial.println(F("Connection failed"));
+    setAllRelaysOff();
     showConnectionErrorOnDisplay();
     return;
   }
@@ -434,6 +463,7 @@ static void postMeasurements() {
   int httpStatusCode = 0;
   if (!readHttpBody(client, responseBody, sizeof(responseBody), &httpStatusCode)) {
     Serial.println(F("Invalid HTTP response"));
+    setAllRelaysOff();
     showConnectionErrorOnDisplay();
     client.stop();
     return;
@@ -447,6 +477,7 @@ static void postMeasurements() {
   if (httpStatusCode >= 400) {
     Serial.print(F("HTTP error: "));
     Serial.println(httpStatusCode);
+    setAllRelaysOff();
     showHttpStatusErrorOnDisplay(httpStatusCode);
     Serial.println(F("Request finished"));
     Serial.println();
@@ -488,8 +519,8 @@ void setup() {
 
   for (size_t i = 0; i < DIGITAL_COUNT; i++) {
     pinMode(DIGITAL_PINS[i], OUTPUT);
-    digitalWrite(DIGITAL_PINS[i], LOW);
   }
+  setAllRelaysOff();
 
   pairingDisplay.setBrightness(0x0f, true);
   showConnectionErrorOnDisplay();

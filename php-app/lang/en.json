@@ -95,6 +95,7 @@
   "Average Over, min": "Average Over, min",
   "Chart Range, h": "Chart Range, h",
   "Show on Chart": "Show on Chart",
+  "Show on Report": "Show on Report",
   "Monitoring": "Monitoring",
   "User Data": "User Data",
   "Current Time Zone": "Current Time Zone",
@@ -114,7 +115,8 @@
   "No power events for current day.": "No power events for current day.",
   "Plan: time conditions true and all conditions true": "Plan: time conditions true and all conditions true",
   "Plan: time conditions true but some other conditions false": "Plan: time conditions true but some other conditions false",
-  "Plan: no time condition and all conditions true now": "Plan: no time condition and all conditions true now"
+  "Plan: no time condition and all conditions true now": "Plan: no time condition and all conditions true now",
+  "Plan: no time condition and all conditions true": "Plan: no time condition and all conditions true"
   ,
   "Gateway authorization approved. New secret sent to gateway.": "Gateway authorization approved. New secret sent to gateway.",
   "Gateway code is invalid or expired.": "Gateway code is invalid or expired.",

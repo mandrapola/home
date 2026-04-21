@@ -109,12 +109,12 @@ class PairingController extends Controller
                 'unit',
                 'chart_range_hours',
                 'digital_style',
-                'invert_digital_logic',
                 'value',
                 'value_updated_at',
                 'desired_digital_value',
                 'desired_digital_updated_at',
                 'show_on_chart',
+                'show_on_report',
                 'is_monitored',
                 'enable_scenario',
             ])
@@ -257,53 +257,15 @@ class PairingController extends Controller
             }
         }
         $sourcePinIds = array_values(array_unique(array_merge($sourcePinIds, $powerPinIds)));
+        $sourceMaxAgeSeconds = max(60, (int) config('smarthome.pin_data_average_interval_minutes', 5) * 60);
 
-        $pinMetaRows = DB::table('pin')
-            ->whereIn('id', $sourcePinIds)
-            ->get(['id', 'digital_style', 'invert_digital_logic']);
-        $pinMetaById = [];
-        foreach ($pinMetaRows as $metaRow) {
-            $pinMetaById[(string) $metaRow->id] = [
-                'digital_style' => (string) ($metaRow->digital_style ?? ''),
-                'invert_digital_logic' => ((int) ($metaRow->invert_digital_logic ?? 0)) > 0,
-            ];
-        }
-
-        $normalizeValue = static function (string $pinId, ?float $rawValue) use ($pinMetaById): ?float {
-            if ($rawValue === null) {
-                return null;
-            }
-            $meta = $pinMetaById[$pinId] ?? null;
-            if (! $meta) {
-                return $rawValue;
-            }
-
-            $isPowerPin = ((string) ($meta['digital_style'] ?? '') === 'power');
-            $isInverted = (bool) ($meta['invert_digital_logic'] ?? false);
-            if (! $isPowerPin || ! $isInverted) {
-                return $rawValue;
-            }
-
-            $wireValue = ((int) round($rawValue)) > 0 ? 1 : 0;
-            return (float) (1 - $wireValue);
+        $normalizeValue = static function (string $pinId, ?float $rawValue): ?float {
+            return $rawValue;
         };
 
         $seriesByPinId = [];
         foreach ($sourcePinIds as $pinId) {
             $seriesByPinId[$pinId] = [];
-
-            $before = DB::table('pin_data')
-                ->where('pin_id', $pinId)
-                ->where('created_at', '<', $dayStartUtc)
-                ->orderByDesc('created_at')
-                ->first(['created_at', 'value']);
-
-            if ($before && is_numeric($before->value)) {
-                $seriesByPinId[$pinId][] = [
-                    'ts' => $dayStartUtc->copy(),
-                    'value' => $normalizeValue($pinId, (float) $before->value),
-                ];
-            }
 
             $rows = DB::table('pin_data')
                 ->where('pin_id', $pinId)
@@ -337,7 +299,10 @@ class PairingController extends Controller
             }
         }
 
-        $valueAt = function (string $pinId, Carbon $timestampUtc) use (&$seriesByPinId, &$pointersByPinId): ?float {
+        $valueAt = function (
+            string $pinId,
+            Carbon $timestampUtc
+        ) use (&$seriesByPinId, &$pointersByPinId, $sourceMaxAgeSeconds): ?float {
             $series = $seriesByPinId[$pinId] ?? [];
             if (count($series) === 0) {
                 return null;
@@ -348,6 +313,17 @@ class PairingController extends Controller
                 $idx++;
             }
             $pointersByPinId[$pinId] = $idx;
+
+            $valuePointTs = $series[$idx]['ts'] ?? null;
+            if (! ($valuePointTs instanceof Carbon)) {
+                return null;
+            }
+            if ($valuePointTs->greaterThan($timestampUtc)) {
+                return null;
+            }
+            if ($valuePointTs->diffInSeconds($timestampUtc, false) > $sourceMaxAgeSeconds) {
+                return null;
+            }
 
             return isset($series[$idx]['value']) ? (float) $series[$idx]['value'] : null;
         };
@@ -418,7 +394,6 @@ class PairingController extends Controller
 
                 $planState = null;
 
-                $isCurrentWindow = $startTs->lessThanOrEqualTo($nowUtc) && $endTs->greaterThan($nowUtc);
                 $pickHigherPriorityState = static function (?string $current, ?string $candidate): ?string {
                     if ($candidate === null) {
                         return $current;
@@ -443,7 +418,6 @@ class PairingController extends Controller
                     $allTrue = true;
                     $timeConditionsAllTrue = true;
                     $hasCurrentTimeCondition = false;
-                    $hasMissingData = false;
 
                     foreach ($scenarioConditions as $condition) {
                         $sourcePinId = (string) $condition->pin_id;
@@ -453,10 +427,6 @@ class PairingController extends Controller
                             $sourceValue = ((int) $localTime->format('H') * 3600) + ((int) $localTime->format('i') * 60) + (int) $localTime->format('s');
                         } else {
                             $sourceValue = $valueAt($sourcePinId, $startTs);
-                            if ($sourceValue === null) {
-                                $hasMissingData = true;
-                                break;
-                            }
                         }
 
                         $threshold = is_numeric($condition->threshold) ? (float) $condition->threshold : 0.0;
@@ -469,16 +439,12 @@ class PairingController extends Controller
                         }
                     }
 
-                    if ($hasMissingData) {
-                        continue;
-                    }
-
                     $scenarioState = null;
                     if ($hasCurrentTimeCondition) {
                         if ($timeConditionsAllTrue) {
                             $scenarioState = $allTrue ? 'green' : 'yellow';
                         }
-                    } elseif ($allTrue && $isCurrentWindow) {
+                    } elseif ($allTrue) {
                         $scenarioState = 'red';
                     }
 
@@ -505,6 +471,339 @@ class PairingController extends Controller
 
         return response()->json([
             'controller_id' => $controllerId,
+            'date' => $dayStartLocal->format('Y-m-d'),
+            'time_zone' => $timeZone,
+            'timeline_start' => $dayStartLocal->toIso8601String(),
+            'timeline_end' => $dayEndLocalExclusive->toIso8601String(),
+            'rows' => $rowsPayload,
+        ]);
+    }
+
+    public function myReport(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['error' => 'unauthorized'], 401);
+        }
+
+        $timeZone = (string) ($user->time_zone ?: 'Europe/Moscow');
+        if (! in_array($timeZone, \DateTimeZone::listIdentifiers(), true)) {
+            $timeZone = 'Europe/Moscow';
+        }
+
+        $dayStartLocal = Carbon::now($timeZone)->startOfDay();
+        $dayEndLocalExclusive = $dayStartLocal->copy()->addDay();
+        $dayStartUtc = $dayStartLocal->copy()->utc();
+        $dayEndUtcExclusive = $dayEndLocalExclusive->copy()->utc();
+        $nowUtc = Carbon::now('UTC');
+
+        $reportPins = DB::table('pin as p')
+            ->join('controller_user as cu', 'cu.controller_id', '=', 'p.controller_id')
+            ->join('controller as c', 'c.id', '=', 'p.controller_id')
+            ->where('cu.user_id', (string) $user->id)
+            ->where('p.digital_style', 'power')
+            ->where('p.show_on_report', 1)
+            ->where('c.id', '!=', self::SYSTEM_CONTROLLER_ID)
+            ->orderBy('c.name')
+            ->orderBy('p.pin')
+            ->get(['p.id', 'p.pin', 'p.label', 'p.controller_id', 'c.name as controller_name']);
+
+        if ($reportPins->isEmpty()) {
+            return response()->json([
+                'date' => $dayStartLocal->format('Y-m-d'),
+                'time_zone' => $timeZone,
+                'timeline_start' => $dayStartLocal->toIso8601String(),
+                'timeline_end' => $dayEndLocalExclusive->toIso8601String(),
+                'rows' => [],
+            ]);
+        }
+
+        $reportPinIds = $reportPins->pluck('id')->map(fn ($id) => (string) $id)->all();
+        $sourceMaxAgeSeconds = max(60, (int) config('smarthome.pin_data_average_interval_minutes', 5) * 60);
+
+        $sampleRows = DB::table('pin_data as pd')
+            ->join('pin as p', 'p.id', '=', 'pd.pin_id')
+            ->join('controller_user as cu', 'cu.controller_id', '=', 'p.controller_id')
+            ->where('cu.user_id', (string) $user->id)
+            ->where('pd.created_at', '>=', $dayStartUtc)
+            ->where('pd.created_at', '<', $dayEndUtcExclusive)
+            ->orderBy('pd.created_at')
+            ->get(['pd.created_at']);
+
+        $rawSampleTimestamps = [];
+        foreach ($sampleRows as $sampleRow) {
+            $utc = Carbon::parse((string) $sampleRow->created_at, 'UTC');
+            $key = $utc->format('Y-m-d H:i:s');
+            if (! isset($rawSampleTimestamps[$key])) {
+                $rawSampleTimestamps[$key] = $utc;
+            }
+        }
+        $rawSampleTimestamps = array_values($rawSampleTimestamps);
+
+        $stepSeconds = IoTController::MIN_INTERVAL_SECONDS;
+        if (count($rawSampleTimestamps) > 1) {
+            $diffFrequency = [];
+            for ($i = 1; $i < count($rawSampleTimestamps); $i++) {
+                $diff = $rawSampleTimestamps[$i - 1]->diffInSeconds($rawSampleTimestamps[$i], false);
+                if ($diff <= 0 || $diff > 3600) {
+                    continue;
+                }
+                $diffFrequency[$diff] = ($diffFrequency[$diff] ?? 0) + 1;
+            }
+            if (count($diffFrequency) > 0) {
+                arsort($diffFrequency);
+                $observedStep = (int) array_key_first($diffFrequency);
+                $stepSeconds = max(IoTController::MIN_INTERVAL_SECONDS, $observedStep);
+            }
+        }
+
+        $sampleTimestamps = [];
+        for ($cursor = $dayStartUtc->copy(); $cursor->lt($dayEndUtcExclusive); $cursor->addSeconds($stepSeconds)) {
+            $sampleTimestamps[] = $cursor->copy();
+        }
+        if (count($sampleTimestamps) === 0) {
+            $sampleTimestamps[] = $dayStartUtc->copy();
+        }
+
+        $scenarioRows = DB::table('scenario')
+            ->whereIn('pin_id', $reportPinIds)
+            ->get(['id', 'pin_id']);
+        $scenarioIds = $scenarioRows->pluck('id')->map(fn ($id) => (string) $id)->all();
+
+        $conditions = collect();
+        if (count($scenarioIds) > 0) {
+            $conditions = DB::table('scenario_condition')
+                ->whereIn('scenario_id', $scenarioIds)
+                ->get(['scenario_id', 'pin_id', 'operator', 'threshold']);
+        }
+
+        $scenarioByPinId = [];
+        foreach ($scenarioRows as $scenarioRow) {
+            $targetPinId = (string) $scenarioRow->pin_id;
+            $scenarioByPinId[$targetPinId] ??= [];
+            $scenarioByPinId[$targetPinId][] = (string) $scenarioRow->id;
+        }
+
+        $conditionsByScenarioId = [];
+        $sourcePinIds = [];
+        foreach ($conditions as $condition) {
+            $scenarioId = (string) $condition->scenario_id;
+            $conditionsByScenarioId[$scenarioId] ??= [];
+            $conditionsByScenarioId[$scenarioId][] = $condition;
+            $conditionPinId = (string) $condition->pin_id;
+            if ($conditionPinId !== self::SYSTEM_CURRENT_TIME_PIN_ID) {
+                $sourcePinIds[] = $conditionPinId;
+            }
+        }
+        $sourcePinIds = array_values(array_unique(array_merge($sourcePinIds, $reportPinIds)));
+
+        $accessibleSourcePinIds = DB::table('pin as p')
+            ->join('controller_user as cu', 'cu.controller_id', '=', 'p.controller_id')
+            ->where('cu.user_id', (string) $user->id)
+            ->whereIn('p.id', $sourcePinIds)
+            ->pluck('p.id')
+            ->map(fn ($id) => (string) $id)
+            ->all();
+        $sourcePinIds = $accessibleSourcePinIds;
+
+        $normalizeValue = static function (string $pinId, ?float $rawValue): ?float {
+            return $rawValue;
+        };
+
+        $seriesByPinId = [];
+        foreach ($sourcePinIds as $pinId) {
+            $seriesByPinId[$pinId] = [];
+            $rows = DB::table('pin_data')
+                ->where('pin_id', $pinId)
+                ->where('created_at', '>=', $dayStartUtc)
+                ->where('created_at', '<', $dayEndUtcExclusive)
+                ->orderBy('created_at')
+                ->get(['created_at', 'value']);
+
+            foreach ($rows as $row) {
+                if (! is_numeric($row->value)) {
+                    continue;
+                }
+                $seriesByPinId[$pinId][] = [
+                    'ts' => Carbon::parse((string) $row->created_at, 'UTC'),
+                    'value' => $normalizeValue($pinId, (float) $row->value),
+                ];
+            }
+        }
+
+        $pointersByPinId = [];
+        foreach ($seriesByPinId as $pinId => $series) {
+            $pointersByPinId[$pinId] = 0;
+            if (count($series) === 0) {
+                continue;
+            }
+            while (
+                ($pointersByPinId[$pinId] + 1) < count($series)
+                && $series[$pointersByPinId[$pinId] + 1]['ts']->lessThanOrEqualTo($dayStartUtc)
+            ) {
+                $pointersByPinId[$pinId]++;
+            }
+        }
+
+        $valueAt = function (string $pinId, Carbon $timestampUtc) use (&$seriesByPinId, &$pointersByPinId, $sourceMaxAgeSeconds): ?float {
+            $series = $seriesByPinId[$pinId] ?? [];
+            if (count($series) === 0) {
+                return null;
+            }
+            $idx = (int) ($pointersByPinId[$pinId] ?? 0);
+            while (($idx + 1) < count($series) && $series[$idx + 1]['ts']->lessThanOrEqualTo($timestampUtc)) {
+                $idx++;
+            }
+            $pointersByPinId[$pinId] = $idx;
+            $valuePointTs = $series[$idx]['ts'] ?? null;
+            if (! ($valuePointTs instanceof Carbon)) {
+                return null;
+            }
+            if ($valuePointTs->greaterThan($timestampUtc)) {
+                return null;
+            }
+            if ($valuePointTs->diffInSeconds($timestampUtc, false) > $sourceMaxAgeSeconds) {
+                return null;
+            }
+            return isset($series[$idx]['value']) ? (float) $series[$idx]['value'] : null;
+        };
+
+        $evaluateCondition = static function (string $operator, ?float $sourceValue, float $threshold): bool {
+            if ($sourceValue === null) {
+                return false;
+            }
+            return match (strtolower(trim($operator))) {
+                'gt' => $sourceValue > $threshold,
+                'gte' => $sourceValue >= $threshold,
+                'lt' => $sourceValue < $threshold,
+                'lte' => $sourceValue <= $threshold,
+                'eq' => abs($sourceValue - $threshold) < 0.000001,
+                'ne' => abs($sourceValue - $threshold) >= 0.000001,
+                default => false,
+            };
+        };
+
+        $rowsPayload = [];
+        foreach ($reportPins as $reportPin) {
+            $pinId = (string) $reportPin->id;
+            $scenarioIdList = $scenarioByPinId[$pinId] ?? [];
+            $factIntervals = [];
+            $planIntervals = [];
+
+            $factRows = DB::table('pin_data')
+                ->where('pin_id', $pinId)
+                ->where('created_at', '>=', $dayStartUtc)
+                ->where('created_at', '<', $dayEndUtcExclusive)
+                ->orderBy('created_at')
+                ->get(['created_at', 'value']);
+
+            for ($i = 0; $i < count($factRows); $i++) {
+                $factStartTs = Carbon::parse((string) $factRows[$i]->created_at, 'UTC');
+                if ($factStartTs->greaterThanOrEqualTo($nowUtc)) {
+                    break;
+                }
+                $nextFactTs = ($i + 1) < count($factRows)
+                    ? Carbon::parse((string) $factRows[$i + 1]->created_at, 'UTC')
+                    : $dayEndUtcExclusive->copy();
+                $factEndTs = $nextFactTs->copy();
+                if ($factEndTs->greaterThan($nowUtc)) {
+                    $factEndTs = $nowUtc->copy();
+                }
+                if ($factEndTs->lessThanOrEqualTo($factStartTs)) {
+                    continue;
+                }
+
+                $normalizedFactValue = $normalizeValue($pinId, is_numeric($factRows[$i]->value) ? (float) $factRows[$i]->value : null);
+                $factOn = $normalizedFactValue !== null && ((int) round($normalizedFactValue)) > 0;
+                if (! $factOn) {
+                    continue;
+                }
+
+                $factIntervals[] = [
+                    'start' => $factStartTs->copy()->setTimezone($timeZone)->toIso8601String(),
+                    'end' => $factEndTs->copy()->setTimezone($timeZone)->toIso8601String(),
+                ];
+            }
+
+            for ($i = 0; $i < count($sampleTimestamps); $i++) {
+                $startTs = $sampleTimestamps[$i];
+                $endTs = $sampleTimestamps[$i + 1] ?? $dayEndUtcExclusive;
+                if ($endTs->lessThanOrEqualTo($startTs)) {
+                    continue;
+                }
+
+                $planState = null;
+                $pickHigherPriorityState = static function (?string $current, ?string $candidate): ?string {
+                    if ($candidate === null) {
+                        return $current;
+                    }
+                    $priority = ['none' => 0, 'green' => 1, 'yellow' => 2, 'red' => 3];
+                    $currentPriority = $priority[$current ?? 'none'] ?? 0;
+                    $candidatePriority = $priority[$candidate] ?? 0;
+                    return $candidatePriority >= $currentPriority ? $candidate : $current;
+                };
+
+                foreach ($scenarioIdList as $scenarioId) {
+                    $scenarioConditions = $conditionsByScenarioId[$scenarioId] ?? [];
+                    if (count($scenarioConditions) === 0) {
+                        continue;
+                    }
+
+                    $allTrue = true;
+                    $timeConditionsAllTrue = true;
+                    $hasCurrentTimeCondition = false;
+
+                    foreach ($scenarioConditions as $condition) {
+                        $sourcePinId = (string) $condition->pin_id;
+                        if ($sourcePinId === self::SYSTEM_CURRENT_TIME_PIN_ID) {
+                            $hasCurrentTimeCondition = true;
+                            $localTime = $startTs->copy()->setTimezone($timeZone);
+                            $sourceValue = ((int) $localTime->format('H') * 3600) + ((int) $localTime->format('i') * 60) + (int) $localTime->format('s');
+                        } else {
+                            $sourceValue = $valueAt($sourcePinId, $startTs);
+                        }
+
+                        $threshold = is_numeric($condition->threshold) ? (float) $condition->threshold : 0.0;
+                        $conditionTrue = $evaluateCondition((string) $condition->operator, $sourceValue, $threshold);
+                        if (! $conditionTrue) {
+                            $allTrue = false;
+                            if ($sourcePinId === self::SYSTEM_CURRENT_TIME_PIN_ID) {
+                                $timeConditionsAllTrue = false;
+                            }
+                        }
+                    }
+
+                    $scenarioState = null;
+                    if ($hasCurrentTimeCondition) {
+                        if ($timeConditionsAllTrue) {
+                            $scenarioState = $allTrue ? 'green' : 'yellow';
+                        }
+                    } elseif ($allTrue) {
+                        $scenarioState = 'red';
+                    }
+
+                    $planState = $pickHigherPriorityState($planState, $scenarioState);
+                }
+
+                if ($planState !== null) {
+                    $planIntervals[] = [
+                        'start' => $startTs->copy()->setTimezone($timeZone)->toIso8601String(),
+                        'end' => $endTs->copy()->setTimezone($timeZone)->toIso8601String(),
+                        'state' => $planState,
+                    ];
+                }
+            }
+
+            $rowsPayload[] = [
+                'pin_id' => $pinId,
+                'pin' => (string) $reportPin->pin,
+                'label' => trim(((string) ($reportPin->controller_name ?? '')) . ' · ' . ((string) ($reportPin->label ?? $reportPin->pin))),
+                'fact' => $factIntervals,
+                'plan' => $planIntervals,
+            ];
+        }
+
+        return response()->json([
             'date' => $dayStartLocal->format('Y-m-d'),
             'time_zone' => $timeZone,
             'timeline_start' => $dayStartLocal->toIso8601String(),
@@ -626,8 +925,8 @@ class PairingController extends Controller
             'label' => ['required', 'string', 'max:255'],
             'unit' => ['nullable', 'string', 'max:32'],
             'chart_range_hours' => ['required', 'integer', 'min:1', 'max:720'],
-            'invert_digital_logic' => ['required', 'boolean'],
             'show_on_chart' => ['required', 'boolean'],
+            'show_on_report' => ['required', 'boolean'],
             'is_monitored' => ['required', 'boolean'],
         ]);
 
@@ -638,8 +937,8 @@ class PairingController extends Controller
                 'label' => (string) $validated['label'],
                 'unit' => isset($validated['unit']) && trim((string) $validated['unit']) !== '' ? (string) $validated['unit'] : null,
                 'chart_range_hours' => (int) $validated['chart_range_hours'],
-                'invert_digital_logic' => ! empty($validated['invert_digital_logic']) ? 1 : 0,
                 'show_on_chart' => ! empty($validated['show_on_chart']) ? 1 : 0,
+                'show_on_report' => ! empty($validated['show_on_report']) ? 1 : 0,
                 'is_monitored' => ! empty($validated['is_monitored']) ? 1 : 0,
             ]);
 
@@ -654,11 +953,11 @@ class PairingController extends Controller
                 'unit',
                 'chart_range_hours',
                 'digital_style',
-                'invert_digital_logic',
                 'value',
                 'value_updated_at',
                 'desired_digital_value',
                 'show_on_chart',
+                'show_on_report',
                 'is_monitored',
             ]);
 

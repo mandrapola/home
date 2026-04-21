@@ -46,7 +46,6 @@ class ScenesController extends Controller
                 'label' => 'Текущее время',
                 'unit' => null,
                 'digital_style' => 'sensor',
-                'invert_digital_logic' => 0,
                 'value' => null,
                 'value_updated_at' => null,
                 'desired_digital_value' => null,
@@ -219,7 +218,6 @@ class ScenesController extends Controller
                 'p.label',
                 'p.digital_style',
                 'p.value',
-                'p.invert_digital_logic',
                 'c.id as controller_id',
                 'c.name as controller_name',
             ])
@@ -236,7 +234,6 @@ class ScenesController extends Controller
                 'p.label',
                 'p.digital_style',
                 'p.value',
-                'p.invert_digital_logic',
                 'c.id as controller_id',
                 'c.name as controller_name',
             ])

@@ -95,6 +95,7 @@
   "Average Over, min": "Среднее за, мин",
   "Chart Range, h": "Диапазон графика, ч",
   "Show on Chart": "Показывать на графике",
+  "Show on Report": "Показывать в отчете",
   "Monitoring": "Мониторинг",
   "User Data": "Данные пользователя",
   "Current Time Zone": "Текущая временная зона",
@@ -112,9 +113,10 @@
   "Plan": "План",
   "Pin": "Пин",
   "No power events for current day.": "Нет событий питания за текущие сутки.",
-  "Plan: time conditions true and all conditions true": "План: условия по времени истинны и все условия истинны",
-  "Plan: time conditions true but some other conditions false": "План: условия по времени истинны, но часть других условий ложна",
-  "Plan: no time condition and all conditions true now": "План: без условия по времени, все условия истинны в текущий момент"
+  "Plan: time conditions true and all conditions true": "План: условия по времени",
+  "Plan: time conditions true but some other conditions false": "План: условия по времени с дополнительными проверками",
+  "Plan: no time condition and all conditions true now": "План: без условия времени и все условия истинны в текущий момент",
+  "Plan: no time condition and all conditions true": "План: без условия времени и все условия истинны"
   ,
   "Gateway authorization approved. New secret sent to gateway.": "Авторизация шлюза подтверждена. Новый секрет отправлен на шлюз.",
   "Gateway code is invalid or expired.": "Код шлюза недействителен или истек.",

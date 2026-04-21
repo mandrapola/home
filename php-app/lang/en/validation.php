@@ -25,7 +25,6 @@ return [
         'unit' => 'Unit',
         'is_monitored' => 'Monitoring',
         'show_on_chart' => 'Show on Chart',
-        'invert_digital_logic' => 'Invert Logic',
         'controller_id' => 'Controller ID',
         'pin_id' => 'Pin ID',
         'name' => 'Name',

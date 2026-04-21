@@ -25,7 +25,6 @@ return [
         'unit' => 'Единица',
         'is_monitored' => 'Мониторинг',
         'show_on_chart' => 'Показывать на графике',
-        'invert_digital_logic' => 'Инверсия логики',
         'controller_id' => 'ID контроллера',
         'pin_id' => 'ID пина',
         'name' => 'Имя',

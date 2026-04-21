@@ -4,6 +4,6 @@
 </label>
 
 <label class="checkbox-row">
-    <input name="invert_digital_logic" type="checkbox" class="form-check-input">
-    {{ __('Invert Logic') }}
+    <input name="show_on_report" type="checkbox" class="form-check-input">
+    {{ __('Show on Report') }}
 </label>

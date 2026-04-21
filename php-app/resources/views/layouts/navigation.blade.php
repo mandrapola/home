@@ -13,6 +13,9 @@
                 <li class="nav-item">
                     <a class="nav-link {{ request()->routeIs('scenes') ? 'active' : '' }}" href="{{ route('scenes') }}">{{ __('Scenes') }}</a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ request()->routeIs('report') ? 'active' : '' }}" href="{{ route('report') }}">{{ __('Report') }}</a>
+                </li>
             </ul>
 
             <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-2">

@@ -49,8 +49,8 @@
                 <p class="field-desc">Список локально управляемых цифровых пинов (CSV) для offline-режима. Для вашей схемы: <code>D3,D5,D6,D9</code></p>
             </div>
             <div class="field-item">
-                <p class="field-title"><code>manual_pin_invert</code></p>
-                <p class="field-desc">Список пинов с инверсной логикой (CSV). Если инверсии нет: пусто. Если все реле инверсные: <code>D3,D5,D6,D9</code></p>
+                <p class="field-title">Логика реле</p>
+                <p class="field-desc">Инверсия логики реле настраивается только в скетче контроллера. Gateway и сервер всегда работают в модели: <code>1 = Включено</code>, <code>0 = Выключено</code>.</p>
             </div>
             <div class="field-item">
                 <p class="field-title"><code>proxy_id</code></p>

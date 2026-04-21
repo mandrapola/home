@@ -129,12 +129,12 @@ return new class extends Migration
             $table->string('label', 255);
             $table->string('unit', 32)->nullable();
             $table->string('digital_style', 32)->default('sensor');
-            $table->boolean('invert_digital_logic')->default(false);
             $table->double('value')->nullable();
             $table->timestamp('value_updated_at')->nullable();
             $table->tinyInteger('desired_digital_value')->nullable();
             $table->timestamp('desired_digital_updated_at')->nullable();
             $table->boolean('show_on_chart')->default(false);
+            $table->boolean('show_on_report')->default(true);
             $table->boolean('is_monitored')->default(false);
             $table->integer('chart_range_hours')->default(1);
             $table->boolean('enable_scenario')->default(true);
@@ -193,12 +193,12 @@ return new class extends Migration
                    p.label,
                    p.unit,
                    p.digital_style,
-                   p.invert_digital_logic,
                    p.value,
                    p.value_updated_at,
                    p.desired_digital_value,
                    p.desired_digital_updated_at,
                    p.show_on_chart,
+                   p.show_on_report,
                    p.is_monitored,
                    p.chart_range_hours,
                    p.enable_scenario

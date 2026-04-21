@@ -33,14 +33,14 @@ class ProcessControllerReadingsOnReport
 
         $this->pinDataHistoryService->storeReadings(
             $event->readings,
-            $maps['pinIdByName']
+            $maps['pinIdByName'],
+            $maps['pinStyleByName']
         );
 
         $this->pinValueSyncService->syncFromReadings(
             $event->readings,
             $maps['pinIdByName'],
-            $maps['pinStyleByName'],
-            $maps['pinInvertByName']
+            $maps['pinStyleByName']
         );
 
         $this->scenarioDesiredValueService->applyDesiredValue($event->controllerId);

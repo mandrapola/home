@@ -27,10 +27,6 @@
             const pinChartBody = document.getElementById('pinChartBody');
             const pinChartCloseBtn = document.getElementById('pinChartCloseBtn');
             const pinChartRangeButtons = document.getElementById('pinChartRangeButtons');
-            const openPowerEventsBtn = document.getElementById('open-power-events-btn');
-            const powerEventsDialog = document.getElementById('powerEventsDialog');
-            const powerEventsBody = document.getElementById('powerEventsBody');
-            const powerEventsRefreshBtn = document.getElementById('powerEventsRefreshBtn');
 
             let controllers = [];
             let currentPins = [];
@@ -38,7 +34,6 @@
             let editingControllerId = null;
             let editingPin = null;
             let chartPin = null;
-            let powerEventsControllerId = null;
             let chartsRequestToken = 0;
             let isPinsLoading = false;
             let pinsAutoRefreshTimer = null;
@@ -147,16 +142,16 @@
 
                 const labelEl = pinSettingsForm.querySelector('input[name="label"]');
                 const unitEl = pinSettingsForm.querySelector('input[name="unit"]');
-                const rangeEl = pinSettingsForm.querySelector('input[name="chart_range_hours"]');
-                const invertEl = pinSettingsForm.querySelector('input[name="invert_digital_logic"]');
+                const rangeEl = pinSettingsForm.querySelector('[name="chart_range_hours"]');
                 const showOnChartEl = pinSettingsForm.querySelector('input[name="show_on_chart"]');
+                const showOnReportEl = pinSettingsForm.querySelector('input[name="show_on_report"]');
                 const isMonitoredEl = pinSettingsForm.querySelector('input[name="is_monitored"]');
 
                 if (labelEl) labelEl.value = pin.label || pin.pin || '';
                 if (unitEl) unitEl.value = pin.unit || '';
                 if (rangeEl) rangeEl.value = String(pin.chart_range_hours ?? 24);
-                if (invertEl) invertEl.checked = Number(pin.invert_digital_logic || 0) > 0;
                 if (showOnChartEl) showOnChartEl.checked = Number(pin.show_on_chart || 0) > 0;
+                if (showOnReportEl) showOnReportEl.checked = Number(pin.show_on_report ?? 1) > 0;
                 if (isMonitoredEl) isMonitoredEl.checked = Number(pin.is_monitored || 0) > 0;
 
                 setPinSettingsError('');
@@ -259,109 +254,6 @@
                 if (pinChartDialog) {
                     pinChartDialog.close();
                 }
-            }
-
-            function renderPowerEventsGantt(data) {
-                if (!powerEventsBody) return;
-
-                const rows = Array.isArray(data?.rows) ? data.rows : [];
-                const timelineStart = Date.parse(String(data?.timeline_start || ''));
-                const timelineEnd = Date.parse(String(data?.timeline_end || ''));
-                const span = timelineEnd - timelineStart;
-
-                if (!Number.isFinite(timelineStart) || !Number.isFinite(timelineEnd) || span <= 0 || rows.length === 0) {
-                    powerEventsBody.textContent = t('power_events_empty', 'No power events for current day.');
-                    return;
-                }
-
-                const toPercent = (iso) => {
-                    const ts = Date.parse(String(iso || ''));
-                    if (!Number.isFinite(ts)) return 0;
-                    const percent = ((ts - timelineStart) / span) * 100;
-                    return Math.min(100, Math.max(0, percent));
-                };
-
-                const renderSegments = (segments, lane) => {
-                    if (!Array.isArray(segments)) return '';
-                    return segments.map((segment) => {
-                        const left = toPercent(segment.start);
-                        const right = toPercent(segment.end);
-                        const width = Math.max(0.2, right - left);
-                        const planState = lane === 'plan' ? String(segment.state || '').toLowerCase() : '';
-                        const stateClass = lane === 'plan'
-                            ? (planState === 'green'
-                                ? ' power-gantt-segment--plan-green'
-                                : (planState === 'red'
-                                    ? ' power-gantt-segment--plan-red'
-                                    : ' power-gantt-segment--plan-yellow'))
-                            : '';
-                        return `<span class="power-gantt-segment${stateClass}" style="left:${left.toFixed(4)}%;width:${width.toFixed(4)}%;"></span>`;
-                    }).join('');
-                };
-
-                const hourLines = Array.from({ length: 25 }).map((_, hour) => {
-                    const left = (hour / 24) * 100;
-                    return `<span class="hour-line" style="left:${left.toFixed(4)}%;"></span>`;
-                }).join('');
-
-                const hourLabels = Array.from({ length: 25 }).map((_, hour) => {
-                    const left = (hour / 24) * 100;
-                    return `<span class="power-gantt-hour" style="left:${left.toFixed(4)}%;">${String(hour).padStart(2, '0')}:00</span>`;
-                }).join('');
-
-                const rowHtml = rows.map((row) => `
-                    <div class="power-gantt-row">
-                        <div class="power-gantt-label" title="${String(row.label || row.pin || '')}">${String(row.label || row.pin || '')}</div>
-                        <div class="power-gantt-lanes">
-                            <div class="power-gantt-lane power-gantt-lane--fact">
-                                ${hourLines}
-                                ${renderSegments(row.fact, 'fact')}
-                            </div>
-                            <div class="power-gantt-lane power-gantt-lane--plan">
-                                ${hourLines}
-                                ${renderSegments(row.plan, 'plan')}
-                            </div>
-                        </div>
-                    </div>
-                `).join('');
-
-                powerEventsBody.innerHTML = `
-                    <div class="power-gantt">
-                        <div class="power-gantt-grid">
-                            <div class="power-gantt-header">
-                                <div class="label-col">${t('pin', 'Pin')}</div>
-                                <div class="time-col">${hourLabels}</div>
-                            </div>
-                            ${rowHtml}
-                        </div>
-                    </div>
-                `;
-            }
-
-            async function loadPowerEvents() {
-                if (!powerEventsControllerId || !powerEventsBody) return;
-                powerEventsBody.textContent = t('power_events_loading', 'Loading...');
-                try {
-                    const response = await fetch(
-                        '/api/pairing/my-controllers/' + encodeURIComponent(powerEventsControllerId) + '/power-events',
-                        { headers: { 'Accept': 'application/json' } }
-                    );
-                    const data = await response.json();
-                    if (!response.ok) {
-                        powerEventsBody.textContent = data.message || t('chart_failed', 'Failed to load chart.');
-                        return;
-                    }
-                    renderPowerEventsGantt(data);
-                } catch (_) {
-                    powerEventsBody.textContent = t('chart_failed', 'Failed to load chart.');
-                }
-            }
-
-            async function openPowerEvents() {
-                if (!selectedControllerId || !powerEventsDialog) return;
-                powerEventsControllerId = selectedControllerId;
-                powerEventsDialog.showModal();
-                await loadPowerEvents();
             }
 
             function renderControllers() {
@@ -918,7 +810,6 @@
                         pinsTitleEl.textContent = t('pins_controller', 'Controller Pins');
                     pinsMessageEl.textContent = t('select_controller_left', 'Select a controller on the left.');
                     refreshPinsBtn.disabled = true;
-                    if (openPowerEventsBtn) openPowerEventsBtn.disabled = true;
                     return;
                 }
 
@@ -929,7 +820,6 @@
                         pinsMessageEl.textContent = t('loading', 'Loading...');
                     }
                     refreshPinsBtn.disabled = false;
-                    if (openPowerEventsBtn) openPowerEventsBtn.disabled = false;
 
                     const response = await fetch('/api/pairing/my-controllers/' + encodeURIComponent(selectedControllerId) + '/pins', {
                         headers: {'Accept': 'application/json'}
@@ -964,16 +854,6 @@
             pinSettingsCancelBtn.addEventListener('click', () => {
                 closePinSettings();
             });
-            if (openPowerEventsBtn) {
-                openPowerEventsBtn.addEventListener('click', () => {
-                    openPowerEvents().catch(() => {});
-                });
-            }
-            if (powerEventsRefreshBtn) {
-                powerEventsRefreshBtn.addEventListener('click', () => {
-                    loadPowerEvents().catch(() => {});
-                });
-            }
             if (pinChartCloseBtn) {
                 pinChartCloseBtn.addEventListener('click', () => {
                     closePinChart();
@@ -994,8 +874,8 @@
                         label: String(chartPin.label || chartPin.pin || '').trim(),
                         unit: String(chartPin.unit || '').trim() || null,
                         chart_range_hours: nextRange,
-                        invert_digital_logic: Number(chartPin.invert_digital_logic || 0) > 0,
                         show_on_chart: Number(chartPin.show_on_chart || 0) > 0,
+                        show_on_report: Number(chartPin.show_on_report ?? 1) > 0,
                         is_monitored: Number(chartPin.is_monitored || 0) > 0,
                     };
 
@@ -1074,16 +954,16 @@
 
                 const labelEl = pinSettingsForm.querySelector('input[name="label"]');
                 const unitEl = pinSettingsForm.querySelector('input[name="unit"]');
-                const rangeEl = pinSettingsForm.querySelector('input[name="chart_range_hours"]');
-                const invertEl = pinSettingsForm.querySelector('input[name="invert_digital_logic"]');
+                const rangeEl = pinSettingsForm.querySelector('[name="chart_range_hours"]');
                 const showOnChartEl = pinSettingsForm.querySelector('input[name="show_on_chart"]');
+                const showOnReportEl = pinSettingsForm.querySelector('input[name="show_on_report"]');
                 const isMonitoredEl = pinSettingsForm.querySelector('input[name="is_monitored"]');
                 const payload = {
                     label: String(labelEl?.value || '').trim(),
                     unit: String(unitEl?.value || '').trim() || null,
                     chart_range_hours: Number(rangeEl?.value || 24),
-                    invert_digital_logic: Boolean(invertEl?.checked),
                     show_on_chart: Boolean(showOnChartEl?.checked),
+                    show_on_report: showOnReportEl ? Boolean(showOnReportEl.checked) : (Number(editingPin?.show_on_report ?? 1) > 0),
                     is_monitored: Boolean(isMonitoredEl?.checked),
                 };
 

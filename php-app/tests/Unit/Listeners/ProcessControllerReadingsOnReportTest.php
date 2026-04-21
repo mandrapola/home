@@ -58,7 +58,6 @@ class ProcessControllerReadingsOnReportTest extends TestCase
             $table->string('label', 255);
             $table->string('unit', 32)->nullable();
             $table->string('digital_style', 32)->default('sensor');
-            $table->boolean('invert_digital_logic')->default(false);
             $table->double('value')->nullable();
             $table->timestamp('value_updated_at')->nullable();
             $table->tinyInteger('desired_digital_value')->nullable();

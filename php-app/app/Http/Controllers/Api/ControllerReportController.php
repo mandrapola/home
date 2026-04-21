@@ -45,11 +45,8 @@ class ControllerReportController extends Controller
 
         foreach ($targetRows as $row) {
             $desired = (((int) $row->desired_digital_value) > 0) ? 1 : 0;
-            $invertDigitalLogic = ((int) ($row->invert_digital_logic ?? 0)) > 0;
-
-            $wireDesired = $invertDigitalLogic ? (1 - $desired) : $desired;
             $pinKey = strtolower($this->normalizePin((string) $row->pin));
-            $digitalOutputs[$pinKey] = ((int) $wireDesired) > 0 ? 1 : 0;
+            $digitalOutputs[$pinKey] = $desired;
         }
 
         return $digitalOutputs;
