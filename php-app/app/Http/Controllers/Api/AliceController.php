@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\Alice\AliceSmartHomeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class AliceController extends Controller
 {
@@ -68,6 +69,16 @@ class AliceController extends Controller
     public function unlink(Request $request): JsonResponse
     {
         $user = $this->resolveAliceUser($request);
+        $accessTokenId = $request->attributes->get('alice_access_token_id');
+        if (is_numeric($accessTokenId)) {
+            DB::table('alice_oauth_access_tokens')
+                ->where('id', (int) $accessTokenId)
+                ->update([
+                    'revoked_at' => now(),
+                    'updated_at' => now(),
+                ]);
+        }
+
         $yandexUserId = (string) $request->attributes->get('alice_yandex_user_id', '');
         if ($yandexUserId !== '') {
             $this->service->unlink($user, $yandexUserId);

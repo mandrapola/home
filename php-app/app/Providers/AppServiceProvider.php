@@ -30,8 +30,17 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         RateLimiter::for('alice-api', function (Request $request) {
-            $key = (string) ($request->header('X-Alice-User-Id') ?: $request->ip());
+            $auth = trim((string) $request->header('Authorization', ''));
+            $headerUser = trim((string) $request->header('X-Alice-User-Id', ''));
+            $keySource = $auth !== '' ? $auth : ($headerUser !== '' ? $headerUser : (string) $request->ip());
+            $key = hash('sha256', $keySource);
             return Limit::perMinute(120)->by('alice-api:' . $key);
+        });
+
+        RateLimiter::for('alice-oauth-token', function (Request $request) {
+            $clientId = trim((string) $request->input('client_id', ''));
+            $keySource = $clientId !== '' ? $clientId . '|' . $request->ip() : (string) $request->ip();
+            return Limit::perMinute(60)->by('alice-oauth-token:' . hash('sha256', $keySource));
         });
 
         Event::listen(ControllerPaired::class, CleanupControllerPairingsOnPaired::class);

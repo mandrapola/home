@@ -161,4 +161,9 @@
   "Disable": "Отключить",
   "No users found.": "Пользователи не найдены.",
   "Alice access updated.": "Доступ к Алисе обновлен."
+  ,"Authorize access": "Подтверждение доступа"
+  ,"Application": "Приложение"
+  ,"Grant this app access to your devices and sensor states for Yandex Alice.": "Разрешите приложению доступ к вашим устройствам и показаниям датчиков для Яндекс Алисы."
+  ,"Allow": "Разрешить"
+  ,"Deny": "Запретить"
 }

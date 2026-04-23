@@ -4,6 +4,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PairingController;
 use App\Http\Controllers\ScenesController;
 use App\Http\Controllers\AliceLinkController;
+use App\Http\Controllers\OAuth\AliceOAuthProviderController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -29,6 +30,13 @@ Route::get('/home-arduino/site-faq', function () {
 Route::get('/home-arduino/server-contract', function () {
     return view('home-arduino-server-contract');
 })->name('home-arduino.server-contract');
+
+Route::get('/oauth/authorize', [AliceOAuthProviderController::class, 'authorize'])
+    ->name('oauth.alice.authorize');
+
+Route::post('/oauth/authorize', [AliceOAuthProviderController::class, 'approve'])
+    ->middleware('auth')
+    ->name('oauth.alice.approve');
 
 Route::get('/dashboard', function () {
     return view('dashboard');

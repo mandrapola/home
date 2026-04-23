@@ -161,4 +161,9 @@
   "Disable": "Disable",
   "No users found.": "No users found.",
   "Alice access updated.": "Alice access updated."
+  ,"Authorize access": "Authorize access"
+  ,"Application": "Application"
+  ,"Grant this app access to your devices and sensor states for Yandex Alice.": "Grant this app access to your devices and sensor states for Yandex Alice."
+  ,"Allow": "Allow"
+  ,"Deny": "Deny"
 }

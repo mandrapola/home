@@ -44,6 +44,14 @@ return [
         'oauth_authorize_url' => env('ALICE_OAUTH_AUTHORIZE_URL', 'https://oauth.yandex.ru/authorize'),
         'oauth_token_url' => env('ALICE_OAUTH_TOKEN_URL', 'https://oauth.yandex.ru/token'),
         'oauth_userinfo_url' => env('ALICE_OAUTH_USERINFO_URL', 'https://login.yandex.ru/info'),
+        'provider_client_id' => env('ALICE_PROVIDER_CLIENT_ID', ''),
+        'provider_client_secret' => env('ALICE_PROVIDER_CLIENT_SECRET', ''),
+        'provider_redirect_uris' => array_values(array_filter(array_map(
+            static fn ($uri) => trim((string) $uri),
+            explode(',', (string) env('ALICE_PROVIDER_REDIRECT_URIS', ''))
+        ))),
+        'provider_auth_code_ttl_seconds' => (int) env('ALICE_PROVIDER_AUTH_CODE_TTL_SECONDS', 300),
+        'provider_access_token_ttl_seconds' => (int) env('ALICE_PROVIDER_ACCESS_TOKEN_TTL_SECONDS', 2592000),
     ],
 
 ];
