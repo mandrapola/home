@@ -28,3 +28,8 @@
     <input name="is_monitored" type="checkbox" class="form-check-input">
     {{ __('Monitoring') }}
 </label>
+
+<label class="checkbox-row">
+    <input name="external_enabled" type="checkbox" class="form-check-input">
+    {{ __('Available for Alice') }}
+</label>

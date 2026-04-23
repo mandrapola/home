@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\ControllerReportController;
+use App\Http\Controllers\Api\AliceController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/ping', function () {
@@ -11,3 +12,12 @@ Route::get('/ping', function () {
 });
 
 Route::post('/controller/report', ControllerReportController::class)->middleware('proxy.hmac');
+
+Route::prefix('/alice/v1.0')
+    ->middleware(['alice.resolve', 'alice.access', 'throttle:alice-api'])
+    ->group(function (): void {
+        Route::get('/user/devices', [AliceController::class, 'devices']);
+        Route::post('/user/devices/query', [AliceController::class, 'query']);
+        Route::post('/user/devices/action', [AliceController::class, 'action']);
+        Route::post('/user/unlink', [AliceController::class, 'unlink']);
+    });

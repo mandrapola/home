@@ -3,6 +3,7 @@
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PairingController;
 use App\Http\Controllers\ScenesController;
+use App\Http\Controllers\AliceLinkController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -46,6 +47,12 @@ Route::get('/scenes', [ScenesController::class, 'index'])->middleware(['auth', '
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::patch('/admin/users/{targetUser}/alice-access', [ProfileController::class, 'updateUserAliceAccess'])
+        ->middleware('admin.user')
+        ->name('admin.users.alice-access.update');
+    Route::get('/profile/alice/connect', [AliceLinkController::class, 'redirectToProvider'])->name('profile.alice.connect');
+    Route::get('/profile/alice/callback', [AliceLinkController::class, 'handleProviderCallback'])->name('profile.alice.callback');
+    Route::post('/profile/alice/disconnect', [AliceLinkController::class, 'disconnect'])->name('profile.alice.disconnect');
     Route::get('/api/scenes/data', [ScenesController::class, 'data']);
     Route::post('/api/scenes/scenario-definitions', [ScenesController::class, 'storeDefinition']);
     Route::put('/api/scenes/scenario-definitions/{definitionId}', [ScenesController::class, 'updateDefinition']);

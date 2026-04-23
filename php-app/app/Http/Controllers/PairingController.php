@@ -116,6 +116,7 @@ class PairingController extends Controller
                 'show_on_chart',
                 'show_on_report',
                 'is_monitored',
+                'external_enabled',
                 'enable_scenario',
             ])
             ->get();
@@ -928,6 +929,7 @@ class PairingController extends Controller
             'show_on_chart' => ['required', 'boolean'],
             'show_on_report' => ['required', 'boolean'],
             'is_monitored' => ['required', 'boolean'],
+            'external_enabled' => ['required', 'boolean'],
         ]);
 
         DB::table('pin')
@@ -940,6 +942,7 @@ class PairingController extends Controller
                 'show_on_chart' => ! empty($validated['show_on_chart']) ? 1 : 0,
                 'show_on_report' => ! empty($validated['show_on_report']) ? 1 : 0,
                 'is_monitored' => ! empty($validated['is_monitored']) ? 1 : 0,
+                'external_enabled' => ! empty($validated['external_enabled']) ? 1 : 0,
             ]);
 
         $updatedPin = DB::table('pin')
@@ -959,6 +962,7 @@ class PairingController extends Controller
                 'show_on_chart',
                 'show_on_report',
                 'is_monitored',
+                'external_enabled',
             ]);
 
         return response()->json([

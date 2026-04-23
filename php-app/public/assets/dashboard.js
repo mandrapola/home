@@ -1,6 +1,15 @@
         (function () {
             const i18n = window.dashboardI18n || {};
             const t = (key, fallback) => i18n[key] || fallback || key;
+            const unitLabels = i18n.unit_labels && typeof i18n.unit_labels === 'object' ? i18n.unit_labels : {};
+            const localizeUnitLabel = (unit) => {
+                const raw = String(unit || '').trim();
+                if (raw === '') return '';
+                const lower = raw.toLowerCase();
+                if (unitLabels[raw] !== undefined) return String(unitLabels[raw]);
+                if (unitLabels[lower] !== undefined) return String(unitLabels[lower]);
+                return raw;
+            };
             const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
             const controllersListEl = document.getElementById('controllers-list');
             const controllersEmptyEl = document.getElementById('controllers-empty');
@@ -146,6 +155,7 @@
                 const showOnChartEl = pinSettingsForm.querySelector('input[name="show_on_chart"]');
                 const showOnReportEl = pinSettingsForm.querySelector('input[name="show_on_report"]');
                 const isMonitoredEl = pinSettingsForm.querySelector('input[name="is_monitored"]');
+                const externalEnabledEl = pinSettingsForm.querySelector('input[name="external_enabled"]');
 
                 if (labelEl) labelEl.value = pin.label || pin.pin || '';
                 if (unitEl) unitEl.value = pin.unit || '';
@@ -153,6 +163,7 @@
                 if (showOnChartEl) showOnChartEl.checked = Number(pin.show_on_chart || 0) > 0;
                 if (showOnReportEl) showOnReportEl.checked = Number(pin.show_on_report ?? 1) > 0;
                 if (isMonitoredEl) isMonitoredEl.checked = Number(pin.is_monitored || 0) > 0;
+                if (externalEnabledEl) externalEnabledEl.checked = Number(pin.external_enabled ?? 1) > 0;
 
                 setPinSettingsError('');
                 pinSettingsDialog.showModal();
@@ -228,7 +239,7 @@
                     const charts = await fetchChartDataMap();
                     const chart = charts[current.id] || { points: [] };
                     if (!canvas) return;
-                    renderDetailedChart(canvas, Array.isArray(chart.points) ? chart.points : [], current.unit || '');
+                    renderDetailedChart(canvas, Array.isArray(chart.points) ? chart.points : [], localizeUnitLabel(current.unit));
                 } catch (_) {
                     if (canvas) {
                         canvas.textContent = t('chart_failed', 'Failed to load chart.');
@@ -328,7 +339,8 @@
                 const isMonitored = Number(pin.is_monitored || 0) > 0;
                 const rawValue = pin.value;
                 let displayValue = rawValue === null || rawValue === undefined ? '—' : String(rawValue);
-                let unit = pin.unit ? ` ${pin.unit}` : '';
+                const localizedUnit = localizeUnitLabel(pin.unit);
+                let unit = localizedUnit ? ` ${localizedUnit}` : '';
 
                 if (isPowerPin && rawValue !== null && rawValue !== undefined) {
                     const value = Number(rawValue || 0) > 0 ? 1 : 0;
@@ -772,7 +784,7 @@
                         const chartContainer = pinsListEl.querySelector(`.pin-chart[data-pin-id="${pin.id}"]`);
                         if (!chartContainer) return;
                         const chart = charts[pin.id] || { points: [] };
-                        renderSparkline(chartContainer, Array.isArray(chart.points) ? chart.points : [], pin.unit || '');
+                        renderSparkline(chartContainer, Array.isArray(chart.points) ? chart.points : [], localizeUnitLabel(pin.unit));
                     });
                 } catch (_) {
                     // keep cards usable even if chart loading fails
@@ -877,6 +889,7 @@
                         show_on_chart: Number(chartPin.show_on_chart || 0) > 0,
                         show_on_report: Number(chartPin.show_on_report ?? 1) > 0,
                         is_monitored: Number(chartPin.is_monitored || 0) > 0,
+                        external_enabled: Number(chartPin.external_enabled ?? 1) > 0,
                     };
 
                     try {
@@ -958,6 +971,7 @@
                 const showOnChartEl = pinSettingsForm.querySelector('input[name="show_on_chart"]');
                 const showOnReportEl = pinSettingsForm.querySelector('input[name="show_on_report"]');
                 const isMonitoredEl = pinSettingsForm.querySelector('input[name="is_monitored"]');
+                const externalEnabledEl = pinSettingsForm.querySelector('input[name="external_enabled"]');
                 const payload = {
                     label: String(labelEl?.value || '').trim(),
                     unit: String(unitEl?.value || '').trim() || null,
@@ -965,6 +979,7 @@
                     show_on_chart: Boolean(showOnChartEl?.checked),
                     show_on_report: showOnReportEl ? Boolean(showOnReportEl.checked) : (Number(editingPin?.show_on_report ?? 1) > 0),
                     is_monitored: Boolean(isMonitoredEl?.checked),
+                    external_enabled: externalEnabledEl ? Boolean(externalEnabledEl.checked) : (Number(editingPin?.external_enabled ?? 1) > 0),
                 };
 
                 try {

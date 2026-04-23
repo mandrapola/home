@@ -35,4 +35,15 @@ return [
         ],
     ],
 
+    'alice' => [
+        'enabled' => (bool) env('ALICE_ENABLED', false),
+        'stale_sensor_seconds' => (int) env('ALICE_STALE_SENSOR_SECONDS', 600),
+        'client_id' => env('ALICE_CLIENT_ID', ''),
+        'client_secret' => env('ALICE_CLIENT_SECRET', ''),
+        'oauth_redirect_uri' => env('ALICE_OAUTH_REDIRECT_URI', ''),
+        'oauth_authorize_url' => env('ALICE_OAUTH_AUTHORIZE_URL', 'https://oauth.yandex.ru/authorize'),
+        'oauth_token_url' => env('ALICE_OAUTH_TOKEN_URL', 'https://oauth.yandex.ru/token'),
+        'oauth_userinfo_url' => env('ALICE_OAUTH_USERINFO_URL', 'https://login.yandex.ru/info'),
+    ],
+
 ];

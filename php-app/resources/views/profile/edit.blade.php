@@ -33,6 +33,52 @@
                         <div class="text-muted small">{{ __('Current Language') }}</div>
                         <div class="fw-semibold">{{ strtoupper((string) ($user->locale ?? 'ru')) }}</div>
                     </div>
+                    <div class="mb-3">
+                        <div class="text-muted small">{{ __('Alice Access') }}</div>
+                        <div class="fw-semibold">
+                            @if ($user->alice_enabled)
+                                {{ __('Enabled') }}
+                            @else
+                                {{ __('Disabled') }}
+                            @endif
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="mb-2">
+                        <div class="text-muted small">Yandex Alice</div>
+                        <div class="fw-semibold">
+                            @if ($aliceLinkedAccount)
+                                {{ __('Connected') }} (ID: {{ $aliceLinkedAccount->yandex_user_id }})
+                            @else
+                                {{ __('Not connected') }}
+                            @endif
+                        </div>
+                    </div>
+
+                    @if (session('alice-status'))
+                        <div class="alert alert-success py-2 mb-3">{{ session('alice-status') }}</div>
+                    @endif
+                    @if (session('alice-error'))
+                        <div class="alert alert-danger py-2 mb-3">{{ session('alice-error') }}</div>
+                    @endif
+
+                    <div class="d-flex gap-2 mb-3">
+                        <a href="{{ route('profile.alice.connect') }}"
+                           class="btn btn-outline-primary btn-sm @if (!config('services.alice.enabled') || !($user->alice_enabled ?? false)) disabled @endif">
+                            {{ __('Connect Alice') }}
+                        </a>
+
+                        @if ($aliceLinkedAccount)
+                            <form method="post" action="{{ route('profile.alice.disconnect') }}">
+                                @csrf
+                                <button type="submit" class="btn btn-outline-danger btn-sm">
+                                    {{ __('Disconnect Alice') }}
+                                </button>
+                            </form>
+                        @endif
+                    </div>
 
                     @if (session('status') === 'profile-updated')
                         <div class="alert alert-success py-2 mb-3">{{ __('Profile updated.') }}</div>
@@ -83,5 +129,67 @@
                 </div>
             </div>
         </div>
+
+        @if ($user->is_admin ?? false)
+            <div class="col-12 col-lg-6">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h3 class="h6 mb-3">{{ __('Alice Access Management') }}</h3>
+
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>{{ __('Name') }}</th>
+                                        <th>E-mail</th>
+                                        <th>{{ __('Role') }}</th>
+                                        <th>{{ __('Alice Access') }}</th>
+                                        <th>{{ __('Action') }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse ($adminUsers as $adminUser)
+                                        <tr>
+                                            <td>{{ $adminUser->id }}</td>
+                                            <td>{{ $adminUser->name }}</td>
+                                            <td>{{ $adminUser->email }}</td>
+                                            <td>
+                                                @if ($adminUser->is_admin)
+                                                    {{ __('Admin') }}
+                                                @else
+                                                    {{ __('User') }}
+                                                @endif
+                                            </td>
+                                            <td>
+                                                @if ($adminUser->alice_enabled)
+                                                    {{ __('Enabled') }}
+                                                @else
+                                                    {{ __('Disabled') }}
+                                                @endif
+                                            </td>
+                                            <td>
+                                                <form method="post" action="{{ route('admin.users.alice-access.update', $adminUser->id) }}" class="d-flex gap-2">
+                                                    @csrf
+                                                    @method('patch')
+                                                    <input type="hidden" name="alice_enabled" value="{{ $adminUser->alice_enabled ? 0 : 1 }}">
+                                                    <button type="submit" class="btn btn-outline-primary btn-sm">
+                                                        {{ $adminUser->alice_enabled ? __('Disable') : __('Enable') }}
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="6" class="text-muted">{{ __('No users found.') }}</td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
     </div>
 </x-app-layout>

@@ -155,6 +155,19 @@
             'min' => __('min'),
             'max' => __('max'),
             'current' => __('current'),
+            'unit_labels' => [
+                'celsius' => __('celsius'),
+                'fahrenheit' => __('fahrenheit'),
+                'percent' => __('percent'),
+                'adc' => __('adc'),
+                'kpa' => __('kpa'),
+                'bar' => __('bar'),
+                'ppm' => __('ppm'),
+                'lux' => __('lux'),
+                '°c' => __('celsius'),
+                '°f' => __('fahrenheit'),
+                '%' => __('percent'),
+            ],
         ];
     @endphp
     <script>

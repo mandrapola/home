@@ -37,14 +37,14 @@ class ControllerPinProvisioningService
             'RELAY_2' => ['label' => 'Реле 2 (полив/линия 2)', 'digital_style' => 'power', 'unit' => null, 'show_on_chart' => 0, 'chart_range_hours' => 1],
             'RELAY_3' => ['label' => 'Реле 3 (вентиляция/линия 3)', 'digital_style' => 'power', 'unit' => null, 'show_on_chart' => 0, 'chart_range_hours' => 1],
             'RELAY_4' => ['label' => 'Реле 4 (освещение/линия 4)', 'digital_style' => 'power', 'unit' => null, 'show_on_chart' => 0, 'chart_range_hours' => 1],
-            'SOIL_MOISTURE_RAW' => ['label' => 'Влажность почвы (сырой ADC)', 'digital_style' => 'sensor_humidity', 'unit' => 'ADC', 'show_on_chart' => 1, 'chart_range_hours' => 24],
-            'LIGHT_LEVEL_RAW' => ['label' => 'Уровень освещенности (сырой ADC)', 'digital_style' => 'sensor_light', 'unit' => 'ADC', 'show_on_chart' => 1, 'chart_range_hours' => 24],
-            'TANK_LEVEL_RAW' => ['label' => 'Уровень воды в баке (сырой ADC)', 'digital_style' => 'sensor_level', 'unit' => 'ADC', 'show_on_chart' => 1, 'chart_range_hours' => 24],
-            'WATER_PRESSURE_RAW' => ['label' => 'Давление воды (сырой ADC)', 'digital_style' => 'sensor_pressure', 'unit' => 'ADC', 'show_on_chart' => 1, 'chart_range_hours' => 24],
-            'ANALOG_SPARE_1_RAW' => ['label' => 'Аналоговый вход A4 (резерв)', 'digital_style' => 'sensor', 'unit' => 'ADC', 'show_on_chart' => 1, 'chart_range_hours' => 24],
-            'ANALOG_SPARE_2_RAW' => ['label' => 'Аналоговый вход A5 (резерв)', 'digital_style' => 'sensor', 'unit' => 'ADC', 'show_on_chart' => 1, 'chart_range_hours' => 24],
-            'AIR_HUMIDITY' => ['label' => 'Влажность воздуха', 'digital_style' => 'sensor_humidity', 'unit' => '%', 'show_on_chart' => 1, 'chart_range_hours' => 24],
-            'AIR_TEMPERATURE' => ['label' => 'Температура воздуха', 'digital_style' => 'sensor_temperature', 'unit' => '°C', 'show_on_chart' => 1, 'chart_range_hours' => 24],
+            'SOIL_MOISTURE_RAW' => ['label' => 'Влажность почвы (сырой ADC)', 'digital_style' => 'sensor_humidity', 'unit' => 'adc', 'show_on_chart' => 1, 'chart_range_hours' => 24],
+            'LIGHT_LEVEL_RAW' => ['label' => 'Уровень освещенности (сырой ADC)', 'digital_style' => 'sensor_light', 'unit' => 'adc', 'show_on_chart' => 1, 'chart_range_hours' => 24],
+            'TANK_LEVEL_RAW' => ['label' => 'Уровень воды в баке (сырой ADC)', 'digital_style' => 'sensor_level', 'unit' => 'adc', 'show_on_chart' => 1, 'chart_range_hours' => 24],
+            'WATER_PRESSURE_RAW' => ['label' => 'Давление воды (сырой ADC)', 'digital_style' => 'sensor_pressure', 'unit' => 'adc', 'show_on_chart' => 1, 'chart_range_hours' => 24],
+            'ANALOG_SPARE_1_RAW' => ['label' => 'Аналоговый вход A4 (резерв)', 'digital_style' => 'sensor', 'unit' => 'adc', 'show_on_chart' => 1, 'chart_range_hours' => 24],
+            'ANALOG_SPARE_2_RAW' => ['label' => 'Аналоговый вход A5 (резерв)', 'digital_style' => 'sensor', 'unit' => 'adc', 'show_on_chart' => 1, 'chart_range_hours' => 24],
+            'AIR_HUMIDITY' => ['label' => 'Влажность воздуха', 'digital_style' => 'sensor_humidity', 'unit' => 'percent', 'show_on_chart' => 1, 'chart_range_hours' => 24],
+            'AIR_TEMPERATURE' => ['label' => 'Температура воздуха', 'digital_style' => 'sensor_temperature', 'unit' => 'celsius', 'show_on_chart' => 1, 'chart_range_hours' => 24],
         ];
 
         $mapped = $known[$normalizedPin] ?? null;
@@ -59,13 +59,13 @@ class ControllerPinProvisioningService
                 $label = 'Цифровой порт ' . $normalizedPin;
             } elseif ($normalizedLower === 'air_temperature') {
                 $label = 'Температура воздуха';
-                $unit = '°C';
+                $unit = 'celsius';
             } elseif ($normalizedLower === 'air_humidity') {
                 $label = 'Влажность воздуха';
-                $unit = '%';
+                $unit = 'percent';
             } elseif ($isAnalog) {
                 $label = 'Аналоговый порт ' . $normalizedPin;
-                $unit = 'ADC';
+                $unit = 'adc';
             }
         }
 

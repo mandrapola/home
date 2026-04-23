@@ -15,6 +15,8 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->string('time_zone', 64)->default('Europe/Moscow');
             $table->string('locale', 8)->default('ru');
+            $table->boolean('alice_enabled')->default(false);
+            $table->boolean('is_admin')->default(false);
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->rememberToken();
@@ -105,6 +107,17 @@ return new class extends Migration
             $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
         });
 
+        Schema::create('alice_accounts', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('user_id');
+            $table->string('yandex_user_id', 191)->unique();
+            $table->timestamp('unlinked_at')->nullable();
+            $table->timestamps();
+
+            $table->index(['user_id', 'unlinked_at'], 'idx_alice_accounts_user_unlinked');
+            $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
+        });
+
         Schema::create('controller_pairings', function (Blueprint $table): void {
             $table->char('id', 36)->primary();
             $table->char('controller_id', 36);
@@ -136,6 +149,7 @@ return new class extends Migration
             $table->boolean('show_on_chart')->default(false);
             $table->boolean('show_on_report')->default(true);
             $table->boolean('is_monitored')->default(false);
+            $table->boolean('external_enabled')->default(true);
             $table->integer('chart_range_hours')->default(1);
             $table->boolean('enable_scenario')->default(true);
 
@@ -200,6 +214,7 @@ return new class extends Migration
                    p.show_on_chart,
                    p.show_on_report,
                    p.is_monitored,
+                   p.external_enabled,
                    p.chart_range_hours,
                    p.enable_scenario
             FROM pin p
@@ -227,6 +242,7 @@ return new class extends Migration
         Schema::dropIfExists('pin_data');
         Schema::dropIfExists('pin');
         Schema::dropIfExists('controller_pairings');
+        Schema::dropIfExists('alice_accounts');
         Schema::dropIfExists('controller_user');
         Schema::dropIfExists('controller');
 

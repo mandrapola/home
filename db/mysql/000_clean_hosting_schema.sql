@@ -12,6 +12,7 @@ DROP TABLE IF EXISTS system_settings;
 DROP TABLE IF EXISTS pin_data;
 DROP TABLE IF EXISTS pin;
 DROP TABLE IF EXISTS controller_pairings;
+DROP TABLE IF EXISTS alice_accounts;
 DROP TABLE IF EXISTS controller_user;
 DROP TABLE IF EXISTS controller;
 
@@ -32,6 +33,8 @@ CREATE TABLE users (
   email VARCHAR(255) NOT NULL,
   time_zone VARCHAR(64) NOT NULL DEFAULT 'Europe/Moscow',
   locale VARCHAR(8) NOT NULL DEFAULT 'ru',
+  alice_enabled TINYINT(1) NOT NULL DEFAULT 0,
+  is_admin TINYINT(1) NOT NULL DEFAULT 0,
   email_verified_at TIMESTAMP NULL,
   password VARCHAR(255) NOT NULL,
   remember_token VARCHAR(100) NULL,
@@ -129,6 +132,18 @@ CREATE TABLE controller_user (
   CONSTRAINT fk_controller_user_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE alice_accounts (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT UNSIGNED NOT NULL,
+  yandex_user_id VARCHAR(191) NOT NULL,
+  unlinked_at TIMESTAMP NULL,
+  created_at TIMESTAMP NULL,
+  updated_at TIMESTAMP NULL,
+  UNIQUE KEY alice_accounts_yandex_user_id_unique (yandex_user_id),
+  KEY idx_alice_accounts_user_unlinked (user_id, unlinked_at),
+  CONSTRAINT fk_alice_accounts_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE controller_pairings (
   id CHAR(36) NOT NULL PRIMARY KEY,
   controller_id CHAR(36) NOT NULL,
@@ -160,6 +175,7 @@ CREATE TABLE pin (
   show_on_chart TINYINT(1) NOT NULL DEFAULT 0,
   show_on_report TINYINT(1) NOT NULL DEFAULT 1,
   is_monitored TINYINT(1) NOT NULL DEFAULT 0,
+  external_enabled TINYINT(1) NOT NULL DEFAULT 1,
   chart_range_hours INT NOT NULL DEFAULT 1,
   enable_scenario TINYINT(1) NOT NULL DEFAULT 1,
   UNIQUE KEY uk_controller_pin (controller_id, pin),
@@ -220,6 +236,7 @@ SELECT p.id,
        p.show_on_chart,
        p.show_on_report,
        p.is_monitored,
+       p.external_enabled,
        p.chart_range_hours,
        p.enable_scenario
 FROM pin p
