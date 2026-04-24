@@ -37,6 +37,7 @@ return [
 
     'alice' => [
         'enabled' => (bool) env('ALICE_ENABLED', false),
+        'alerts_enabled' => (bool) env('ALICE_ALERTS_ENABLED', false),
         'stale_sensor_seconds' => (int) env('ALICE_STALE_SENSOR_SECONDS', 600),
         'client_id' => env('ALICE_CLIENT_ID', ''),
         'client_secret' => env('ALICE_CLIENT_SECRET', ''),
@@ -44,6 +45,8 @@ return [
         'oauth_authorize_url' => env('ALICE_OAUTH_AUTHORIZE_URL', 'https://oauth.yandex.ru/authorize'),
         'oauth_token_url' => env('ALICE_OAUTH_TOKEN_URL', 'https://oauth.yandex.ru/token'),
         'oauth_userinfo_url' => env('ALICE_OAUTH_USERINFO_URL', 'https://login.yandex.ru/info'),
+        'skill_id' => env('ALICE_SKILL_ID', ''),
+        'dialogs_oauth_token' => env('ALICE_DIALOGS_OAUTH_TOKEN', ''),
         'provider_client_id' => env('ALICE_PROVIDER_CLIENT_ID', ''),
         'provider_client_secret' => env('ALICE_PROVIDER_CLIENT_SECRET', ''),
         'provider_redirect_uris' => array_values(array_filter(array_map(

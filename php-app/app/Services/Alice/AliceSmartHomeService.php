@@ -12,6 +12,12 @@ use Illuminate\Support\Facades\Schema;
 
 class AliceSmartHomeService
 {
+    private function alertsEnabled(): bool
+    {
+        return (bool) config('services.alice.enabled', false)
+            && (bool) config('services.alice.alerts_enabled', false);
+    }
+
     public function buildDevicesPayload(User $user, ?string $requestId = null): array
     {
         $devices = $this->ownedPins($user)->map(fn (object $pin) => $this->mapDevice($pin))->filter()->values()->all();
@@ -219,7 +225,7 @@ class AliceSmartHomeService
                 'capabilities' => [[
                     'type' => 'devices.capabilities.on_off',
                     'retrievable' => true,
-                    'reportable' => false,
+                    'reportable' => $this->alertsEnabled(),
                     'parameters' => [
                         'instance' => 'on',
                     ],

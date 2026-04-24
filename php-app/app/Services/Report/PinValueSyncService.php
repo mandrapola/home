@@ -17,7 +17,9 @@ class PinValueSyncService
         array $readings,
         array $pinIdByName,
         array $pinStyleByName
-    ): void {
+    ): array {
+        $changedPowerStates = [];
+
         foreach ($readings as $reading) {
             $pinName = strtoupper(trim((string) $reading['pin']));
             $pinId = $pinIdByName[$pinName] ?? null;
@@ -45,11 +47,14 @@ class PinValueSyncService
                 }
 
                 $updateData['value'] = $logicalValue;
+                $changedPowerStates[(string) $pinId] = ($logicalValue === 1);
             }
 
             DB::table('pin')
                 ->where('id', $pinId)
                 ->update($updateData);
         }
+
+        return $changedPowerStates;
     }
 }

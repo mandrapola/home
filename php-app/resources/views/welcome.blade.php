@@ -117,7 +117,7 @@
     <div class="top">
         <div class="brand">Aidvor Control</div>
         <div class="nav">
-            <a href="{{ route('home-arduino') }}" class="btn">Гид Aidvor</a>
+            <a href="{{ route('home-arduino') }}" class="btn">Документация</a>
             @if (Route::has('login'))
                 @auth
                     <a href="{{ url('/dashboard') }}" class="btn btn-primary">Открыть дашборд</a>
@@ -173,7 +173,7 @@
     </div>
 
     <div class="foot">
-        <span>Тема: Smart Home / Greenhouse</span>
+        <span>Тема: Smart Home / Greenhouse · <a href="{{ route('brand-verification') }}" class="btn" style="padding:2px 8px; font-size:12px;">Страница верификации</a></span>
         <span>{{ config('app.name', 'Smart Home') }}</span>
     </div>
 </div>

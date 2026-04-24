@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Listeners;
 
 use App\Events\ControllerReadingsReceived;
+use App\Services\Alice\AliceStateNotificationService;
 use App\Services\Report\ControllerPinProvisioningService;
 use App\Services\Report\PinDataCleanupService;
 use App\Services\Report\PinDataHistoryService;
@@ -19,6 +20,7 @@ class ProcessControllerReadingsOnReport
         private readonly PinDataHistoryService $pinDataHistoryService,
         private readonly PinValueSyncService $pinValueSyncService,
         private readonly ScenarioDesiredValueService $scenarioDesiredValueService,
+        private readonly AliceStateNotificationService $aliceStateNotificationService,
     ) {
     }
 
@@ -37,12 +39,17 @@ class ProcessControllerReadingsOnReport
             $maps['pinStyleByName']
         );
 
-        $this->pinValueSyncService->syncFromReadings(
+        $changedPowerStatesByPinId = $this->pinValueSyncService->syncFromReadings(
             $event->readings,
             $maps['pinIdByName'],
             $maps['pinStyleByName']
         );
 
         $this->scenarioDesiredValueService->applyDesiredValue($event->controllerId);
+
+        $this->aliceStateNotificationService->notifyPowerStateChanges(
+            $event->controllerId,
+            $changedPowerStatesByPinId
+        );
     }
 }

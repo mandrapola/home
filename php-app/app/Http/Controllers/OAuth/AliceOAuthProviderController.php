@@ -90,8 +90,7 @@ class AliceOAuthProviderController extends Controller
             return $this->oauthError('unsupported_grant_type', 400, 'Only authorization_code grant is supported.');
         }
 
-        $clientId = trim((string) $request->input('client_id', ''));
-        $clientSecret = trim((string) $request->input('client_secret', ''));
+        [$clientId, $clientSecret] = $this->extractClientCredentials($request);
         if (! $this->validateClientCredentials($clientId, $clientSecret)) {
             return $this->oauthError('invalid_client', 401, 'Client authentication failed.');
         }
@@ -150,6 +149,31 @@ class AliceOAuthProviderController extends Controller
             'access_token' => $accessToken,
             'expires_in' => $expiresIn,
         ]);
+    }
+
+    private function extractClientCredentials(Request $request): array
+    {
+        $clientId = trim((string) $request->input('client_id', ''));
+        $clientSecret = trim((string) $request->input('client_secret', ''));
+
+        if ($clientId !== '' && $clientSecret !== '') {
+            return [$clientId, $clientSecret];
+        }
+
+        $auth = trim((string) $request->header('Authorization', ''));
+        if (str_starts_with(strtolower($auth), 'basic ')) {
+            $decoded = base64_decode(substr($auth, 6), true);
+            if (is_string($decoded) && $decoded !== '' && str_contains($decoded, ':')) {
+                [$basicId, $basicSecret] = explode(':', $decoded, 2);
+                $basicId = trim($basicId);
+                $basicSecret = trim($basicSecret);
+                if ($basicId !== '' && $basicSecret !== '') {
+                    return [$basicId, $basicSecret];
+                }
+            }
+        }
+
+        return [$clientId, $clientSecret];
     }
 
     private function validateAuthorizeRequest(Request $request): array|RedirectResponse

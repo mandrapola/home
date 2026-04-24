@@ -31,6 +31,10 @@ Route::get('/home-arduino/server-contract', function () {
     return view('home-arduino-server-contract');
 })->name('home-arduino.server-contract');
 
+Route::get('/brand-verification', function () {
+    return view('brand-verification');
+})->name('brand-verification');
+
 Route::get('/oauth/authorize', [AliceOAuthProviderController::class, 'authorize'])
     ->name('oauth.alice.authorize');
 
