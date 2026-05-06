@@ -16,7 +16,6 @@ return new class extends Migration
             $table->string('time_zone', 64)->default('Europe/Moscow');
             $table->string('locale', 8)->default('ru');
             $table->boolean('alice_enabled')->default(false);
-            $table->boolean('is_admin')->default(false);
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->rememberToken();
@@ -233,12 +232,15 @@ return new class extends Migration
 
     public function down(): void
     {
+        Schema::disableForeignKeyConstraints();
+
         DB::statement('DROP VIEW IF EXISTS controller_data');
         DB::statement('DROP VIEW IF EXISTS controller_pin_config');
 
         Schema::dropIfExists('scenario_condition');
         Schema::dropIfExists('scenario');
         Schema::dropIfExists('system_settings');
+        Schema::dropIfExists('pin_power_events');
         Schema::dropIfExists('pin_data');
         Schema::dropIfExists('pin');
         Schema::dropIfExists('controller_pairings');
@@ -254,5 +256,7 @@ return new class extends Migration
         Schema::dropIfExists('sessions');
         Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('users');
+
+        Schema::enableForeignKeyConstraints();
     }
 };

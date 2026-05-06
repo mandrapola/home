@@ -4,6 +4,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PairingController;
 use App\Http\Controllers\ScenesController;
 use App\Http\Controllers\AliceLinkController;
+use App\Http\Controllers\PlanController;
 use App\Http\Controllers\OAuth\AliceOAuthProviderController;
 use Illuminate\Support\Facades\Route;
 
@@ -57,8 +58,14 @@ Route::get('/adding-a-new-controller', function () {
 Route::get('/scenes', [ScenesController::class, 'index'])->middleware(['auth', 'verified'])->name('scenes');
 
 Route::middleware('auth')->group(function () {
+    Route::get('/plans', [PlanController::class, 'index'])->name('user.plans.index');
+    Route::post('/plans/{plan}/select', [PlanController::class, 'select'])->name('user.plans.select');
+    Route::post('/plans/{plan}/pay', [PlanController::class, 'pay'])->name('user.plans.pay');
+    Route::get('/api/plan/limits', [PlanController::class, 'limits'])->name('user.plans.limits');
+
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::patch('/admin/users/{targetUser}/alice-access', [ProfileController::class, 'updateUserAliceAccess'])
         ->middleware('admin.user')
         ->name('admin.users.alice-access.update');
@@ -90,6 +97,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/{controllerId}/start', [PairingController::class, 'start']);
         Route::post('/{controllerId}/confirm', [PairingController::class, 'confirm']);
     });
+
 });
 
 require __DIR__.'/auth.php';

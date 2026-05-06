@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Http\Middleware\EnsureAliceAccessEnabled;
+use App\Models\User;
+use App\Services\Billing\PlanLimitService;
 use Illuminate\Http\Request;
+use Mockery;
 use Symfony\Component\HttpFoundation\Response;
 use Tests\TestCase;
 
@@ -16,7 +19,9 @@ class AliceAccessMiddlewareTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->middleware = new EnsureAliceAccessEnabled();
+        $planLimitService = Mockery::mock(PlanLimitService::class);
+        $planLimitService->shouldReceive('isAliceAllowedForUser')->andReturn(true);
+        $this->middleware = new EnsureAliceAccessEnabled($planLimitService);
     }
 
     public function test_returns_503_when_alice_globally_disabled(): void
@@ -54,16 +59,14 @@ class AliceAccessMiddlewareTest extends TestCase
         $this->assertSame('ok', $response->getContent());
     }
 
-    private function makeAliceUser(bool $enabled): object
+    private function makeAliceUser(bool $enabled): User
     {
-        return new class($enabled) {
-            public bool $alice_enabled;
-
-            public function __construct(bool $enabled)
-            {
-                $this->alice_enabled = $enabled;
-            }
-        };
+        return new User([
+            'name' => 'Test',
+            'email' => 'test@example.com',
+            'password' => 'secret',
+            'alice_enabled' => $enabled,
+        ]);
     }
 
     private function nextOk(): \Closure

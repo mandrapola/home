@@ -7,16 +7,25 @@ namespace App\Http\Controllers;
 use App\Events\ControllerPaired;
 use App\Models\ControllerPairing;
 use App\Models\IoTController;
+use App\Services\Billing\PlanLimitService;
+use App\Services\Report\PinValueTransformer;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class PairingController extends Controller
 {
     private const SYSTEM_CONTROLLER_ID = '0195f7e0-0000-7000-8000-000000000001';
     private const SYSTEM_CURRENT_TIME_PIN_ID = '0195f7e0-0000-7000-8000-000000000002';
+
+    public function __construct(
+        private readonly PlanLimitService $planLimitService,
+        private readonly PinValueTransformer $pinValueTransformer,
+    ) {
+    }
 
     private function generateUniqueCode(array &$takenCodes): string
     {
@@ -101,7 +110,7 @@ class PairingController extends Controller
         $pins = DB::table('pin')
             ->where('controller_id', $controllerId)
             ->orderBy('pin')
-            ->select([
+            ->select($this->pinSelectColumns([
                 'id',
                 'controller_id',
                 'pin',
@@ -118,8 +127,16 @@ class PairingController extends Controller
                 'is_monitored',
                 'external_enabled',
                 'enable_scenario',
-            ])
+            ], true))
             ->get();
+
+        $pins = $pins->map(function (object $pin): object {
+            $rawValue = is_numeric($pin->value ?? null) ? (float) $pin->value : null;
+            $pin->value = $this->pinValueTransformer->transform($pin, $rawValue);
+            $pin->unit = $this->pinValueTransformer->resolveUnit($pin);
+
+            return $pin;
+        });
 
         return response()->json([
             'controller_id' => $controllerId,
@@ -843,7 +860,7 @@ class PairingController extends Controller
             ->where('digital_style', 'like', 'sensor%')
             ->where('show_on_chart', 1)
             ->orderBy('pin')
-            ->select(['id', 'pin', 'chart_range_hours'])
+            ->select($this->pinSelectColumns(['id', 'pin', 'chart_range_hours', 'digital_style', 'unit'], true))
             ->get();
 
         $result = [];
@@ -866,12 +883,16 @@ class PairingController extends Controller
 
             $points = [];
             foreach ($rows as $row) {
+                $transformed = $this->pinValueTransformer->transform($pin, is_numeric($row->avg_value) ? (float) $row->avg_value : null);
+                if ($transformed === null) {
+                    continue;
+                }
                 $bucketAt = Carbon::parse((string) $row->bucket_at, 'UTC')
                     ->setTimezone($timeZone)
                     ->format('Y-m-d H:i:s');
                 $points[] = [
                     'at' => $bucketAt,
-                    'value' => (float) $row->avg_value,
+                    'value' => $transformed,
                 ];
             }
 
@@ -922,7 +943,7 @@ class PairingController extends Controller
             return response()->json(['error' => 'not_found', 'message' => 'Pin not found'], 404);
         }
 
-        $validated = $request->validate([
+        $rules = [
             'label' => ['required', 'string', 'max:255'],
             'unit' => ['nullable', 'string', 'max:32'],
             'chart_range_hours' => ['required', 'integer', 'min:1', 'max:720'],
@@ -930,25 +951,49 @@ class PairingController extends Controller
             'show_on_report' => ['required', 'boolean'],
             'is_monitored' => ['required', 'boolean'],
             'external_enabled' => ['required', 'boolean'],
-        ]);
+        ];
+        $isHumiditySensor = (string) ($pin->digital_style ?? '') === 'sensor_humidity';
+        if ($this->hasMoistureColumns() && $isHumiditySensor) {
+            $rules['moisture_raw_dry'] = ['nullable', 'numeric'];
+            $rules['moisture_raw_wet'] = ['nullable', 'numeric'];
+            $rules['moisture_show_percent'] = ['sometimes', 'boolean'];
+        }
+        $validated = $request->validate($rules);
+
+        $updatePayload = [
+            'label' => (string) $validated['label'],
+            'unit' => isset($validated['unit']) && trim((string) $validated['unit']) !== '' ? (string) $validated['unit'] : null,
+            'chart_range_hours' => (int) $validated['chart_range_hours'],
+            'show_on_chart' => ! empty($validated['show_on_chart']) ? 1 : 0,
+            'show_on_report' => ! empty($validated['show_on_report']) ? 1 : 0,
+            'is_monitored' => ! empty($validated['is_monitored']) ? 1 : 0,
+            'external_enabled' => ! empty($validated['external_enabled']) ? 1 : 0,
+        ];
+        if ($this->hasMoistureColumns() && $isHumiditySensor) {
+            if (array_key_exists('moisture_raw_dry', $validated)) {
+                $updatePayload['moisture_raw_dry'] = $validated['moisture_raw_dry'] !== '' && $validated['moisture_raw_dry'] !== null
+                    ? (float) $validated['moisture_raw_dry']
+                    : null;
+            }
+            if (array_key_exists('moisture_raw_wet', $validated)) {
+                $updatePayload['moisture_raw_wet'] = $validated['moisture_raw_wet'] !== '' && $validated['moisture_raw_wet'] !== null
+                    ? (float) $validated['moisture_raw_wet']
+                    : null;
+            }
+            if (array_key_exists('moisture_show_percent', $validated)) {
+                $updatePayload['moisture_show_percent'] = ! empty($validated['moisture_show_percent']) ? 1 : 0;
+            }
+        }
 
         DB::table('pin')
             ->where('id', $pinId)
             ->where('controller_id', $controllerId)
-            ->update([
-                'label' => (string) $validated['label'],
-                'unit' => isset($validated['unit']) && trim((string) $validated['unit']) !== '' ? (string) $validated['unit'] : null,
-                'chart_range_hours' => (int) $validated['chart_range_hours'],
-                'show_on_chart' => ! empty($validated['show_on_chart']) ? 1 : 0,
-                'show_on_report' => ! empty($validated['show_on_report']) ? 1 : 0,
-                'is_monitored' => ! empty($validated['is_monitored']) ? 1 : 0,
-                'external_enabled' => ! empty($validated['external_enabled']) ? 1 : 0,
-            ]);
+            ->update($updatePayload);
 
         $updatedPin = DB::table('pin')
             ->where('id', $pinId)
             ->where('controller_id', $controllerId)
-            ->first([
+            ->first($this->pinSelectColumns([
                 'id',
                 'controller_id',
                 'pin',
@@ -963,12 +1008,41 @@ class PairingController extends Controller
                 'show_on_report',
                 'is_monitored',
                 'external_enabled',
-            ]);
+            ], true));
+
+        if ($updatedPin) {
+            $rawValue = is_numeric($updatedPin->value ?? null) ? (float) $updatedPin->value : null;
+            $updatedPin->value = $this->pinValueTransformer->transform($updatedPin, $rawValue);
+            $updatedPin->unit = $this->pinValueTransformer->resolveUnit($updatedPin);
+        }
 
         return response()->json([
             'ok' => true,
             'pin' => $updatedPin,
         ]);
+    }
+
+    /**
+     * @param array<int,string> $baseColumns
+     * @return array<int,string>
+     */
+    private function pinSelectColumns(array $baseColumns, bool $withMoisture = false): array
+    {
+        $columns = $baseColumns;
+        if ($withMoisture && $this->hasMoistureColumns()) {
+            $columns[] = 'moisture_raw_dry';
+            $columns[] = 'moisture_raw_wet';
+            $columns[] = 'moisture_show_percent';
+        }
+
+        return $columns;
+    }
+
+    private function hasMoistureColumns(): bool
+    {
+        return Schema::hasColumn('pin', 'moisture_raw_dry')
+            && Schema::hasColumn('pin', 'moisture_raw_wet')
+            && Schema::hasColumn('pin', 'moisture_show_percent');
     }
 
     public function updateMyControllerPinDesiredDigitalValue(Request $request, string $controllerId, string $pinId): JsonResponse
@@ -1094,6 +1168,16 @@ class PairingController extends Controller
             return response()->json(['error' => 'unauthorized'], 401);
         }
 
+        $allowance = $this->planLimitService->controllerAttachAllowance($user);
+        if (! $allowance['allowed']) {
+            return response()->json([
+                'error' => 'plan_limit_exceeded',
+                'message' => 'Controller limit reached for effective plan.',
+                'used' => $allowance['used'],
+                'max' => $allowance['max'],
+            ], 409);
+        }
+
         $payload = DB::transaction(function () use ($user) {
             $controllers = DB::table('controller as c')
                 ->leftJoin('controller_user as cu', 'cu.controller_id', '=', 'c.id')
@@ -1171,6 +1255,16 @@ class PairingController extends Controller
         $user = $request->user();
         if (! $user) {
             return response()->json(['error' => 'unauthorized'], 401);
+        }
+
+        $allowance = $this->planLimitService->controllerAttachAllowance($user);
+        if (! $allowance['allowed']) {
+            return response()->json([
+                'error' => 'plan_limit_exceeded',
+                'message' => 'Controller limit reached for effective plan.',
+                'used' => $allowance['used'],
+                'max' => $allowance['max'],
+            ], 409);
         }
 
         $result = DB::transaction(function () use ($validated, $user) {
@@ -1255,6 +1349,16 @@ class PairingController extends Controller
             return response()->json(['error' => 'unauthorized'], 401);
         }
 
+        $allowance = $this->planLimitService->controllerAttachAllowance($user);
+        if (! $allowance['allowed']) {
+            return response()->json([
+                'error' => 'plan_limit_exceeded',
+                'message' => 'Controller limit reached for effective plan.',
+                'used' => $allowance['used'],
+                'max' => $allowance['max'],
+            ], 409);
+        }
+
         $payload = DB::transaction(function () use ($controllerId, $user) {
             $controller = IoTController::query()->lockForUpdate()->find($controllerId);
             if (! $controller) {
@@ -1321,6 +1425,16 @@ class PairingController extends Controller
         $user = $request->user();
         if (! $user) {
             return response()->json(['error' => 'unauthorized'], 401);
+        }
+
+        $allowance = $this->planLimitService->controllerAttachAllowance($user);
+        if (! $allowance['allowed']) {
+            return response()->json([
+                'error' => 'plan_limit_exceeded',
+                'message' => 'Controller limit reached for effective plan.',
+                'used' => $allowance['used'],
+                'max' => $allowance['max'],
+            ], 409);
         }
 
         $result = DB::transaction(function () use ($controllerId, $validated, $user) {

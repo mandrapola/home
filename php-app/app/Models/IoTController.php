@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Backpack\CRUD\app\Models\Traits\CrudTrait;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class IoTController extends Model
 {
+    use CrudTrait;
+
     public const MIN_INTERVAL_SECONDS = 5;
     public const MAX_INTERVAL_SECONDS = 86400;
 
@@ -44,5 +47,10 @@ class IoTController extends Model
     public function pairings(): HasMany
     {
         return $this->hasMany(ControllerPairing::class, 'controller_id', 'id');
+    }
+
+    public function pins(): HasMany
+    {
+        return $this->hasMany(Pin::class, 'controller_id', 'id');
     }
 }

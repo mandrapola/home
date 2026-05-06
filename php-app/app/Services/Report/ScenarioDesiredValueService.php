@@ -6,10 +6,16 @@ namespace App\Services\Report;
 
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class ScenarioDesiredValueService
 {
     private const SYSTEM_CURRENT_TIME_PIN_ID = '0195f7e0-0000-7000-8000-000000000002';
+
+    public function __construct(
+        private readonly PinValueTransformer $pinValueTransformer,
+    ) {
+    }
 
     /**
      * Возвращает усредненные значения источников за текущий bucket усреднения.
@@ -26,14 +32,27 @@ class ScenarioDesiredValueService
         $bucketStartUtc = \Illuminate\Support\Carbon::createFromTimestamp($bucketStartUnix, 'UTC');
         $bucketEndUtc = $bucketStartUtc->copy()->addSeconds($bucketSeconds);
 
+        $columns = ['id', 'digital_style', 'unit'];
+        if (Schema::hasColumn('pin', 'moisture_raw_dry')) {
+            $columns[] = 'moisture_raw_dry';
+        }
+        if (Schema::hasColumn('pin', 'moisture_raw_wet')) {
+            $columns[] = 'moisture_raw_wet';
+        }
+        if (Schema::hasColumn('pin', 'moisture_show_percent')) {
+            $columns[] = 'moisture_show_percent';
+        }
+
         $sourcePinRows = DB::table('pin')
             ->where('controller_id', $controllerId)
-            ->select(['id'])
+            ->select($columns)
             ->get();
 
         $sourceValueByPinId = [];
+        $pinById = [];
         foreach ($sourcePinRows as $sourceRow) {
             $sourceValueByPinId[(string) $sourceRow->id] = null;
+            $pinById[(string) $sourceRow->id] = $sourceRow;
         }
 
         if (count($sourceValueByPinId) === 0) {
@@ -50,7 +69,8 @@ class ScenarioDesiredValueService
 
         foreach ($avgRows as $avgRow) {
             $pinId = (string) $avgRow->pin_id;
-            $sourceValueByPinId[$pinId] = is_numeric($avgRow->avg_value) ? (float) $avgRow->avg_value : null;
+            $avg = is_numeric($avgRow->avg_value) ? (float) $avgRow->avg_value : null;
+            $sourceValueByPinId[$pinId] = $this->pinValueTransformer->transform($pinById[$pinId] ?? [], $avg);
         }
 
         $missingPinIds = [];
@@ -77,7 +97,8 @@ class ScenarioDesiredValueService
                 if (! array_key_exists($pinId, $sourceValueByPinId) || $sourceValueByPinId[$pinId] !== null) {
                     continue;
                 }
-                $sourceValueByPinId[$pinId] = is_numeric($avgRow->avg_value) ? (float) $avgRow->avg_value : null;
+                $avg = is_numeric($avgRow->avg_value) ? (float) $avgRow->avg_value : null;
+                $sourceValueByPinId[$pinId] = $this->pinValueTransformer->transform($pinById[$pinId] ?? [], $avg);
             }
         }
 

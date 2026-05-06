@@ -16,7 +16,12 @@ class ControllerAutoRegistrationServiceTest extends TestCase
     {
         parent::setUp();
 
+        Schema::disableForeignKeyConstraints();
+        Schema::dropIfExists('controller_pairings');
+        Schema::dropIfExists('controller_user');
+        Schema::dropIfExists('pin');
         Schema::dropIfExists('controller');
+        Schema::enableForeignKeyConstraints();
         Schema::create('controller', function (Blueprint $table): void {
             $table->char('id', 36)->primary();
             $table->string('name', 255);
@@ -31,7 +36,12 @@ class ControllerAutoRegistrationServiceTest extends TestCase
 
     protected function tearDown(): void
     {
+        Schema::disableForeignKeyConstraints();
+        Schema::dropIfExists('controller_pairings');
+        Schema::dropIfExists('controller_user');
+        Schema::dropIfExists('pin');
         Schema::dropIfExists('controller');
+        Schema::enableForeignKeyConstraints();
         parent::tearDown();
     }
 

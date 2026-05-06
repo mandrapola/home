@@ -3,7 +3,10 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Plan;
 use App\Models\User;
+use App\Models\UserPlanSubscription;
+use App\Support\Billing\SubscriptionSource;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -36,11 +39,27 @@ class RegisteredUserController extends Controller
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
+        $defaultPlan = Plan::query()
+            ->where('code', (string) config('smarthome.default_plan', 'free'))
+            ->first();
+
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'selected_plan_id' => $defaultPlan?->id,
         ]);
+
+        if ($defaultPlan) {
+            UserPlanSubscription::query()->create([
+                'user_id' => $user->id,
+                'plan_id' => $defaultPlan->id,
+                'status' => 'active',
+                'starts_at' => now(),
+                'ends_at' => null,
+                'source' => SubscriptionSource::SYSTEM_DEFAULT,
+            ]);
+        }
 
         event(new Registered($user));
 

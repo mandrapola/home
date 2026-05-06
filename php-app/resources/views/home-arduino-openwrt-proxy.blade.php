@@ -33,6 +33,28 @@
             <li>Перезапустите сервис и проверьте <code>/api/system/status</code>.</li>
         </ol>
     </section>
+    @php
+        $downloadBaseUrl = rtrim((string) config('openwrt-downloads.base_url', '/downloads/openwrt'), '/');
+        $packageName = (string) config('openwrt-downloads.package_name', 'home-aidvor');
+        $packageVersion = (string) config('openwrt-downloads.version', '24.10.5');
+        $architectures = (array) config('openwrt-downloads.architectures', []);
+    @endphp
+    <section class="block">
+        <h2>Скачать .ipk</h2>
+        <p>Выберите пакет для архитектуры вашего роутера (см. <code>opkg print-architecture</code>).</p>
+        <ul>
+            @foreach ($architectures as $arch)
+                @php
+                    $file = sprintf('%s_%s_%s.ipk', $packageName, $packageVersion, $arch);
+                    $url = $downloadBaseUrl . '/' . $file;
+                @endphp
+                <li>
+                    <strong>{{ $arch }}</strong>:
+                    <a href="{{ $url }}">{{ $file }}</a>
+                </li>
+            @endforeach
+        </ul>
+    </section>
     <section class="block">
         <h2>Минимальные настройки</h2>
         <div class="field-list">

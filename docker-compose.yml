@@ -25,9 +25,10 @@ services:
       - ./php-app:/var/www/html
     command: >
       bash -lc "a2enmod rewrite &&
-      mkdir -p /var/www/html/storage/logs /var/www/html/storage/framework/cache /var/www/html/storage/framework/sessions /var/www/html/storage/framework/views /var/www/html/bootstrap/cache &&
+      mkdir -p /var/www/html/storage/logs /var/www/html/storage/framework/cache /var/www/html/storage/framework/sessions /var/www/html/storage/framework/views /var/www/html/storage/app/public /var/www/html/bootstrap/cache &&
       chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache &&
       chmod -R ug+rwx /var/www/html/storage /var/www/html/bootstrap/cache &&
+      if [ ! -L /var/www/html/public/storage ]; then rm -rf /var/www/html/public/storage; php /var/www/html/artisan storage:link || true; fi &&
       sed -ri -e 's!/var/www/html(/public)*!/var/www/html/public!g'
       /etc/apache2/sites-available/*.conf
       /etc/apache2/apache2.conf

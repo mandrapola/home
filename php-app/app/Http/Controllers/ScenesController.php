@@ -4,15 +4,22 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Services\Report\PinValueTransformer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class ScenesController extends Controller
 {
     private const SYSTEM_CONTROLLER_ID = '0195f7e0-0000-7000-8000-000000000001';
     private const SYSTEM_CURRENT_TIME_PIN_ID = '0195f7e0-0000-7000-8000-000000000002';
+
+    public function __construct(
+        private readonly PinValueTransformer $pinValueTransformer,
+    ) {
+    }
 
     private function ensureSystemCurrentTimeSource(): void
     {
@@ -136,9 +143,15 @@ class ScenesController extends Controller
             $sourcePinIds[] = (string) $condition->pin_id;
         }
 
-        $sourceValues = DB::table('pin')
+        $sourceRows = DB::table('pin')
             ->whereIn('id', array_values(array_unique($sourcePinIds)))
-            ->pluck('value', 'id');
+            ->get($this->pinSelectColumnsForTransform());
+        $sourceValues = [];
+        foreach ($sourceRows as $sourceRow) {
+            $sourcePinId = (string) $sourceRow->id;
+            $rawValue = is_numeric($sourceRow->value ?? null) ? (float) $sourceRow->value : null;
+            $sourceValues[$sourcePinId] = $this->pinValueTransformer->transform($sourceRow, $rawValue);
+        }
 
         $controllerCurrentTimeSeconds = $this->resolveControllerTimeSecondsForUser($timeZone);
 
@@ -212,15 +225,16 @@ class ScenesController extends Controller
             ->join('controller as c', 'c.id', '=', 'p.controller_id')
             ->join('controller_user as cu', 'cu.controller_id', '=', 'c.id')
             ->where('cu.user_id', (string) $user->id)
-            ->select([
+            ->select($this->pinSelectColumnsForTransformWithAliases([
                 'p.id',
                 'p.pin',
                 'p.label',
                 'p.digital_style',
                 'p.value',
+                'p.unit',
                 'c.id as controller_id',
                 'c.name as controller_name',
-            ])
+            ]))
             ->orderBy('c.name')
             ->orderBy('p.pin')
             ->get();
@@ -228,15 +242,16 @@ class ScenesController extends Controller
         $systemPins = DB::table('pin as p')
             ->join('controller as c', 'c.id', '=', 'p.controller_id')
             ->where('p.id', self::SYSTEM_CURRENT_TIME_PIN_ID)
-            ->select([
+            ->select($this->pinSelectColumnsForTransformWithAliases([
                 'p.id',
                 'p.pin',
                 'p.label',
                 'p.digital_style',
                 'p.value',
+                'p.unit',
                 'c.id as controller_id',
                 'c.name as controller_name',
-            ])
+            ]))
             ->get();
 
         $pins = $pins
@@ -245,6 +260,17 @@ class ScenesController extends Controller
                 ['controller_name', 'asc'],
                 ['pin', 'asc'],
             ])
+            ->map(function ($pin) {
+                if ((string) $pin->id === self::SYSTEM_CURRENT_TIME_PIN_ID) {
+                    return $pin;
+                }
+
+                $rawValue = is_numeric($pin->value ?? null) ? (float) $pin->value : null;
+                $pin->value = $this->pinValueTransformer->transform($pin, $rawValue);
+                $pin->unit = $this->pinValueTransformer->resolveUnit($pin);
+
+                return $pin;
+            })
             ->values();
 
         $definitions = DB::table('scenario as s')
@@ -276,7 +302,7 @@ class ScenesController extends Controller
             ->join('controller_user as cu', 'cu.controller_id', '=', 'c.id')
             ->join('pin as p_source', 'p_source.id', '=', 'sc.pin_id')
             ->where('cu.user_id', (string) $user->id)
-            ->select([
+            ->select($this->pinSelectColumnsForConditions([
                 'sc.id',
                 'sc.scenario_id',
                 'sc.operator',
@@ -285,13 +311,15 @@ class ScenesController extends Controller
                 'p_source.pin as source_pin',
                 'p_source.label as source_pin_label',
                 'p_source.value as source_value',
+                'p_source.digital_style as digital_style',
+                'p_source.unit as unit',
                 'p_target.pin as target_pin',
                 'p_target.label as target_pin_label',
                 'p_target.enable_scenario as scenario_enabled',
                 's.name',
                 'c.id as controller_id',
                 'c.name as controller_name',
-            ])
+            ]))
             ->orderBy('c.name')
             ->orderBy('p_target.pin')
             ->orderBy('s.name')
@@ -301,7 +329,7 @@ class ScenesController extends Controller
                 $sourcePin = strtoupper((string) $row->source_pin);
                 $sourceValue = $sourcePin === 'CURRENT_TIME'
                     ? (float) $currentSeconds
-                    : (is_numeric($row->source_value) ? (float) $row->source_value : null);
+                    : $this->pinValueTransformer->transform($row, is_numeric($row->source_value) ? (float) $row->source_value : null);
 
                 $threshold = is_numeric($row->threshold) ? (float) $row->threshold : 0.0;
                 $isTrue = $this->evaluateCondition((string) $row->operator, $sourceValue, $threshold);
@@ -318,6 +346,60 @@ class ScenesController extends Controller
             'time_zone' => $timeZone,
             'server_time' => $now->toIso8601String(),
         ]);
+    }
+
+    /**
+     * @return array<int,string>
+     */
+    private function pinSelectColumnsForTransform(): array
+    {
+        $columns = ['id', 'value', 'digital_style', 'unit'];
+        if ($this->hasMoistureColumns()) {
+            $columns[] = 'moisture_raw_dry';
+            $columns[] = 'moisture_raw_wet';
+            $columns[] = 'moisture_show_percent';
+        }
+
+        return $columns;
+    }
+
+    /**
+     * @param array<int,string> $baseColumns
+     * @return array<int,string>
+     */
+    private function pinSelectColumnsForTransformWithAliases(array $baseColumns): array
+    {
+        $columns = $baseColumns;
+        if ($this->hasMoistureColumns()) {
+            $columns[] = 'p.moisture_raw_dry';
+            $columns[] = 'p.moisture_raw_wet';
+            $columns[] = 'p.moisture_show_percent';
+        }
+
+        return $columns;
+    }
+
+    /**
+     * @param array<int,string> $baseColumns
+     * @return array<int,string>
+     */
+    private function pinSelectColumnsForConditions(array $baseColumns): array
+    {
+        $columns = $baseColumns;
+        if ($this->hasMoistureColumns()) {
+            $columns[] = 'p_source.moisture_raw_dry as moisture_raw_dry';
+            $columns[] = 'p_source.moisture_raw_wet as moisture_raw_wet';
+            $columns[] = 'p_source.moisture_show_percent as moisture_show_percent';
+        }
+
+        return $columns;
+    }
+
+    private function hasMoistureColumns(): bool
+    {
+        return Schema::hasColumn('pin', 'moisture_raw_dry')
+            && Schema::hasColumn('pin', 'moisture_raw_wet')
+            && Schema::hasColumn('pin', 'moisture_show_percent');
     }
 
     public function storeDefinition(Request $request): JsonResponse

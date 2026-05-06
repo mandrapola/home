@@ -103,6 +103,40 @@
         </form>
     </dialog>
 
+    @php
+        $dashboardUser = auth()->user();
+        $selectedPlan = $dashboardUser?->selectedPlan;
+        $effectivePlan = $dashboardUser ? app(\App\Services\Billing\PlanLimitService::class)->resolveEffectivePlanForUser($dashboardUser) : null;
+        $activeSubRow = $dashboardUser ? \Illuminate\Support\Facades\DB::table('user_subscriptions')
+            ->where('user_id', $dashboardUser->id)
+            ->where('status', 'active')
+            ->where('starts_at', '<=', now())
+            ->where(function ($q): void {
+                $q->whereNull('ends_at')->orWhere('ends_at', '>', now());
+            })
+            ->orderByDesc('id')
+            ->first(['status', 'ends_at']) : null;
+    @endphp
+    <div class="row g-3 mt-1">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body small text-muted">
+                    <strong>{{ __('Plan') }}:</strong>
+                    {{ $selectedPlan?->name ?? __('not selected') }}
+                    @if ($activeSubRow)
+                        · <strong>{{ __('Status') }}:</strong> {{ $activeSubRow->status }}
+                    @endif
+                    · <strong>{{ __('Effective limits') }}:</strong>
+                    {{ $effectivePlan?->name ?? strtoupper((string) config('smarthome.default_plan', 'free')) }}
+                    @if ($effectivePlan)
+                        · {{ __('Controllers limit') }}: {{ $effectivePlan->max_controllers ?? __('Unlimited') }}
+                        · {{ __('pin_data limit') }}: {{ $effectivePlan->max_pin_data_rows ?? __('Unlimited') }}
+                    @endif
+                </div>
+            </div>
+        </div>
+    </div>
+
     <template id="pin-card-template-power">@include('dashboard.pin-cards.power')</template>
     <template id="pin-card-template-sensor">@include('dashboard.pin-cards.sensor')</template>
     <template id="pin-card-template-sensor_humidity">@include('dashboard.pin-cards.sensor_humidity')</template>

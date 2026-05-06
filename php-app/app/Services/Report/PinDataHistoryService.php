@@ -4,17 +4,23 @@ declare(strict_types=1);
 
 namespace App\Services\Report;
 
+use App\Services\Billing\PlanLimitService;
 use Illuminate\Support\Facades\DB;
 use Ramsey\Uuid\Uuid;
 
 class PinDataHistoryService
 {
+    public function __construct(
+        private readonly PlanLimitService $planLimitService,
+    ) {
+    }
+
     /**
      * @param array<int, array{pin:string, value:float|int}> $readings
      * @param array<string,string> $pinIdByName
      * @param array<string,string> $pinStyleByName
      */
-    public function storeReadings(array $readings, array $pinIdByName, array $pinStyleByName): void
+    public function storeReadings(array $readings, array $pinIdByName, array $pinStyleByName = [], string $controllerId = ''): void
     {
         $now = now();
         $averageIntervalMinutes = max(1, (int) config('smarthome.pin_data_average_interval_minutes', 5));
@@ -30,6 +36,9 @@ class PinDataHistoryService
             $isPowerPin = ($pinStyle === 'power');
 
             if ($isPowerPin) {
+                if ($controllerId !== '' && ! $this->planLimitService->canInsertPinDataForController($controllerId)) {
+                    continue;
+                }
                 DB::table('pin_data')->insert([
                     'id' => Uuid::uuid7()->toString(),
                     'pin_id' => $pinId,
@@ -58,6 +67,9 @@ class PinDataHistoryService
                 }
             }
 
+            if ($controllerId !== '' && ! $this->planLimitService->canInsertPinDataForController($controllerId)) {
+                continue;
+            }
             DB::table('pin_data')->insert([
                 'id' => Uuid::uuid7()->toString(),
                 'pin_id' => $pinId,

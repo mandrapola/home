@@ -156,6 +156,9 @@
                 const showOnReportEl = pinSettingsForm.querySelector('input[name="show_on_report"]');
                 const isMonitoredEl = pinSettingsForm.querySelector('input[name="is_monitored"]');
                 const externalEnabledEl = pinSettingsForm.querySelector('input[name="external_enabled"]');
+                const moistureRawDryEl = pinSettingsForm.querySelector('input[name="moisture_raw_dry"]');
+                const moistureRawWetEl = pinSettingsForm.querySelector('input[name="moisture_raw_wet"]');
+                const moistureShowPercentEl = pinSettingsForm.querySelector('input[name="moisture_show_percent"]');
 
                 if (labelEl) labelEl.value = pin.label || pin.pin || '';
                 if (unitEl) unitEl.value = pin.unit || '';
@@ -164,6 +167,9 @@
                 if (showOnReportEl) showOnReportEl.checked = Number(pin.show_on_report ?? 1) > 0;
                 if (isMonitoredEl) isMonitoredEl.checked = Number(pin.is_monitored || 0) > 0;
                 if (externalEnabledEl) externalEnabledEl.checked = Number(pin.external_enabled ?? 1) > 0;
+                if (moistureRawDryEl) moistureRawDryEl.value = pin.moisture_raw_dry ?? '';
+                if (moistureRawWetEl) moistureRawWetEl.value = pin.moisture_raw_wet ?? '';
+                if (moistureShowPercentEl) moistureShowPercentEl.checked = Number(pin.moisture_show_percent ?? 0) > 0;
 
                 setPinSettingsError('');
                 pinSettingsDialog.showModal();
@@ -972,6 +978,9 @@
                 const showOnReportEl = pinSettingsForm.querySelector('input[name="show_on_report"]');
                 const isMonitoredEl = pinSettingsForm.querySelector('input[name="is_monitored"]');
                 const externalEnabledEl = pinSettingsForm.querySelector('input[name="external_enabled"]');
+                const moistureRawDryEl = pinSettingsForm.querySelector('input[name="moisture_raw_dry"]');
+                const moistureRawWetEl = pinSettingsForm.querySelector('input[name="moisture_raw_wet"]');
+                const moistureShowPercentEl = pinSettingsForm.querySelector('input[name="moisture_show_percent"]');
                 const payload = {
                     label: String(labelEl?.value || '').trim(),
                     unit: String(unitEl?.value || '').trim() || null,
@@ -980,6 +989,9 @@
                     show_on_report: showOnReportEl ? Boolean(showOnReportEl.checked) : (Number(editingPin?.show_on_report ?? 1) > 0),
                     is_monitored: Boolean(isMonitoredEl?.checked),
                     external_enabled: externalEnabledEl ? Boolean(externalEnabledEl.checked) : (Number(editingPin?.external_enabled ?? 1) > 0),
+                    moisture_raw_dry: moistureRawDryEl ? (moistureRawDryEl.value === '' ? null : Number(moistureRawDryEl.value)) : (editingPin?.moisture_raw_dry ?? null),
+                    moisture_raw_wet: moistureRawWetEl ? (moistureRawWetEl.value === '' ? null : Number(moistureRawWetEl.value)) : (editingPin?.moisture_raw_wet ?? null),
+                    moisture_show_percent: moistureShowPercentEl ? Boolean(moistureShowPercentEl.checked) : (Number(editingPin?.moisture_show_percent ?? 0) > 0),
                 };
 
                 try {

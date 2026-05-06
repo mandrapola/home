@@ -36,7 +36,8 @@ class ProcessControllerReadingsOnReport
         $this->pinDataHistoryService->storeReadings(
             $event->readings,
             $maps['pinIdByName'],
-            $maps['pinStyleByName']
+            $maps['pinStyleByName'],
+            $event->controllerId
         );
 
         $changedPowerStatesByPinId = $this->pinValueSyncService->syncFromReadings(

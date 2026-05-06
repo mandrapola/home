@@ -57,4 +57,13 @@ return [
         'provider_access_token_ttl_seconds' => (int) env('ALICE_PROVIDER_ACCESS_TOKEN_TTL_SECONDS', 2592000),
     ],
 
+    'yookassa' => [
+        'enabled' => (bool) env('YOOKASSA_ENABLED', false),
+        'shop_id' => env('YOOKASSA_SHOP_ID', ''),
+        'secret_key' => env('YOOKASSA_SECRET_KEY', ''),
+        'api_base_url' => env('YOOKASSA_API_BASE_URL', 'https://api.yookassa.ru/v3'),
+        'return_url' => env('YOOKASSA_RETURN_URL', ''),
+        'webhook_secret' => env('YOOKASSA_WEBHOOK_SECRET', ''),
+    ],
+
 ];

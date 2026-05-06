@@ -7,10 +7,16 @@ namespace App\Services\Report;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class ControllerMonitorPayloadService
 {
     private const CACHE_TTL_SECONDS = 86400;
+
+    public function __construct(
+        private readonly PinValueTransformer $pinValueTransformer,
+    ) {
+    }
 
     public function buildMonitorValue(string $controllerId): ?string
     {
@@ -38,16 +44,27 @@ class ControllerMonitorPayloadService
     {
         $timeZone = $this->resolveUserTimeZone($controllerId);
 
+        $selectColumns = ['value', 'unit', 'digital_style'];
+        if ($this->hasMoistureColumns()) {
+            $selectColumns[] = 'moisture_raw_dry';
+            $selectColumns[] = 'moisture_raw_wet';
+            $selectColumns[] = 'moisture_show_percent';
+        }
+
         $sensorEntries = DB::table('pin')
             ->where('controller_id', $controllerId)
             ->where('digital_style', 'like', 'sensor%')
             ->where('is_monitored', 1)
             ->whereNotNull('value')
             ->orderBy('pin')
-            ->get(['value', 'unit'])
+            ->get($selectColumns)
             ->map(function (object $row): string {
-                $value = $this->formatNumeric((float) $row->value);
-                $unit = trim((string) ($row->unit ?? ''));
+                $transformed = $this->pinValueTransformer->transform($row, is_numeric($row->value) ? (float) $row->value : null);
+                if ($transformed === null) {
+                    return '';
+                }
+                $value = $this->formatNumeric($transformed);
+                $unit = trim((string) ($this->pinValueTransformer->resolveUnit($row) ?? ''));
                 $unit = str_replace(';', '', $unit);
 
                 return $unit !== '' ? ($value . $unit) : $value;
@@ -97,5 +114,12 @@ class ControllerMonitorPayloadService
 
         $formatted = number_format($value, 1, '.', '');
         return rtrim(rtrim($formatted, '0'), '.');
+    }
+
+    private function hasMoistureColumns(): bool
+    {
+        return Schema::hasColumn('pin', 'moisture_raw_dry')
+            && Schema::hasColumn('pin', 'moisture_raw_wet')
+            && Schema::hasColumn('pin', 'moisture_show_percent');
     }
 }

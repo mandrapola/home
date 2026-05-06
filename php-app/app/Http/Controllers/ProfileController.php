@@ -25,8 +25,11 @@ class ProfileController extends Controller
             'user' => $request->user(),
             'timeZones' => $timeZones,
             'locales' => $locales,
-            'adminUsers' => ((bool) ($request->user()->is_admin ?? false))
-                ? User::query()->orderBy('id')->get(['id', 'name', 'email', 'alice_enabled', 'is_admin', 'updated_at'])
+            'adminUsers' => ($request->user() && $request->user()->hasRole('administrator'))
+                ? User::query()
+                    ->with('roles:id,name')
+                    ->orderBy('id')
+                    ->get(['id', 'name', 'email', 'alice_enabled', 'updated_at'])
                 : collect(),
             'aliceLinkedAccount' => DB::table('alice_accounts')
                 ->where('user_id', $request->user()->id)
@@ -42,12 +45,24 @@ class ProfileController extends Controller
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
         $validated = $request->validated();
-        $request->user()->fill([
+        $user = $request->user();
+
+        $newEmail = isset($validated['email']) && trim((string) $validated['email']) !== ''
+            ? (string) $validated['email']
+            : (string) $user->email;
+
+        $user->fill([
             'name' => (string) $validated['name'],
-            'locale' => (string) $validated['locale'],
-            'time_zone' => (string) $validated['time_zone'],
+            'email' => $newEmail,
+            'locale' => (string) ($validated['locale'] ?? $user->locale),
+            'time_zone' => (string) ($validated['time_zone'] ?? $user->time_zone),
         ]);
-        $request->user()->save();
+
+        if ($newEmail !== (string) $user->getOriginal('email')) {
+            $user->email_verified_at = null;
+        }
+
+        $user->save();
 
         return Redirect::route('profile.edit')->with('status', 'profile-updated');
     }
