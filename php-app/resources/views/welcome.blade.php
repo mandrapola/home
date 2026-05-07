@@ -1,372 +1,354 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ config('app.name', 'AiDvor SmartHome') }}</title>
-    <style>
-        :root {
-            --bg: #f7f8fa;
-            --text: #0a0a0a;
-            --muted: #6c6c6c;
-            --line: #e7e7e7;
-            --card: #ffffff;
-            --brand: #1f7aff;
-            --brand-dark: #155dc3;
-        }
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            margin: 0;
-            font-family: Inter, "Segoe UI", Arial, sans-serif;
-            color: var(--text);
-            background: var(--bg);
-        }
-        .wrap {
-            width: min(1160px, 100% - 32px);
-            margin: 0 auto;
-        }
-
-        .topbar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-            padding: 16px 0;
-        }
-
-        .brand {
-            font-weight: 700;
-            font-size: 18px;
-            text-decoration: none;
-            color: var(--text);
-        }
-
-        .nav {
-            display: flex;
-            align-items: center;
-            gap: 18px;
-            flex-wrap: wrap;
-        }
-
-        .nav-link {
-            color: var(--text);
-            display: inline-block;
-            text-decoration: none;
-            font-size: 14px;
-            font-weight: 500;
-        }
-
-        .cta {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border: 1px solid var(--brand);
-            border-radius: 999px;
-            background: var(--brand);
-            color: #fff;
-            text-decoration: none;
-            font-weight: 600;
-            padding: 10px 18px;
-            font-size: 14px;
-            transition: .2s ease;
-        }
-
-        .cta:hover {
-            background: var(--brand-dark);
-            border-color: var(--brand-dark);
-        }
-
-        .cta.ghost {
-            background: #fff;
-            color: var(--text);
-            border-color: var(--line);
-        }
-
-        .hero {
-            display: grid;
-            grid-template-columns: 1.2fr .8fr;
-            gap: 24px;
-            align-items: center;
-            padding: 48px 0 32px;
-        }
-
-        .hero h1 {
-            margin: 0;
-            font-size: clamp(34px, 6vw, 64px);
-            line-height: 1.03;
-            letter-spacing: -0.04em;
-        }
-
-        .hero p {
-            margin: 16px 0 26px;
-            color: var(--muted);
-            font-size: 18px;
-            max-width: 560px;
-        }
-
-        .hero-card {
-            background: linear-gradient(165deg, #ffffff, #f1f5ff);
-            border: 1px solid var(--line);
-            border-radius: 20px;
-            padding: 22px;
-            box-shadow: 0 14px 40px rgba(17, 34, 68, .08);
-        }
-
-        .hero-card h3 {
-            margin: 0 0 12px;
-            font-size: 20px;
-        }
-
-        .hero-card ul {
-            margin: 0;
-            padding-left: 20px;
-            color: var(--muted);
-            line-height: 1.8;
-        }
-
-        .section {
-            padding: 22px 0 14px;
-        }
-
-        .section-title {
-            margin: 0 0 16px;
-            font-size: 28px;
-            letter-spacing: -0.02em;
-        }
-
-        .grid-3 {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 16px;
-        }
-
-        .card {
-            border: 1px solid var(--line);
-            background: var(--card);
-            border-radius: 16px;
-            padding: 18px;
-        }
-
-        .card h3 {
-            margin: 0 0 8px;
-            font-size: 18px;
-        }
-
-        .card p {
-            margin: 0;
-            color: var(--muted);
-            line-height: 1.6;
-        }
-
-        .price-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 16px;
-        }
-
-        .price {
-            border: 1px solid var(--line);
-            border-radius: 16px;
-            background: #fff;
-            padding: 18px;
-        }
-
-        .price b {
-            display: block;
-            font-size: 30px;
-            margin: 10px 0 4px;
-        }
-
-        .price ul {
-            margin: 0 0 16px;
-            padding-left: 18px;
-            font-size: 13px;
-            color: var(--muted);
-            line-height: 1.7;
-        }
-
-        .download {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 18px;
-            border: 1px solid var(--line);
-            background: #fff;
-            border-radius: 16px;
-            padding: 20px;
-        }
-
-        .footer {
-            display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 16px;
-            padding: 18px 0 36px;
-        }
-
-        .footer h4 {
-            margin: 0 0 8px;
-            font-size: 14px;
-        }
-
-        .footer a,
-        .footer p {
-            margin: 0 0 6px;
-            color: var(--muted);
-            font-size: 14px;
-            text-decoration: none;
-        }
-
-        .footer a:hover {
-            color: var(--text);
-        }
-
-        .copyright {
-            border-top: 1px solid var(--line);
-            padding: 14px 0 32px;
-            color: var(--muted);
-            font-size: 13px;
-        }
-
-        @media (max-width: 900px) {
-            .hero,
-            .grid-3,
-            .price-grid,
-            .footer {
-                grid-template-columns: 1fr;
-            }
-
-            .download {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Home Aidvor — управление Arduino и IoT-устройствами через интернет</title>
+  <meta name="description" content="Home Aidvor — облачная платформа для удалённого управления Arduino, ESP и другими контроллерами. Автополив, реле, датчики, теплицы, двор и дача." />
+  <link rel="stylesheet" href="{{ asset('assets/theme.css') }}">
+  <link rel="stylesheet" href="{{ asset('assets/landing-light.css') }}">
+  <link rel="stylesheet" href="{{ asset('assets/landing-dark.css') }}">
+  @include('layouts.theme-init')
 </head>
 <body>
-<div class="wrap">
-    <header class="topbar">
-        <a class="brand" href="{{ url('/') }}">AiDvor®</a>
-        <nav class="nav">
-            <a class="nav-link" href="#features">{{ __('Features') }}</a>
-            <a class="nav-link" href="#pricing">{{ __('Pricing') }}</a>
-            <a class="nav-link" href="#download">{{ __('Download') }}</a>
-            <a class="nav-link" href="#support">{{ __('Support') }}</a>
-            @if (Route::has('login'))
-                @auth
-                    <a href="{{ url('/dashboard') }}" class="cta">{{ __('Get Started') }}</a>
-                @else
-                    <a href="{{ route('login') }}" class="cta ghost">{{ __('Sign in') }}</a>
-                    @if (Route::has('register'))
-                        <a href="{{ route('register') }}" class="cta">{{ __('Get Started') }}</a>
-                    @endif
-                @endauth
-            @endif
-        </nav>
-    </header>
-
-    <section class="hero">
-        <div>
-            <h1>Умный двор,<br>сделать легко.</h1>
-            <p>{{ __('Open, reliable control for every device.') }}</p>
-            <a href="{{ url('/dashboard') }}" class="cta">{{ __('Get Started') }}</a>
-        </div>
-        <aside class="hero-card">
-            <h3>{{ __('Powerful controllers.') }}</h3>
-            <ul>
-                <li>{{ __('Manage all your smart devices from a central, fast and reliable dashboard.') }}</li>
-                <li>{{ __('Monitor sensors, energy, and more with near-instant updates.') }}</li>
-                <li>{{ __('Automate routines and integrate with Alice for hands-free control.') }}</li>
-            </ul>
-        </aside>
-    </section>
-
-    <section class="section" id="features">
-        <h2 class="section-title">{{ __('Features') }}</h2>
-        <div class="grid-3">
-            <article class="card">
-                <h3>{{ __('Controllers') }}</h3>
-                <p>{{ __('Provision, monitor and manage all controllers from one place.') }}</p>
-            </article>
-            <article class="card">
-                <h3>{{ __('Telemetry') }}</h3>
-                <p>{{ __('See real-time data, chart history and transformed sensor values.') }}</p>
-            </article>
-            <article class="card">
-                <h3>{{ __('Scenes + Alice API') }}</h3>
-                <p>{{ __('Build automation logic and sync with Yandex Alice integration.') }}</p>
-            </article>
-        </div>
-    </section>
-
-    <section class="section" id="download">
-        <h2 class="section-title">{{ __('Download OpenWrt .ipk') }}</h2>
-        <div class="download">
-            <p style="margin:0; max-width:760px; color:var(--muted);">
-                {{ __('Get AiDvor for OpenWrt routers and start managing your SmartHome securely.') }}
-            </p>
-            <a class="cta" href="{{ route('home-arduino.openwrt-proxy') }}">{{ __('Open Downloads') }}</a>
-        </div>
-    </section>
-
-    <section class="section" id="pricing">
-        <h2 class="section-title">{{ __('Simple, honest, open.') }}</h2>
-        <div class="price-grid">
-            <article class="price">
-                <h3>{{ __('Free') }}</h3>
-                <b>$0</b>
-                <ul>
-                    <li>{{ __('Basic support') }}</li>
-                    <li>{{ __('Full telemetry') }}</li>
-                    <li>{{ __('Limited plan limits') }}</li>
-                </ul>
-                <a class="cta ghost" href="{{ route('register') }}">{{ __('Start Free') }}</a>
-            </article>
-            <article class="price">
-                <h3>{{ __('Pro') }}</h3>
-                <b>$9</b>
-                <ul>
-                    <li>{{ __('Premium support') }}</li>
-                    <li>{{ __('Advanced automations') }}</li>
-                    <li>{{ __('Early access updates') }}</li>
-                </ul>
-                <a class="cta" href="{{ route('login') }}">{{ __('Buy Now') }}</a>
-            </article>
-        </div>
-    </section>
-
-    <section class="section footer" id="support">
-        <div>
-            <h4>{{ __('Support') }}</h4>
-            <a href="{{ route('home-arduino.site-faq') }}">{{ __('Help Center') }}</a>
-            <a href="{{ route('brand-verification') }}">{{ __('Verification') }}</a>
-            <a href="{{ route('home-arduino') }}">{{ __('Documentation') }}</a>
-        </div>
-        <div>
-            <h4>{{ __('Product') }}</h4>
-            <a href="{{ route('home-arduino.controller-build') }}">{{ __('Controllers') }}</a>
-            <a href="{{ route('home-arduino.server-contract') }}">{{ __('API Contract') }}</a>
-            <a href="{{ route('home-arduino.openwrt-proxy') }}">{{ __('OpenWrt Package') }}</a>
-        </div>
-        <div>
-            <h4>{{ __('Company') }}</h4>
-            <p>{{ __('About') }}</p>
-            <p>{{ __('Careers') }}</p>
-            <p>{{ __('Blog') }}</p>
-        </div>
-        <div>
-            <h4>{{ __('Verification') }}</h4>
-            <p>{{ __('Status') }}</p>
-            <p>{{ __('Brand Assets') }}</p>
-            <a href="{{ route('brand-verification') }}">{{ __('Open-Source & Brand Page') }}</a>
-        </div>
-    </section>
-
-    <div class="copyright">
-        © {{ date('Y') }} AiDvor SmartHome
+  <header class="header">
+    <div class="container nav">
+      <a href="/" class="logo" aria-label="Home Aidvor">
+        <span class="logo-mark">A</span>
+        <span>Home Aidvor</span>
+      </a>
+      <nav class="nav-links" aria-label="Главное меню">
+        <a href="#cases">Применение</a>
+        <a href="#how">Как работает</a>
+        <a href="#plans">Тарифы</a>
+        <a href="#kits">Комплекты</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+      <div class="nav-actions">
+        <button
+          type="button"
+          class="landing-theme-toggle"
+          id="landingThemeToggle"
+          aria-label="{{ __('Theme') }}"
+          title="{{ __('Theme') }}"
+        >
+          <span class="theme-icon theme-icon-sun" aria-hidden="true">☀</span>
+          <span class="theme-icon theme-icon-moon" aria-hidden="true">☾</span>
+        </button>
+        <a class="btn btn-secondary" href="{{ route('login') }}">Войти</a>
+        <a class="btn btn-primary" href="{{ route('register') }}">Подключить бесплатно</a>
+      </div>
     </div>
-</div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container hero-grid">
+        <div>
+          <div class="badge">Arduino • ESP • реле • датчики • автополив</div>
+          <h1>Управляйте самодельными устройствами через интернет</h1>
+          <p class="hero-text">
+            Home Aidvor — облачная платформа для удалённого управления контроллерами Arduino, ESP8266, ESP32 и любыми устройствами, которые умеют отправлять данные на сервер по API-контракту.
+          </p>
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="{{ route('register') }}">Подключить первое устройство</a>
+            <a class="btn btn-secondary" href="{{ route('home-arduino') }}">Посмотреть пример Arduino</a>
+          </div>
+          <div class="hero-note">Бесплатный тариф позволяет полноценно подключить и проверить одно устройство.</div>
+        </div>
+
+        <div class="device-card" aria-label="Пример панели управления устройством">
+          <div class="panel-header">
+            <strong>Теплица №1</strong>
+            <span class="online">online</span>
+          </div>
+          <div class="status-row">
+            <div class="status">
+              <strong>24.8°</strong>
+              <span>температура</span>
+            </div>
+            <div class="status">
+              <strong>61%</strong>
+              <span>влажность</span>
+            </div>
+            <div class="status">
+              <strong>38%</strong>
+              <span>почва</span>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-header">
+              <strong>Управление реле</strong>
+              <span>4 канала</span>
+            </div>
+            <div class="relay-list">
+              <div class="relay"><span>Насос полива</span><span class="toggle"></span></div>
+              <div class="relay"><span>Вентиляция</span><span class="toggle"></span></div>
+              <div class="relay"><span>Освещение</span><span class="toggle off"></span></div>
+              <div class="relay"><span>Резерв</span><span class="toggle off"></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="cases">
+      <div class="container">
+        <div class="section-head">
+          <div class="section-kicker">Для чего подходит</div>
+          <h2>Не просто IoT-платформа, а понятный инструмент для реальных задач</h2>
+          <p class="section-desc">Подключайте датчики, реле, насосы, клапаны и исполнительные устройства. Смотрите состояние, управляйте вручную или запускайте сценарии.</p>
+        </div>
+        <div class="cards">
+          <article class="card">
+            <div class="card-icon">🌱</div>
+            <h3>Автополив теплицы</h3>
+            <p>Контроль влажности почвы, температуры и включение насоса или клапанов по расписанию и условиям.</p>
+          </article>
+          <article class="card">
+            <div class="card-icon">⚡</div>
+            <h3>Управление реле</h3>
+            <p>Включайте свет, вентиляцию, насосы, обогреватели и другие устройства удалённо из личного кабинета.</p>
+          </article>
+          <article class="card">
+            <div class="card-icon">🏡</div>
+            <h3>Дача и двор</h3>
+            <p>Следите за состоянием участка, питания, воды и температуры даже когда вас нет рядом.</p>
+          </article>
+          <article class="card">
+            <div class="card-icon">🔧</div>
+            <h3>DIY-проекты</h3>
+            <p>Соберите устройство на Arduino или ESP и подключите его к готовому серверу без разработки backend.</p>
+          </article>
+          <article class="card">
+            <div class="card-icon">📊</div>
+            <h3>Мониторинг</h3>
+            <p>Получайте телеметрию, смотрите последние значения, историю и события контроллера.</p>
+          </article>
+          <article class="card">
+            <div class="card-icon">🧩</div>
+            <h3>Любой контроллер</h3>
+            <p>Подойдёт любое устройство, которое может обратиться к серверу и передать данные по заданному контракту.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="how">
+      <div class="container">
+        <div class="section-head">
+          <div class="section-kicker">Как это работает</div>
+          <h2>Контроллер отправляет данные, сайт показывает состояние и отдаёт команды</h2>
+          <p class="section-desc">Home Aidvor связывает ваши устройства, сценарии и интерфейс управления в одну понятную систему.</p>
+        </div>
+        <div class="steps">
+          <div class="step">
+            <h3>Соберите устройство</h3>
+            <p>Arduino, ESP8266, ESP32 или другой контроллер с датчиками и реле.</p>
+          </div>
+          <div class="step">
+            <h3>Подключите к серверу</h3>
+            <p>Устройство отправляет отчёты на Home Aidvor по API-контракту.</p>
+          </div>
+          <div class="step">
+            <h3>Настройте сценарии</h3>
+            <p>Задайте правила: когда включать насос, свет, вентиляцию или другой выход.</p>
+          </div>
+          <div class="step">
+            <h3>Управляйте онлайн</h3>
+            <p>Открывайте кабинет с телефона или компьютера и контролируйте устройство удалённо.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="container split">
+        <div class="card">
+          <div class="section-kicker">Для пользователей</div>
+          <h2>Запустите первый проект без покупки промышленной IoT-системы</h2>
+          <p class="section-desc">Бесплатный тариф позволяет проверить идею, подключить контроллер и управлять устройством через сайт.</p>
+          <div class="feature-list">
+            <div class="feature-item">Подключение первого контроллера бесплатно</div>
+            <div class="feature-item">Готовые примеры для Arduino и ESP</div>
+            <div class="feature-item">Управление реле и просмотр данных</div>
+            <div class="feature-item">Подходит для теплиц, дач, двора и DIY-проектов</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="section-kicker">Для разработчиков и интеграторов</div>
+          <h2>Подключайте устройства через открытый контракт</h2>
+          <p class="section-desc">Сервер не привязан к конкретной плате. Если устройство умеет отправлять данные и принимать команды, его можно интегрировать.</p>
+          <div class="feature-list">
+            <div class="feature-item">API-контракт для передачи состояния контроллера</div>
+            <div class="feature-item">Группы устройств и профили</div>
+            <div class="feature-item">Сценарии автоматического управления</div>
+            <div class="feature-item">Возможность развивать решения для клиентов</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="plans">
+      <div class="container">
+        <div class="section-head">
+          <div class="section-kicker">Тарифы</div>
+          <h2>Начните бесплатно и переходите на платный тариф, когда проект вырастет</h2>
+          <p class="section-desc">Бесплатный тариф нужен для запуска первого устройства. Платные тарифы добавляют больше устройств, историю, уведомления и удобство.</p>
+        </div>
+        <div class="pricing">
+          <article class="price-card">
+            <h3>Free</h3>
+            <div class="price">0 €</div>
+            <p>Для первого устройства и знакомства с платформой.</p>
+            <ul>
+              <li>1 контроллер</li>
+              <li>Базовое управление</li>
+              <li>Короткая история</li>
+              <li>Реклама в интерфейсе</li>
+            </ul>
+            <a class="btn btn-secondary" href="{{ route('register') }}">Начать бесплатно</a>
+          </article>
+          <article class="price-card highlight">
+            <h3>Hobby</h3>
+            <div class="price">4.90 € <small>/ месяц</small></div>
+            <p>Для дачи, теплицы и нескольких домашних устройств.</p>
+            <ul>
+              <li>До 5 контроллеров</li>
+              <li>История до 30 дней</li>
+              <li>Без рекламы</li>
+              <li>Уведомления и сценарии</li>
+            </ul>
+            <a class="btn btn-primary" href="{{ route('register') }}">Выбрать Hobby</a>
+          </article>
+          <article class="price-card">
+            <h3>Pro</h3>
+            <div class="price">12.90 € <small>/ месяц</small></div>
+            <p>Для нескольких объектов, мастерской или малого хозяйства.</p>
+            <ul>
+              <li>До 20 контроллеров</li>
+              <li>Длинная история</li>
+              <li>Расширенные сценарии</li>
+              <li>API, роли и экспорт</li>
+            </ul>
+            <a class="btn btn-secondary" href="{{ route('register') }}">Выбрать Pro</a>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="kits">
+      <div class="container">
+        <div class="shop-banner">
+          <div>
+            <div class="section-kicker" style="color:#bce8c7">Готовые решения</div>
+            <h2>Не хотите собирать сами? Используйте готовые комплекты</h2>
+            <p>Платформа может работать не только как облачный сервис, но и как магазин совместимых устройств: контроллеров, датчиков, реле, корпусов и комплектов для теплиц.</p>
+            <a class="btn btn-secondary" href="{{ route('register') }}">Оставить заявку на комплект</a>
+          </div>
+          <div class="kit-list">
+            <div>Комплект автополива</div>
+            <div>Контроллер теплицы</div>
+            <div>Wi‑Fi реле для двора</div>
+            <div>OpenWrt шлюз для устройств</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="faq">
+      <div class="container">
+        <div class="section-head">
+          <div class="section-kicker">Вопросы</div>
+          <h2>Коротко о главном</h2>
+        </div>
+        <div class="faq">
+          <div class="faq-item">
+            <h3>Обязательно использовать Arduino?</h3>
+            <p>Нет. Arduino — только один из вариантов. Подойдёт любое устройство, которое может обращаться к серверу по заданному контракту.</p>
+          </div>
+          <div class="faq-item">
+            <h3>Можно ли начать бесплатно?</h3>
+            <p>Да. Бесплатный тариф позволяет полноценно подключить первое устройство и проверить работу платформы.</p>
+          </div>
+          <div class="faq-item">
+            <h3>Что можно подключить?</h3>
+            <p>Датчики температуры, влажности, освещённости, реле, насосы, клапаны, вентиляцию и другие исполнительные устройства.</p>
+          </div>
+          <div class="faq-item">
+            <h3>Нужны ли навыки программирования?</h3>
+            <p>Для DIY-подключения нужны базовые навыки. Для пользователей без опыта можно использовать готовые комплекты и инструкции.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="container">
+        <div class="cta">
+          <h2>Подключите первое устройство и проверьте Home Aidvor на реальном проекте</h2>
+          <p>Начните с одного контроллера: отправьте данные на сервер, настройте управление реле и посмотрите состояние устройства в личном кабинете.</p>
+          <div class="hero-actions cta-actions">
+            <a class="btn btn-primary" href="{{ route('register') }}">Зарегистрироваться бесплатно</a>
+            <a class="btn btn-secondary" href="{{ route('home-arduino') }}">Открыть инструкцию Arduino</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-grid">
+      <div>© Home Aidvor</div>
+      <div>Удалённое управление контроллерами, датчиками и реле</div>
+    </div>
+  </footer>
+  @include('layouts.theme-runtime')
+  <script>
+    (function () {
+      var toggle = document.getElementById('landingThemeToggle');
+      if (!toggle) return;
+
+      function resolveMode(mode) {
+        if (mode === 'dark' || mode === 'light') return mode;
+        return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+      }
+
+      function applyState(mode) {
+        var resolved = resolveMode(mode);
+        toggle.setAttribute('data-mode', resolved);
+        toggle.setAttribute('aria-pressed', resolved === 'dark' ? 'true' : 'false');
+      }
+
+      function getMode() {
+        return (window.AidvorTheme && window.AidvorTheme.getMode)
+          ? window.AidvorTheme.getMode()
+          : (localStorage.getItem('aidvor_theme_mode') || 'system');
+      }
+
+      function setMode(mode) {
+        if (window.AidvorTheme && window.AidvorTheme.setMode) {
+          window.AidvorTheme.setMode(mode);
+        } else {
+          localStorage.setItem('aidvor_theme_mode', mode);
+          document.documentElement.setAttribute('data-theme-mode', mode);
+          document.documentElement.setAttribute('data-theme', resolveMode(mode));
+        }
+      }
+
+      applyState(getMode());
+
+      toggle.addEventListener('click', function () {
+        var current = resolveMode(getMode());
+        var next = current === 'dark' ? 'light' : 'dark';
+        setMode(next);
+        applyState(next);
+      });
+
+      window.addEventListener('storage', function (e) {
+        if (e.key === 'aidvor_theme_mode') applyState(e.newValue || 'system');
+      });
+    })();
+  </script>
 </body>
 </html>

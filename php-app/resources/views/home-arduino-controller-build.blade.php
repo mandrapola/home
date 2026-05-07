@@ -5,20 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Сборка контроллера — AiDvor Docs</title>
     <link rel="stylesheet" href="{{ asset('assets/theme.css') }}">
+    @include('layouts.theme-init')
     <style>
         .wrap { width: min(1100px, 100% - 32px); margin: 0 auto; padding: 24px 0 36px; }
         .back { color: var(--accent); text-decoration: none; font-weight: 600; }
         .back:hover { text-decoration: underline; }
-        .block { border: 1px solid var(--line); background: #fff; border-radius: 16px; box-shadow: 0 8px 22px rgba(17,34,68,.06); padding: 16px 18px; margin-bottom: 12px; }
+        .block { border: 1px solid var(--line); background: var(--card); border-radius: 16px; box-shadow: 0 8px 22px rgba(17,34,68,.06); padding: 16px 18px; margin-bottom: 12px; }
         h1, h2 { margin: 0 0 10px; letter-spacing: -0.01em; }
         p, li { color: var(--muted); line-height: 1.6; }
         ul { margin: 0; padding-left: 20px; }
-        pre { border: 1px solid var(--line); border-radius: 12px; padding: 10px; background: #f8fbff; color: var(--text); overflow: auto; }
+        pre { border: 1px solid var(--line); border-radius: 12px; padding: 10px; background: var(--chip-bg); color: var(--text); overflow: auto; }
     </style>
 </head>
 <body class="theme-body">
 <div class="wrap">
-    <p><a class="back" href="{{ route('home-arduino') }}">← К разделам</a></p>
+    <div class="d-flex align-items-center justify-content-between gap-2 mb-2 flex-wrap">
+        <p class="mb-0"><a class="back" href="{{ route('home-arduino') }}">← К разделам</a></p>
+        @include('layouts.theme-switcher', ['compact' => true, 'id' => 'build_theme_switcher'])
+    </div>
     <section class="block">
         <h1>Сборка контроллера на Arduino UNO</h1>
         <p>Базовая конфигурация для работы с AiDvor.</p>
@@ -49,5 +53,6 @@ A5 -> analog_spare_2_raw
 SPI reserved: D10,D11,D12,D13</pre>
     </section>
 </div>
+@include('layouts.theme-runtime')
 </body>
 </html>

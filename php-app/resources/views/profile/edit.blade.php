@@ -14,7 +14,7 @@
         .profile-card {
             border: 1px solid var(--line);
             border-radius: 16px;
-            background: #fff;
+            background: var(--card);
             box-shadow: 0 8px 22px rgba(17,34,68,.06);
         }
         .profile-card .card-body {
@@ -50,7 +50,7 @@
             padding: 5px 10px;
             font-size: 12px;
             color: var(--muted);
-            background: #f8fbff;
+            background: var(--chip-bg);
         }
         .profile-chip.ok {
             border-color: #d4efdf;
@@ -68,14 +68,14 @@
             padding-top: 14px;
         }
         .theme-form-panel {
-            background: #f8fbff !important;
+            background: var(--chip-bg) !important;
             border-color: var(--line) !important;
             border-radius: 12px;
         }
         .payments-card {
             border: 1px solid var(--line);
             border-radius: 16px;
-            background: #fff;
+            background: var(--card);
             box-shadow: 0 8px 22px rgba(17,34,68,.06);
         }
         .payments-card .table {
@@ -87,7 +87,7 @@
             border-radius: 999px;
             padding: 2px 10px;
             font-size: 12px;
-            background: #f8fbff;
+            background: var(--chip-bg);
             color: var(--muted);
         }
     </style>

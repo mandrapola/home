@@ -8,7 +8,7 @@
         .report-card {
             border: 1px solid var(--line);
             border-radius: 16px;
-            background: #fff;
+            background: var(--card);
             box-shadow: 0 8px 24px rgba(17,34,68,.06);
         }
         .report-title {
@@ -17,7 +17,7 @@
             letter-spacing: -0.01em;
         }
         #reportBody.power-events-body {
-            background: #f8fbff !important;
+            background: var(--chip-bg) !important;
             border-color: var(--line) !important;
             color: var(--text) !important;
         }
@@ -47,7 +47,7 @@
         .power-gantt-scroll,
         .power-gantt-header .label-col,
         .power-gantt-label {
-            background: #f8fbff !important;
+            background: var(--chip-bg) !important;
             border-color: var(--line) !important;
             color: var(--text) !important;
         }
@@ -63,7 +63,7 @@
             border-bottom-color: rgba(10,10,10,.08) !important;
         }
         .power-gantt-hover-label {
-            background: #fff !important;
+            background: var(--card) !important;
             border-color: var(--line) !important;
         }
     </style>

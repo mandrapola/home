@@ -9,6 +9,16 @@
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <link rel="stylesheet" href="{{ asset('assets/theme.css') }}">
+    <script>
+        (function () {
+            var KEY = 'aidvor_theme_mode';
+            var mode = localStorage.getItem(KEY) || 'system';
+            var isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            var resolved = mode === 'system' ? (isDark ? 'dark' : 'light') : mode;
+            document.documentElement.setAttribute('data-theme-mode', mode);
+            document.documentElement.setAttribute('data-theme', resolved);
+        })();
+    </script>
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 <body class="theme-body">
@@ -37,5 +47,37 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script>
+        (function () {
+            var KEY = 'aidvor_theme_mode';
+            function resolveTheme(mode) {
+                if (mode === 'dark' || mode === 'light') return mode;
+                return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+            }
+            function applyTheme(mode) {
+                var resolved = resolveTheme(mode);
+                document.documentElement.setAttribute('data-theme-mode', mode);
+                document.documentElement.setAttribute('data-theme', resolved);
+            }
+            window.AidvorTheme = {
+                getMode: function () { return localStorage.getItem(KEY) || 'system'; },
+                setMode: function (mode) {
+                    localStorage.setItem(KEY, mode);
+                    applyTheme(mode);
+                },
+            };
+            window.addEventListener('storage', function (e) {
+                if (e.key === KEY) applyTheme(e.newValue || 'system');
+            });
+            var media = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+            if (media) {
+                var listener = function () {
+                    if ((localStorage.getItem(KEY) || 'system') === 'system') applyTheme('system');
+                };
+                if (media.addEventListener) media.addEventListener('change', listener);
+                else if (media.addListener) media.addListener(listener);
+            }
+        })();
+    </script>
 </body>
 </html>

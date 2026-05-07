@@ -6,6 +6,7 @@
     <title>Brand Verification | {{ config('app.name', 'Home Aidvor') }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <link rel="stylesheet" href="{{ asset('assets/theme.css') }}">
+    @include('layouts.theme-init')
 </head>
 <body class="theme-body">
 <div class="container py-4 py-lg-5">
@@ -14,6 +15,7 @@
             <div class="container py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div class="fs-5 fw-semibold">Home Aidvor</div>
                 <div class="d-flex gap-2 flex-wrap">
+                    @include('layouts.theme-switcher', ['compact' => true, 'id' => 'brand_theme_switcher'])
                     <a href="{{ url('/') }}" class="btn btn-outline-secondary btn-sm">Главная</a>
                     <a href="{{ url('/home-arduino') }}" class="btn btn-outline-secondary btn-sm">Документация</a>
                     <a href="{{ url('/dashboard') }}" class="btn btn-primary btn-sm">Личный кабинет</a>
@@ -101,5 +103,6 @@
         </main>
     </div>
 </div>
+@include('layouts.theme-runtime')
 </body>
 </html>

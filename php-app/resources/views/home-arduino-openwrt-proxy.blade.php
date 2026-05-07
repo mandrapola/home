@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>OpenWrt Proxy — AiDvor</title>
     <link rel="stylesheet" href="{{ asset('assets/theme.css') }}">
+    @include('layouts.theme-init')
     <style>
         .docs-wrap {
             width: min(1100px, 100% - 32px);
@@ -20,7 +21,7 @@
         }
         .docs-block {
             border: 1px solid var(--line);
-            background: #fff;
+            background: var(--card);
             border-radius: 16px;
             padding: 18px 20px;
             box-shadow: 0 8px 24px rgba(17, 34, 68, 0.06);
@@ -50,7 +51,7 @@
             border: 1px solid var(--line);
             border-radius: 12px;
             padding: 10px 12px;
-            background: #f8fbff;
+            background: var(--chip-bg);
         }
         .field-title {
             margin: 0 0 6px;
@@ -74,7 +75,10 @@
 </head>
 <body class="theme-body">
 <div class="docs-wrap">
-    <a class="docs-back" href="{{ route('home-arduino') }}">← К разделам</a>
+    <div class="d-flex align-items-center justify-content-between gap-2 mb-2 flex-wrap">
+        <a class="docs-back mb-0" href="{{ route('home-arduino') }}">← К разделам</a>
+        @include('layouts.theme-switcher', ['compact' => true, 'id' => 'proxy_theme_switcher'])
+    </div>
 
     <section class="docs-block">
         <h1>Прокси OpenWrt и AiDvor</h1>
@@ -158,5 +162,6 @@
 
     </section>
 </div>
+@include('layouts.theme-runtime')
 </body>
 </html>

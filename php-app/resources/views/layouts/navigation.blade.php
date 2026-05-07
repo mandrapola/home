@@ -21,7 +21,7 @@
             border: 1px solid var(--line);
             border-radius: 999px;
             padding: 5px 10px;
-            background: #f8fbff;
+            background: var(--chip-bg);
         }
     </style>
     <div class="container">
@@ -45,8 +45,14 @@
                     <a class="nav-link {{ request()->routeIs('user.plans.*') ? 'active' : '' }}" href="{{ route('user.plans.index') }}">{{ __('Plans') }}</a>
                 </li>
             </ul>
+            <div class="d-lg-none mb-2">
+                @include('layouts.theme-switcher', ['id' => 'nav_theme_switcher_mobile'])
+            </div>
 
             <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-2">
+                <li class="nav-item d-none d-lg-flex align-items-center">
+                    @include('layouts.theme-switcher', ['compact' => true, 'id' => 'nav_theme_switcher'])
+                </li>
                 <li class="nav-item">
                     <a class="nav-link {{ request()->routeIs('profile.edit') ? 'active' : '' }}" href="{{ route('profile.edit') }}">{{ __('Profile') }}</a>
                 </li>

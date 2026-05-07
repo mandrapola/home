@@ -6,7 +6,7 @@
         .scenes-info-card {
             border: 1px solid var(--line);
             border-radius: 16px;
-            background: #fff;
+            background: var(--card);
             box-shadow: 0 8px 24px rgba(17,34,68,.06);
         }
         .scenes-title {
@@ -19,7 +19,7 @@
             box-shadow: 0 8px 22px rgba(17,34,68,.06);
         }
         #scenesList .card-body {
-            background: #fff;
+            background: var(--card);
         }
         #scenesList .badge.text-bg-warning {
             background: #fff2cd !important;
@@ -46,10 +46,10 @@
             color: var(--accent);
         }
         #scenesList .btn-outline-primary:hover {
-            background: #f0f6ff;
+            background: var(--outline-hover-bg);
         }
         .app-dialog {
-            background: #fff !important;
+            background: var(--card) !important;
             color: var(--text) !important;
             border: 1px solid var(--line) !important;
             border-radius: 14px;
@@ -57,7 +57,7 @@
         .modal-form .form-control,
         .modal-form .form-select {
             border-color: var(--line);
-            background: #fff;
+            background: var(--input-bg);
             color: var(--text);
         }
         .modal-form .form-control:focus,
@@ -644,11 +644,11 @@
     </script>
 
     <style>
-        .app-dialog { width: 95%; max-width: 560px; border: 1px solid var(--line); border-radius: 12px; padding: 16px; background: #fff; color: var(--text); }
+        .app-dialog { width: 95%; max-width: 560px; border: 1px solid var(--line); border-radius: 12px; padding: 16px; background: var(--card); color: var(--text); }
         .modal-form { display: grid; gap: 10px; }
         .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
         .scenario-condition-row {
-            background: #f8fbff;
+            background: var(--chip-bg);
             border-color: var(--line) !important;
             color: var(--text);
         }

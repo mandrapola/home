@@ -27,7 +27,7 @@
             padding: 6px 10px;
             border: 1px solid var(--line);
             border-radius: 999px;
-            background: #f8fbff;
+            background: var(--chip-bg);
             color: var(--muted);
             white-space: nowrap;
         }
@@ -52,7 +52,7 @@
             margin-bottom: 12px;
         }
         #controllers-list > .border {
-            background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+            background: linear-gradient(180deg, var(--card) 0%, var(--chip-bg) 100%);
             border-color: #d9e4f2 !important;
             box-shadow: 0 4px 12px rgba(17, 34, 68, 0.06);
             transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
@@ -63,12 +63,12 @@
             transform: translateY(-1px);
         }
         #controllers-list > .border.border-primary {
-            background: linear-gradient(180deg, #eef5ff 0%, #e8f1ff 100%);
+            background: linear-gradient(180deg, var(--chip-bg) 0%, rgba(79, 140, 255, 0.14) 100%);
             border-color: #8cb1df !important;
             box-shadow: 0 10px 22px rgba(31, 122, 255, 0.16);
         }
         #pins-list article.border {
-            background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+            background: linear-gradient(180deg, var(--card) 0%, var(--chip-bg) 100%);
             border-color: #d9e4f2 !important;
             box-shadow: 0 4px 12px rgba(17, 34, 68, 0.06);
             transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
@@ -81,7 +81,7 @@
 
         /* Light overrides for old dark chart blocks */
         .app-dialog {
-            background: #fff !important;
+            background: var(--card) !important;
             color: var(--text) !important;
         }
         .pin-chart,
@@ -89,7 +89,7 @@
         .power-gantt-scroll,
         .power-gantt-header .label-col,
         .power-gantt-label {
-            background: #f8fbff !important;
+            background: var(--chip-bg) !important;
             color: var(--text) !important;
             border-color: var(--line) !important;
         }

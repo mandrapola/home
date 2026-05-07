@@ -5,12 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>AiDvor Docs — Разделы</title>
     <link rel="stylesheet" href="{{ asset('assets/theme.css') }}">
+    @include('layouts.theme-init')
     <style>
         .wrap { width: min(1100px, 100% - 32px); margin: 0 auto; padding: 24px 0 36px; }
         .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; gap: 12px; flex-wrap: wrap; }
         .btn { text-decoration: none; color: #fff; background: var(--accent); padding: 9px 14px; border-radius: 10px; font-weight: 600; font-size: 14px; display: inline-block; }
         .btn:hover { background: #155dc3; color: #fff; }
-        .hero, .card { border: 1px solid var(--line); background: #fff; border-radius: 16px; box-shadow: 0 8px 22px rgba(17,34,68,.06); }
+        .hero, .card { border: 1px solid var(--line); background: var(--card); border-radius: 16px; box-shadow: 0 8px 22px rgba(17,34,68,.06); }
         .hero { padding: 18px 20px; margin-bottom: 14px; }
         .grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
         .card { padding: 14px 16px; }
@@ -25,7 +26,10 @@
 <div class="wrap">
     <div class="top">
         <h2>AiDvor · Документация</h2>
-        <a class="btn" href="{{ url('/') }}">На главную</a>
+        <div class="d-flex align-items-center gap-2">
+            @include('layouts.theme-switcher', ['compact' => true, 'id' => 'docs_theme_switcher'])
+            <a class="btn" href="{{ url('/') }}">На главную</a>
+        </div>
     </div>
 
     <section class="hero">
@@ -56,5 +60,6 @@
         </article>
     </section>
 </div>
+@include('layouts.theme-runtime')
 </body>
 </html>
