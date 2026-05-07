@@ -1,5 +1,6 @@
 <x-guest-layout>
     <h1 class="h4 mb-3">{{ __('Create account') }}</h1>
+    <p class="text-secondary small mb-3">{{ __('Create your account to start managing controllers and telemetry.') }}</p>
 
     <form method="POST" action="{{ route('register') }}">
         @csrf
@@ -28,7 +29,7 @@
             <x-input-error :messages="$errors->get('password_confirmation')" class="mt-1" />
         </div>
 
-        <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
             <a class="link-secondary small" href="{{ route('login') }}">{{ __('Already registered?') }}</a>
             <x-primary-button>{{ __('Register') }}</x-primary-button>
         </div>

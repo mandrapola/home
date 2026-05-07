@@ -2,106 +2,102 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Models\Pin;
+use App\Http\Requests\PinRequest;
+use App\Models\IoTController;
 use Backpack\CRUD\app\Http\Controllers\CrudController;
-use Backpack\CRUD\app\Http\Controllers\Operations\ListOperation;
-use Backpack\CRUD\app\Http\Controllers\Operations\ShowOperation;
-use Backpack\CRUD\app\Http\Controllers\Operations\UpdateOperation;
 use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
-use Illuminate\Support\Facades\Schema;
 
+/**
+ * Class PinCrudController
+ * @package App\Http\Controllers\Admin
+ * @property-read \Backpack\CRUD\app\Library\CrudPanel\CrudPanel $crud
+ */
 class PinCrudController extends CrudController
 {
-    use ListOperation;
-    use ShowOperation;
-    use UpdateOperation;
+    use \Backpack\CRUD\app\Http\Controllers\Operations\ListOperation;
+    use \Backpack\CRUD\app\Http\Controllers\Operations\UpdateOperation;
+    use \Backpack\CRUD\app\Http\Controllers\Operations\ShowOperation;
 
-    public function setup(): void
+    /**
+     * Configure the CrudPanel object. Apply settings to all operations.
+     * 
+     * @return void
+     */
+    public function setup()
     {
-        CRUD::setModel(Pin::class);
-        CRUD::setRoute(backpack_url('pins'));
-        CRUD::setEntityNameStrings(__('pin'), __('pins'));
-        $this->crud->denyAccess(['create', 'delete']);
+        CRUD::setModel(\App\Models\Pin::class);
+        CRUD::setRoute(config('backpack.base.route_prefix') . '/pins');
+        CRUD::setEntityNameStrings('pin', 'pins');
+
+        // Pins are managed from the Controller preview; standalone list/create/delete are disabled.
+        CRUD::denyAccess(['list', 'create', 'delete']);
+
+        if (! backpack_user()?->can('admin.pins.view')) {
+            abort(403);
+        }
+        if (! backpack_user()?->can('admin.pins.update')) {
+            CRUD::denyAccess(['update']);
+        }
     }
 
-    protected function setupListOperation(): void
+    /**
+     * Define what happens when the List operation is loaded.
+     * 
+     * @see  https://backpackforlaravel.com/docs/crud-operation-list-entries
+     * @return void
+     */
+    protected function setupListOperation()
     {
-        CRUD::column('id')->label('ID');
-        CRUD::column('controller_id')->label(__('Controller ID'));
-        CRUD::column('pin')->label(__('Pin'));
-        CRUD::column('label')->label(__('Label'));
-        CRUD::column('digital_style')->label(__('Digital Style'));
-    }
-
-    protected function setupShowOperation(): void
-    {
-        $this->setupListOperation();
-        CRUD::column('unit')->label(__('Unit'));
-        CRUD::column('value')->label(__('Value'));
-        CRUD::column('show_on_chart')->type('boolean')->label(__('Show On Chart'));
-        CRUD::column('show_on_report')->type('boolean')->label(__('Show On Report'));
-        CRUD::column('is_monitored')->type('boolean')->label(__('Monitored'));
-        CRUD::column('external_enabled')->type('boolean')->label(__('External Enabled'));
-    }
-
-    protected function setupUpdateOperation(): void
-    {
-        CRUD::setValidation([
-            'label' => ['required', 'string', 'max:255'],
+        CRUD::addColumn([
+            'name' => 'controller',
+            'type' => 'relationship',
+            'label' => 'Controller',
+            'attribute' => 'name',
         ]);
+        CRUD::column('pin');
+        CRUD::column('label');
+        CRUD::column('digital_style');
+        CRUD::column('unit');
+        CRUD::column('show_on_chart')->type('boolean');
+        CRUD::column('show_on_report')->type('boolean');
+        CRUD::column('is_monitored')->type('boolean');
+        CRUD::column('external_enabled')->type('boolean');
+        CRUD::column('enable_scenario')->type('boolean');
+    }
 
-        $entry = $this->crud->getCurrentEntry();
-        $digitalStyle = (string) ($entry->digital_style ?? '');
-        $isPower = $digitalStyle === 'power';
+    /**
+     * Define what happens when the Create operation is loaded.
+     * 
+     * @see https://backpackforlaravel.com/docs/crud-operation-create
+     * @return void
+     */
+    protected function setupCreateOperation()
+    {
+        CRUD::setValidation(PinRequest::class);
 
-        CRUD::field('label')->label(__('Label'));
+        CRUD::field('pin')->tipe('text')->attributes(['readonly' => 'readonly', 'disabled' => 'disabled']);
+        CRUD::field('label');
+        CRUD::field('digital_style')->tipe('text')->attributes(['readonly' => 'readonly', 'disabled' => 'disabled']);
+        CRUD::field('unit')->type('select_from_array')->options(IoTController::PIN_UNIT_OPTIONS);
+        CRUD::field('show_on_chart')->type('checkbox');
+        CRUD::field('show_on_report')->type('checkbox');
+        CRUD::field('is_monitored')->type('checkbox');
+        CRUD::field('external_enabled')->type('checkbox');
+        CRUD::field('moisture_raw_dry')->type('number');
+        CRUD::field('moisture_raw_wet')->type('number');
+        CRUD::field('moisture_show_percent')->type('checkbox');
+        CRUD::field('chart_range_hours')->type('number');
+        CRUD::field('enable_scenario')->type('checkbox');
+    }
 
-        if ($isPower) {
-            CRUD::addField([
-                'name' => 'show_on_report',
-                'type' => 'radio',
-                'label' => __('Show On Report'),
-                'options' => [1 => __('Yes'), 0 => __('No')],
-                'inline' => true,
-            ]);
-        } else {
-            CRUD::field('unit')->label(__('Unit'));
-            CRUD::addField([
-                'name' => 'show_on_chart',
-                'type' => 'radio',
-                'label' => __('Show On Chart'),
-                'options' => [1 => __('Yes'), 0 => __('No')],
-                'inline' => true,
-            ]);
-            CRUD::addField([
-                'name' => 'is_monitored',
-                'type' => 'radio',
-                'label' => __('Monitored'),
-                'options' => [1 => __('Yes'), 0 => __('No')],
-                'inline' => true,
-            ]);
-            CRUD::field('chart_range_hours')->type('number')->attributes(['min' => 1, 'max' => 24])->label(__('Chart Range Hours'));
-            if ($digitalStyle === 'sensor_humidity') {
-                CRUD::field('moisture_raw_dry')->type('number')->attributes(['step' => '0.01'])->label(__('Moisture Raw Dry'));
-                CRUD::field('moisture_raw_wet')->type('number')->attributes(['step' => '0.01'])->label(__('Moisture Raw Wet'));
-                CRUD::addField([
-                    'name' => 'moisture_show_percent',
-                    'type' => 'radio',
-                    'label' => __('Moisture Show Percent'),
-                    'options' => [1 => __('Yes'), 0 => __('No')],
-                    'inline' => true,
-                ]);
-            }
-        }
-
-        if (Schema::hasColumn('pin', 'external_enabled')) {
-            CRUD::addField([
-                'name' => 'external_enabled',
-                'type' => 'radio',
-                'label' => __('External Enabled'),
-                'options' => [1 => __('Yes'), 0 => __('No')],
-                'inline' => true,
-            ]);
-        }
+    /**
+     * Define what happens when the Update operation is loaded.
+     * 
+     * @see https://backpackforlaravel.com/docs/crud-operation-update
+     * @return void
+     */
+    protected function setupUpdateOperation()
+    {
+        $this->setupCreateOperation();
     }
 }

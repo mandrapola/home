@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Models\PaymentTransaction;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -36,6 +37,12 @@ class ProfileController extends Controller
                 ->whereNull('unlinked_at')
                 ->orderByDesc('updated_at')
                 ->first(['yandex_user_id', 'updated_at']),
+            'paymentOrders' => PaymentTransaction::query()
+                ->where('user_id', $request->user()->id)
+                ->with('plan:id,name')
+                ->orderByDesc('id')
+                ->limit(10)
+                ->get(),
         ]);
     }
 

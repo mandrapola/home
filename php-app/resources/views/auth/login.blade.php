@@ -1,5 +1,6 @@
 <x-guest-layout>
     <h1 class="h4 mb-3">{{ __('Log in') }}</h1>
+    <p class="text-secondary small mb-3">{{ __('Access your dashboard, devices and automations.') }}</p>
 
     <x-auth-session-status class="mb-3" :status="session('status')" />
 
@@ -23,7 +24,7 @@
             <label class="form-check-label" for="remember_me">{{ __('Remember me') }}</label>
         </div>
 
-        <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
             @if (Route::has('password.request'))
                 <a class="link-secondary small" href="{{ route('password.request') }}">{{ __('Forgot your password?') }}</a>
             @endif

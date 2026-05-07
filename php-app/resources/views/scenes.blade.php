@@ -2,12 +2,76 @@
     <x-slot name="header">
         <h2 class="h4 mb-0">{{ __('Scenes') }}</h2>
     </x-slot>
+    <style>
+        .scenes-info-card {
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            background: #fff;
+            box-shadow: 0 8px 24px rgba(17,34,68,.06);
+        }
+        .scenes-title {
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+        }
+        #scenesList .card {
+            border-radius: 14px;
+            box-shadow: 0 8px 22px rgba(17,34,68,.06);
+        }
+        #scenesList .card-body {
+            background: #fff;
+        }
+        #scenesList .badge.text-bg-warning {
+            background: #fff2cd !important;
+            color: #8a6d1f !important;
+            border: 1px solid #f2dca2;
+        }
+        #scenesList .badge.text-bg-dark {
+            background: #f4f6f8 !important;
+            color: #667085 !important;
+            border: 1px solid #d9e0e7;
+        }
+        #scenesList .badge.text-bg-success {
+            background: #eafaf1 !important;
+            color: #1a7f4b !important;
+            border: 1px solid #ccead9;
+        }
+        #scenesList .badge.text-bg-secondary {
+            background: #f4f6f8 !important;
+            color: #667085 !important;
+            border: 1px solid #d9e0e7;
+        }
+        #scenesList .btn-outline-primary {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+        #scenesList .btn-outline-primary:hover {
+            background: #f0f6ff;
+        }
+        .app-dialog {
+            background: #fff !important;
+            color: var(--text) !important;
+            border: 1px solid var(--line) !important;
+            border-radius: 14px;
+        }
+        .modal-form .form-control,
+        .modal-form .form-select {
+            border-color: var(--line);
+            background: #fff;
+            color: var(--text);
+        }
+        .modal-form .form-control:focus,
+        .modal-form .form-select:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 .25rem rgba(31,122,255,.16);
+        }
+    </style>
 
-    <div class="card shadow-sm mb-3">
+    <div class="scenes-info-card mb-3">
         <div class="card-body d-flex justify-content-between align-items-center gap-3 flex-wrap">
             <div>
-                <h3 class="h6 mb-1">Список сценариев</h3>
-                <div class="text-muted small">Условия внутри сценария: И. Сценарии одного пина: ИЛИ.</div>
+                <h3 class="scenes-title mb-1">{{ __('Scenarios List') }}</h3>
+                <div class="text-muted small">{{ __('Conditions inside scenario: AND. Scenarios for one pin: OR.') }}</div>
             </div>
             <div id="scenesMeta" class="text-muted small">...</div>
         </div>
@@ -94,6 +158,12 @@
             'delete_error_condition' => __('Condition delete error'),
             'toggle_error_scenario' => __('Scenario toggle error'),
             'load_error' => __('Scenario loading error'),
+            'digital_true' => __('Enabled (TRUE)'),
+            'threshold' => __('Threshold'),
+            'power_targets_not_found' => __('No target pins of type "power" found.'),
+            'scenarios_count' => __('Scenarios'),
+            'scenario_default_name' => __('Scenario'),
+            'range_hours_short' => __('h'),
         ];
     @endphp
 
@@ -194,7 +264,7 @@
                     conditionThresholdLabel.innerHTML = '';
                     conditionThresholdLabel.appendChild(thresholdInput);
                     const text = document.createElement('span');
-                    text.textContent = 'Включен (TRUE)';
+                    text.textContent = tr('digital_true');
                     conditionThresholdLabel.appendChild(text);
                     return;
                 }
@@ -203,7 +273,7 @@
                 if (thresholdInput.type === 'checkbox') {
                     const checked = thresholdInput.checked;
                     conditionThresholdLabel.classList.remove('form-check', 'form-switch', 'd-flex', 'align-items-center', 'gap-2');
-                    conditionThresholdLabel.innerHTML = 'Порог<br>';
+                    conditionThresholdLabel.innerHTML = `${tr('threshold')}<br>`;
                     thresholdInput.type = 'number';
                     thresholdInput.step = '0.01';
                     thresholdInput.value = checked ? '1' : '0';
@@ -250,7 +320,7 @@
                 if (!targets.length) {
                     const empty = document.createElement('div');
                     empty.className = 'text-muted';
-                    empty.textContent = 'Целевые пины типа "power" не найдены.';
+                    empty.textContent = tr('power_targets_not_found');
                     elList.appendChild(empty);
                     return;
                 }
@@ -290,7 +360,7 @@
                     header.innerHTML = `
                         <div>
                             <div class="fw-semibold">${target.controller_name} · ${target.label} (${target.pin})</div>
-                            <div class="small text-muted">Сценариев: ${defs.length}</div>
+                            <div class="small text-muted">${tr('scenarios_count')}: ${defs.length}</div>
                         </div>
                         <div class="d-flex align-items-center gap-2 flex-wrap">
                             <button type="button" class="btn btn-outline-primary btn-sm js-add-scenario">${tr('add_scenario')}</button>
@@ -309,7 +379,7 @@
                         scenarioDialogTitle.textContent = tr('create_scenario');
                         scenarioForm.pin_id.value = String(target.id);
                         scenarioForm.definition_id.value = '';
-                        scenarioForm.name.value = `Сценарий ${defs.length + 1}`;
+                        scenarioForm.name.value = `${tr('scenario_default_name')} ${defs.length + 1}`;
                         scenarioDialog.showModal();
                     });
 
@@ -574,11 +644,11 @@
     </script>
 
     <style>
-        .app-dialog { width: 95%; max-width: 560px; border: 1px solid var(--line); border-radius: 12px; padding: 16px; background: rgba(21, 33, 49, 0.96); color: var(--text); }
+        .app-dialog { width: 95%; max-width: 560px; border: 1px solid var(--line); border-radius: 12px; padding: 16px; background: #fff; color: var(--text); }
         .modal-form { display: grid; gap: 10px; }
         .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
         .scenario-condition-row {
-            background: rgba(10, 20, 33, 0.82);
+            background: #f8fbff;
             border-color: var(--line) !important;
             color: var(--text);
         }
@@ -587,7 +657,7 @@
             color: var(--text);
         }
         .scenario-condition-state {
-            color: #cfe2ff;
+            color: #1f7aff;
             font-weight: 600;
             letter-spacing: .2px;
         }

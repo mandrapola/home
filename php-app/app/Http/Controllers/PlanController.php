@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Plan;
-use App\Models\PaymentTransaction;
 use App\Models\UserPlanSubscription;
 use App\Services\Billing\PlanLimitService;
 use App\Services\Billing\SubscriptionActivationService;
@@ -31,21 +30,11 @@ class PlanController extends Controller
         $selectedSubscription = $user?->selectedPlanSubscription();
         $selectedPlanId = $user?->selected_plan_id;
         $usageSummary = $user ? $this->planLimitService->usageSummaryForUser($user) : null;
-        $paymentOrders = $user
-            ? PaymentTransaction::query()
-                ->where('user_id', $user->id)
-                ->with('plan:id,name')
-                ->orderByDesc('id')
-                ->limit(10)
-                ->get()
-            : collect();
-
         return view('plans.index', [
             'plans' => $plans,
             'selectedSubscription' => $selectedSubscription,
             'selectedPlanId' => $selectedPlanId,
             'usageSummary' => $usageSummary,
-            'paymentOrders' => $paymentOrders,
         ]);
     }
 
@@ -120,7 +109,15 @@ class PlanController extends Controller
             return redirect()->route('user.plans.index')->with('status', __('Selected plan does not require payment.'));
         }
 
-        if (app()->environment('local') && ! config('services.yookassa.enabled', false)) {
+        $yooEnabled = (bool) config('services.yookassa.enabled', false);
+        $shopId = (string) config('services.yookassa.shop_id', '');
+        $secretKey = (string) config('services.yookassa.secret_key', '');
+        $looksLikePlaceholderCreds = str_contains(mb_strtolower($shopId), 'ваш_')
+            || str_contains(mb_strtolower($secretKey), 'ваш_')
+            || str_contains(strtolower($shopId), 'your_')
+            || str_contains(strtolower($secretKey), 'your_');
+
+        if (app()->environment('local') && (! $yooEnabled || $looksLikePlaceholderCreds)) {
             $pendingSubscription = UserPlanSubscription::query()
                 ->where('user_id', $user->id)
                 ->where('plan_id', $plan->id)
@@ -159,12 +156,10 @@ class PlanController extends Controller
             return redirect()->route('user.plans.index')->with('status', __('Dev payment completed. Plan activated.'));
         }
 
-        if (! config('services.yookassa.enabled', false)) {
+        if (! $yooEnabled) {
             return redirect()->route('user.plans.index')->with('status', __('Payments are disabled.'));
         }
 
-        $shopId = (string) config('services.yookassa.shop_id', '');
-        $secretKey = (string) config('services.yookassa.secret_key', '');
         $apiBaseUrl = rtrim((string) config('services.yookassa.api_base_url', 'https://api.yookassa.ru/v3'), '/');
         if ($shopId === '' || $secretKey === '') {
             return redirect()->route('user.plans.index')->with('status', __('YooKassa credentials are not configured.'));

@@ -11,11 +11,11 @@
 <label>
     {{ __('Chart Range, h') }}<br>
     <select name="chart_range_hours" class="form-full form-control">
-        <option value="1">1ч</option>
-        <option value="4">4ч</option>
-        <option value="8">8ч</option>
-        <option value="16">16ч</option>
-        <option value="24">24ч</option>
+        <option value="1">1{{ __('h') }}</option>
+        <option value="4">4{{ __('h') }}</option>
+        <option value="8">8{{ __('h') }}</option>
+        <option value="16">16{{ __('h') }}</option>
+        <option value="24">24{{ __('h') }}</option>
     </select>
 </label>
 

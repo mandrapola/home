@@ -3,17 +3,85 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>OpenWrt Proxy — home.arduino.ru</title>
-    <link rel="stylesheet" href="{{ asset('assets/docs.css') }}">
+    <title>OpenWrt Proxy — AiDvor</title>
+    <link rel="stylesheet" href="{{ asset('assets/theme.css') }}">
+    <style>
+        .docs-wrap {
+            width: min(1100px, 100% - 32px);
+            margin: 0 auto;
+            padding: 20px 0 36px;
+        }
+        .docs-back {
+            display: inline-flex;
+            text-decoration: none;
+            color: var(--accent);
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+        .docs-block {
+            border: 1px solid var(--line);
+            background: #fff;
+            border-radius: 16px;
+            padding: 18px 20px;
+            box-shadow: 0 8px 24px rgba(17, 34, 68, 0.06);
+            margin-bottom: 14px;
+        }
+        .docs-block h1,
+        .docs-block h2 {
+            margin: 0 0 10px;
+            letter-spacing: -0.02em;
+        }
+        .docs-block p,
+        .docs-block li {
+            color: var(--muted);
+            line-height: 1.6;
+        }
+        .docs-block ul,
+        .docs-block ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .field-list {
+            display: grid;
+            gap: 12px;
+            margin-top: 8px;
+        }
+        .field-item {
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 10px 12px;
+            background: #f8fbff;
+        }
+        .field-title {
+            margin: 0 0 6px;
+            font-size: 1.02rem;
+            color: var(--text);
+            font-weight: 700;
+        }
+        .field-desc {
+            margin: 0;
+            font-size: 0.92rem;
+            line-height: 1.5;
+        }
+        .dl-list a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+        .dl-list a:hover {
+            text-decoration: underline;
+        }
+    </style>
 </head>
-<body>
-<div class="wrap">
-    <p><a class="back" href="{{ route('home-arduino') }}">← К разделам</a></p>
-    <section class="block">
-        <h1>Прокси OpenWrt и Home Aidvor</h1>
+<body class="theme-body">
+<div class="docs-wrap">
+    <a class="docs-back" href="{{ route('home-arduino') }}">← К разделам</a>
+
+    <section class="docs-block">
+        <h1>Прокси OpenWrt и AiDvor</h1>
         <p>Gateway принимает данные от контроллера в локальной сети и передаёт их на cloud-сервер от своего имени. Это отдельный уровень между Arduino и интернетом, который упрощает эксплуатацию и повышает безопасность.</p>
     </section>
-    <section class="block">
+
+    <section class="docs-block">
         <h2>Почему трафик идёт через proxy</h2>
         <ul>
             <li><strong>Ограничения Arduino UNO:</strong> UNO с Ethernet Shield работает по простому HTTP-контракту и не тратит ресурсы на сложную криптографию, управление сессиями и TLS.</li>
@@ -24,25 +92,27 @@
             <li><strong>Масштабирование:</strong> несколько контроллеров могут работать через один роутер и единый механизм авторизации/мониторинга.</li>
         </ul>
     </section>
-    <section class="block">
+
+    <section class="docs-block">
         <h2>Установка</h2>
         <ol>
             <li>Разверните runtime в <code>/opt/home-openwrt</code>.</li>
             <li>Подключите init сервис <code>home-aidvor</code>.</li>
-            <li>Установите LuCI-страницу <code>Services → Home Aidvor</code>.</li>
+            <li>Установите LuCI-страницу <code>Services → AiDvor</code>.</li>
             <li>Перезапустите сервис и проверьте <code>/api/system/status</code>.</li>
         </ol>
     </section>
+
     @php
         $downloadBaseUrl = rtrim((string) config('openwrt-downloads.base_url', '/downloads/openwrt'), '/');
         $packageName = (string) config('openwrt-downloads.package_name', 'home-aidvor');
         $packageVersion = (string) config('openwrt-downloads.version', '24.10.5');
         $architectures = (array) config('openwrt-downloads.architectures', []);
     @endphp
-    <section class="block">
+    <section class="docs-block">
         <h2>Скачать .ipk</h2>
         <p>Выберите пакет для архитектуры вашего роутера (см. <code>opkg print-architecture</code>).</p>
-        <ul>
+        <ul class="dl-list">
             @foreach ($architectures as $arch)
                 @php
                     $file = sprintf('%s_%s_%s.ipk', $packageName, $packageVersion, $arch);
@@ -55,7 +125,8 @@
             @endforeach
         </ul>
     </section>
-    <section class="block">
+
+    <section class="docs-block">
         <h2>Минимальные настройки</h2>
         <div class="field-list">
             <div class="field-item">
@@ -81,7 +152,7 @@
         <div class="field-item">
             <p class="field-title"><code>proxy_secret</code></p>
             <p class="field-desc">Секрет HMAC хранится в UCI и не показывается в форме. Обычно обновляется автоматически после успешной авторизации gateway на сервере.</p>
-            <p class="field-desc">Как обновить/восстановить: <br>1) На странице Home Aidvor нажмите кнопку авторизации gateway и получите код. <br>2) Подтвердите код в профиле на <code>home.aidvor.ru</code>. <br>3) После статуса <code>approved</code> gateway получит новый секрет и сохранит его в UCI автоматически.</p>
+            <p class="field-desc">Как обновить/восстановить: <br>1) На странице AiDvor нажмите кнопку авторизации gateway и получите код. <br>2) Подтвердите код в профиле на <code>home.aidvor.ru</code>. <br>3) После статуса <code>approved</code> gateway получит новый секрет и сохранит его в UCI автоматически.</p>
         </div>
         </div>
 

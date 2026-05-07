@@ -2,53 +2,143 @@
     <x-slot name="header">
         <h2 class="h4 mb-0">{{ __('Profile') }}</h2>
     </x-slot>
+    @php
+        $statusLabel = static fn (?string $status): string => $status ? __('status.' . strtolower($status)) : '—';
+    @endphp
+    <style>
+        .profile-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+        .profile-card {
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            background: #fff;
+            box-shadow: 0 8px 22px rgba(17,34,68,.06);
+        }
+        .profile-card .card-body {
+            padding: 20px;
+        }
+        .profile-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0;
+            letter-spacing: -0.01em;
+        }
+        .profile-kv {
+            padding: 10px 0;
+            border-bottom: 1px solid var(--line);
+        }
+        .profile-kv:last-child {
+            border-bottom: none;
+        }
+        .profile-kv .k {
+            color: var(--muted);
+            font-size: 12px;
+            margin-bottom: 2px;
+        }
+        .profile-kv .v {
+            color: var(--text);
+            font-weight: 600;
+        }
+        .profile-chip {
+            display: inline-flex;
+            align-items: center;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            padding: 5px 10px;
+            font-size: 12px;
+            color: var(--muted);
+            background: #f8fbff;
+        }
+        .profile-chip.ok {
+            border-color: #d4efdf;
+            background: #f2fbf6;
+            color: #1a7f4b;
+        }
+        .profile-chip.off {
+            border-color: #f1d0d5;
+            background: #fff5f6;
+            color: #9d2d3f;
+        }
+        .profile-section-divider {
+            border-top: 1px solid var(--line);
+            margin: 14px 0;
+            padding-top: 14px;
+        }
+        .theme-form-panel {
+            background: #f8fbff !important;
+            border-color: var(--line) !important;
+            border-radius: 12px;
+        }
+        .payments-card {
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            background: #fff;
+            box-shadow: 0 8px 22px rgba(17,34,68,.06);
+        }
+        .payments-card .table {
+            --bs-table-bg: transparent;
+        }
+        .status-badge {
+            display: inline-flex;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            padding: 2px 10px;
+            font-size: 12px;
+            background: #f8fbff;
+            color: var(--muted);
+        }
+    </style>
 
-    <div class="row g-3">
-        <div class="col-12 col-lg-6">
-            <div class="card shadow-sm">
+    <div class="profile-grid">
+        <div class="row g-3">
+            <div class="col-12 col-xl-7">
+                <div class="profile-card">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h3 class="h6 mb-0">{{ __('User Data') }}</h3>
+                        <h3 class="profile-title">{{ __('User Data') }}</h3>
                         <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#profileEditForm">
                             {{ __('Edit') }}
                         </button>
                     </div>
 
-                    <div class="mb-3">
-                        <div class="text-muted small">{{ __('Name') }}</div>
-                        <div class="fw-semibold">{{ $user->name }}</div>
+                    <div class="profile-kv">
+                        <div class="k">{{ __('Name') }}</div>
+                        <div class="v">{{ $user->name }}</div>
                     </div>
 
-                    <div class="mb-3">
-                        <div class="text-muted small">E-mail</div>
-                        <div class="fw-semibold">{{ $user->email }}</div>
+                    <div class="profile-kv">
+                        <div class="k">E-mail</div>
+                        <div class="v">{{ $user->email }}</div>
                     </div>
 
-                    <div class="mb-3">
-                        <div class="text-muted small">{{ __('Current Time Zone') }}</div>
-                        <div class="fw-semibold">{{ $user->time_zone ?? 'Europe/Moscow' }}</div>
+                    <div class="profile-kv">
+                        <div class="k">{{ __('Current Time Zone') }}</div>
+                        <div class="v">{{ $user->time_zone ?? 'Europe/Moscow' }}</div>
                     </div>
 
-                    <div class="mb-3">
-                        <div class="text-muted small">{{ __('Current Language') }}</div>
-                        <div class="fw-semibold">{{ strtoupper((string) ($user->locale ?? 'ru')) }}</div>
+                    <div class="profile-kv">
+                        <div class="k">{{ __('Current Language') }}</div>
+                        <div class="v">{{ strtoupper((string) ($user->locale ?? 'ru')) }}</div>
                     </div>
-                    <div class="mb-3">
-                        <div class="text-muted small">{{ __('Alice Access') }}</div>
-                        <div class="fw-semibold">
+                    <div class="profile-kv">
+                        <div class="k">{{ __('Alice Access') }}</div>
+                        <div class="v">
                             @if ($user->alice_enabled)
-                                {{ __('Enabled') }}
+                                <span class="profile-chip ok">{{ __('Enabled') }}</span>
                             @else
-                                {{ __('Disabled') }}
+                                <span class="profile-chip off">{{ __('Disabled') }}</span>
                             @endif
                         </div>
                     </div>
 
-                    <hr>
+                    <div class="profile-section-divider"></div>
 
                     <div class="mb-2">
                         <div class="text-muted small">Yandex Alice</div>
-                        <div class="fw-semibold">
+                        <div class="v">
                             @if ($aliceLinkedAccount)
                                 {{ __('Connected') }} (ID: {{ $aliceLinkedAccount->yandex_user_id }})
                             @else
@@ -128,7 +218,46 @@
                     </div>
                 </div>
             </div>
+            </div>
         </div>
-
+        <div class="row g-3">
+            <div class="col-12">
+                <div class="payments-card">
+                    <div class="card-body">
+                        <h3 class="profile-title mb-3">{{ __('Recent payments') }}</h3>
+                        @if ($paymentOrders->isEmpty())
+                            <p class="text-muted small mb-0">{{ __('No payments yet.') }}</p>
+                        @else
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle mb-0">
+                                    <thead>
+                                    <tr>
+                                        <th>{{ __('ID') }}</th>
+                                        <th>{{ __('Plan') }}</th>
+                                        <th>{{ __('Amount') }}</th>
+                                        <th>{{ __('Status') }}</th>
+                                        <th>{{ __('Created') }}</th>
+                                        <th>{{ __('Paid at') }}</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    @foreach ($paymentOrders as $order)
+                                        <tr>
+                                            <td>#{{ $order->id }}</td>
+                                            <td>{{ $order->plan?->name ?? '—' }}</td>
+                                            <td>{{ number_format((float) $order->amount, 2, '.', ' ') }} {{ $order->currency }}</td>
+                                            <td><span class="status-badge">{{ $statusLabel($order->status) }}</span></td>
+                                            <td>{{ optional($order->created_at)->format('Y-m-d H:i') }}</td>
+                                            <td>{{ optional($order->paid_at)->format('Y-m-d H:i') ?? '—' }}</td>
+                                        </tr>
+                                    @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </x-app-layout>

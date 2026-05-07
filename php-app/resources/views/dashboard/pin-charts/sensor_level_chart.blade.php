@@ -4,5 +4,5 @@
         <span class="mx-2">·</span>
         <span class="pin-chart-range"></span>
     </div>
-    <div class="pin-chart-canvas">Загрузка графика...</div>
+    <div class="pin-chart-canvas">{{ __('Loading chart...') }}</div>
 </div>

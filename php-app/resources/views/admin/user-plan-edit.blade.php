@@ -2,13 +2,16 @@
     <x-slot name="header">
         <h2 class="h4 mb-0">{{ __('Assign plan') }}: {{ $targetUser->email }}</h2>
     </x-slot>
+    @php
+        $statusLabel = static fn (?string $status): string => $status ? __('status.' . strtolower($status)) : '—';
+    @endphp
 
     <div class="card shadow-sm">
         <div class="card-body">
             @if($subscription)
                 <div class="alert alert-secondary">
                     <strong>{{ __('Current subscription') }}:</strong>
-                    {{ $subscription->status }},
+                    {{ $statusLabel($subscription->status) }},
                     {{ optional($subscription->starts_at)->format('Y-m-d H:i') }} -
                     {{ optional($subscription->ends_at)->format('Y-m-d H:i') ?? '∞' }},
                     {{ $subscription->source }}
@@ -32,7 +35,7 @@
                     <label class="form-label">{{ __('Status') }}</label>
                     <select name="status" class="form-select" required>
                         @foreach (['pending', 'active', 'expired', 'canceled'] as $status)
-                            <option value="{{ $status }}" @selected(old('status', $subscription->status ?? 'pending') === $status)>{{ $status }}</option>
+                            <option value="{{ $status }}" @selected(old('status', $subscription->status ?? 'pending') === $status)>{{ $statusLabel($status) }}</option>
                         @endforeach
                     </select>
                 </div>
