@@ -25,24 +25,19 @@
             color: var(--muted) !important;
         }
         .power-events-legend .badge.text-bg-primary {
-            background: #dbeafe !important;
-            color: #1e40af !important;
-            border: 1px solid #bfd8ff;
+            background: #2d7dff !important;
+            color: #ffffff !important;
+            border: 1px solid #2d7dff;
         }
         .power-events-legend .badge.text-bg-success {
-            background: #eafaf1 !important;
-            color: #1a7f4b !important;
-            border: 1px solid #ccead9;
+            background: #1faa66 !important;
+            color: #ffffff !important;
+            border: 1px solid #1faa66;
         }
         .power-events-legend .badge.text-bg-warning {
-            background: #fff2cd !important;
-            color: #8a6d1f !important;
-            border: 1px solid #f2dca2;
-        }
-        .power-events-legend .badge.text-bg-danger {
-            background: #ffe8eb !important;
-            color: #9d2d3f !important;
-            border: 1px solid #f7c2ca;
+            background: #f4c430 !important;
+            color: #1f2937 !important;
+            border: 1px solid #f4c430;
         }
         .power-gantt-scroll,
         .power-gantt-header .label-col,
@@ -80,9 +75,8 @@
             <div class="small text-muted power-events-legend mt-2">
                 <div class="power-events-legend-title">{{ __('Legend') }}:</div>
                 <div><span class="badge text-bg-primary me-1">&nbsp;</span>{{ __('Fact') }}</div>
-                <div><span class="badge text-bg-success me-1">&nbsp;</span>{{ __('Plan: time conditions true and all conditions true') }}</div>
-                <div><span class="badge text-bg-warning me-1">&nbsp;</span>{{ __('Plan: time conditions true but some other conditions false') }}</div>
-                <div><span class="badge text-bg-danger me-1">&nbsp;</span>{{ __('Plan: no time condition and all conditions true') }}</div>
+                <div><span class="badge text-bg-success me-1">&nbsp;</span>{{ __('Plan: all scenarios are true') }}</div>
+                <div><span class="badge text-bg-warning me-1">&nbsp;</span>{{ __('Plan: mixed scenario states (true and false)') }}</div>
             </div>
         </div>
     </div>
@@ -93,6 +87,7 @@
             'chart_failed' => __('Failed to load chart.'),
             'power_events_empty' => __('No power events for current day.'),
             'pin' => __('Pin'),
+            'pin_required' => __('pin_id is required in URL.'),
         ];
     @endphp
     <script>

@@ -6,6 +6,8 @@ use App\Http\Controllers\ScenesController;
 use App\Http\Controllers\AliceLinkController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\OAuth\AliceOAuthProviderController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -47,7 +49,29 @@ Route::get('/dashboard', function () {
     return view('dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
-Route::get('/report', function () {
+Route::get('/report', function (Request $request) {
+    $systemControllerId = '0195f7e0-0000-7000-8000-000000000001';
+    $pinId = trim((string) $request->query('pin_id', ''));
+    if ($pinId !== '') {
+        return view('report');
+    }
+
+    $user = $request->user();
+    if ($user) {
+        $firstPinId = DB::table('pin as p')
+            ->join('controller_user as cu', 'cu.controller_id', '=', 'p.controller_id')
+            ->where('cu.user_id', (string) $user->id)
+            ->where('p.digital_style', 'power')
+            ->where('p.controller_id', '!=', $systemControllerId)
+            ->orderByDesc('p.show_on_report')
+            ->orderBy('p.pin')
+            ->value('p.id');
+
+        if ($firstPinId) {
+            return redirect()->route('report', ['pin_id' => (string) $firstPinId]);
+        }
+    }
+
     return view('report');
 })->middleware(['auth', 'verified'])->name('report');
 
@@ -82,6 +106,7 @@ Route::middleware('auth')->group(function () {
     Route::put('/api/scenes/targets/{pinId}/enabled', [ScenesController::class, 'setTargetScenarioEnabled']);
 
     Route::prefix('api/pairing')->group(function () {
+        Route::get('/report-pins', [PairingController::class, 'myReportPins']);
         Route::get('/report', [PairingController::class, 'myReport']);
         Route::get('/my-controllers', [PairingController::class, 'myControllers']);
         Route::get('/my-controllers/{controllerId}/pins', [PairingController::class, 'myControllerPins']);

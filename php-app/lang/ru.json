@@ -20,7 +20,7 @@
   "Chart": "График",
   "On": "Включен",
   "Off": "Выключен",
-  "Scenarios": "Сценарии",
+  "Scenarios": "Сценариев",
   "Select a controller on the left.": "Выберите контроллер слева.",
   "Loading...": "Загрузка...",
   "No pins found for selected controller.": "Для выбранного контроллера нет пинов.",
@@ -79,8 +79,7 @@
   "Request pairing code first": "Сначала запросите код привязки",
   "Enter 4-digit code": "Введите 4-значный код",
   "Code is not confirmed": "Код не подтверждён",
-  "Controller successfully linked to your account.": "Контроллер успешно привязан к вашему аккаунту."
-  ,
+  "Controller successfully linked to your account.": "Контроллер успешно привязан к вашему аккаунту.",
   "Controllers": "Контроллеры",
   "No linked controllers.": "Нет привязанных контроллеров.",
   "Controller Settings": "Настройки контроллера",
@@ -114,8 +113,7 @@
   "Scenario Name": "Название сценария",
   "Condition": "Условие",
   "Source (Pin)": "Источник (пин)",
-  "Threshold": "Порог"
-  ,
+  "Threshold": "Порог",
   "Power Events": "Отчет",
   "Fact": "Факт",
   "Plan": "План",
@@ -124,8 +122,7 @@
   "Plan: time conditions true and all conditions true": "План: условия по времени",
   "Plan: time conditions true but some other conditions false": "План: условия по времени с дополнительными проверками",
   "Plan: no time condition and all conditions true now": "План: без условия времени и все условия истинны в текущий момент",
-  "Plan: no time condition and all conditions true": "План: без условия времени и все условия истинны"
-  ,
+  "Plan: no time condition and all conditions true": "План: без условия времени и все условия истинны",
   "Gateway authorization approved. New secret sent to gateway.": "Авторизация шлюза подтверждена. Новый секрет отправлен на шлюз.",
   "Gateway code is invalid or expired.": "Код шлюза недействителен или истек.",
   "Authorize Gateway (OpenWrt)": "Авторизация шлюза (OpenWrt)",
@@ -155,174 +152,178 @@
   "Alice Access Management": "Управление доступом к Алисе",
   "Role": "Роль",
   "Action": "Действие",
-  "Admin": "Администратор",
+  "Admin": "Админ",
   "User": "Пользователь",
   "Enable": "Включить",
   "Disable": "Отключить",
   "No users found.": "Пользователи не найдены.",
-  "Alice access updated.": "Доступ к Алисе обновлен."
-  ,"Authorize access": "Подтверждение доступа"
-  ,"Application": "Приложение"
-  ,"Grant this app access to your devices and sensor states for Yandex Alice.": "Разрешите приложению доступ к вашим устройствам и показаниям датчиков для Яндекс Алисы."
-  ,"Allow": "Разрешить"
-  ,"Deny": "Запретить"
-  ,"Admin": "Админ"
-  ,"Users": "Пользователи"
-  ,"Plans": "Тарифы"
-  ,"Status": "Статус"
-  ,"Last Seen": "Последняя активность"
-  ,"View": "Просмотр"
-  ,"Not selected": "Не выбрано"
-  ,"User plan updated.": "Тариф пользователя обновлен."
-  ,"Pin updated.": "Пин обновлен."
-  ,"Pins": "Пины"
-  ,"Style": "Тип"
-  ,"Edit Pin": "Редактирование пина"
-  ,"Back": "Назад"
-  ,"ID": "ID"
-  ,"E-mail": "E-mail"
-  ,"Label": "Название"
-  ,"Selected plan": "Выбранный тариф"
-  ,"If status is pending or expired, FREE limits are applied.": "Если статус pending или expired, применяются лимиты FREE."
-  ,"Effective plan": "Действующий тариф"
-  ,"pin_data limit": "Лимит наблюдений"
-  ,"Slots left": "Осталось слотов"
-  ,"Controllers limit": "Лимит контроллеров"
-  ,"Unlimited": "Без лимита"
-  ,"Alice integration": "Интеграция с Алисой"
-  ,"Selected": "Выбрано"
-  ,"Choose Plan": "Выбрать тариф"
-  ,"Pay": "Оплатить"
-  ,"No active plans available.": "Нет активных тарифов."
-  ,"Recent payments": "Последние платежи"
-  ,"No payments yet.": "Платежей пока нет."
-  ,"Amount": "Сумма"
-  ,"Created": "Создан"
-  ,"Paid at": "Оплачен"
-  ,"Plan selected. Complete payment to activate it. Until payment, FREE limits apply.": "Тариф выбран. Для активации завершите оплату. До оплаты действуют лимиты FREE."
-  ,"Payments are disabled.": "Оплата отключена."
-  ,"YooKassa credentials are not configured.": "Учетные данные YooKassa не настроены."
-  ,"Selected plan does not require payment.": "Выбранный тариф не требует оплаты."
-  ,"Failed to create payment.": "Не удалось создать платеж."
-  ,"Payment created, but no confirmation URL returned.": "Платеж создан, но URL подтверждения не получен."
-  ,"Edit user": "Редактировать пользователя"
-  ,"Assign plan": "Назначить тариф"
-  ,"Current subscription": "Текущая подписка"
-  ,"Starts at": "Дата начала"
-  ,"Ends at": "Дата окончания"
-  ,"Source": "Источник"
-  ,"User updated.": "Пользователь обновлен."
-  ,"User plan assignment updated.": "Назначение тарифа обновлено."
-  ,"Moisture raw dry": "Сырое значение сухого датчика"
-  ,"Moisture raw wet": "Сырое значение влажного датчика"
-  ,"Show humidity as percent": "Показывать влажность в процентах"
-  ,"Roles": "Роли"
-  ,"Alice Enabled": "Алиса включена"
-  ,"Digital Style": "Тип пина"
-  ,"Monitored": "Мониторинг включен"
-  ,"External Enabled": "Доступен во внешних системах"
-  ,"Chart Range Hours": "Период графика (часы)"
-  ,"Moisture Raw Dry": "Калибровка сухой точки"
-  ,"Moisture Raw Wet": "Калибровка влажной точки"
-  ,"Moisture Show Percent": "Показывать влажность в процентах"
-  ,"Controller ID": "ID контроллера"
-  ,"Code": "Код"
-  ,"Currency": "Валюта"
-  ,"Max Controllers": "Лимит контроллеров"
-  ,"Max Pin Data Rows": "Лимит записей pin_data"
-  ,"Active": "Активен"
-  ,"payment": "платеж"
-  ,"payments": "платежи"
-  ,"Provider": "Провайдер"
-  ,"Provider Payment ID": "ID платежа провайдера"
-  ,"Paid At": "Оплачен"
-  ,"Idempotence Key": "Ключ идемпотентности"
-  ,"Meta": "Мета"
-  ,"No pins found.": "Пины не найдены."
-  ,"Internal unique identifier. Use lowercase latin letters, numbers and underscore.": "Внутренний уникальный идентификатор. Используйте строчные латинские буквы, цифры и символ подчеркивания."
-  ,"Dev payment completed. Plan activated.": "Тестовая оплата выполнена. Тариф активирован."
-  ,"SmartHome Platform": "Платформа SmartHome"
-  ,"Access your dashboard, devices and automations.": "Войдите в систему, чтобы управлять контроллерами, устройствами и автоматизациями."
-  ,"Create your account to start managing controllers and telemetry.": "Создайте аккаунт, чтобы начать управлять контроллерами и телеметрией."
-  ,"Features": "Возможности"
-  ,"Pricing": "Тарифы"
-  ,"Download": "Скачать"
-  ,"Get Started": "Начать"
-  ,"Sign in": "Войти"
-  ,"Smarter yard,\nmade easy.": "Умный двор,\nсделать легко."
-  ,"Open, reliable control for every device.": "Открытое и надежное управление каждым устройством."
-  ,"Powerful controllers.": "Мощные контроллеры."
-  ,"Manage all your smart devices from a central, fast and reliable dashboard.": "Управляйте всеми устройствами из единой быстрой и надежной панели."
-  ,"Monitor sensors, energy, and more with near-instant updates.": "Следите за датчиками, энергией и другими показателями почти в реальном времени."
-  ,"Automate routines and integrate with Alice for hands-free control.": "Автоматизируйте рутину и подключайте Алису для голосового управления."
-  ,"Provision, monitor and manage all controllers from one place.": "Подключайте, отслеживайте и управляйте всеми контроллерами в одном месте."
-  ,"See real-time data, chart history and transformed sensor values.": "Смотрите данные в реальном времени, историю графиков и преобразованные значения датчиков."
-  ,"Scenes + Alice API": "Сценарии + API Алисы"
-  ,"status.pending": "Ожидает оплаты"
-  ,"status.active": "Активен"
-  ,"status.expired": "Истек"
-  ,"status.canceled": "Отменен"
-  ,"status.succeeded": "Успешно"
-  ,"status.failed": "Ошибка"
-  ,"Build automation logic and sync with Yandex Alice integration.": "Создавайте логику автоматизации и синхронизируйте её с интеграцией Яндекс Алисы."
-  ,"Download OpenWrt .ipk": "Скачать OpenWrt .ipk"
-  ,"Get AiDvor for OpenWrt routers and start managing your SmartHome securely.": "Скачайте AiDvor для роутеров OpenWrt и начните безопасно управлять вашим SmartHome."
-  ,"Open Downloads": "Открыть загрузки"
-  ,"Simple, honest, open.": "Просто, честно, открыто."
-  ,"Basic support": "Базовая поддержка"
-  ,"Full telemetry": "Полная телеметрия"
-  ,"Limited plan limits": "Лимиты базового тарифа"
-  ,"Start Free": "Начать бесплатно"
-  ,"Premium support": "Премиум поддержка"
-  ,"Advanced automations": "Расширенная автоматизация"
-  ,"Early access updates": "Ранний доступ к обновлениям"
-  ,"Buy Now": "Купить"
-  ,"Help Center": "Центр помощи"
-  ,"Documentation": "Документация"
-  ,"Product": "Продукт"
-  ,"API Contract": "Контракт API"
-  ,"OpenWrt Package": "Пакет OpenWrt"
-  ,"Company": "Компания"
-  ,"About": "О проекте"
-  ,"Careers": "Карьера"
-  ,"Blog": "Блог"
-  ,"Brand Assets": "Материалы бренда"
-  ,"Open-Source & Brand Page": "Open-Source и страница бренда"
-  ,"Card contrast": "Контраст карточек"
-  ,"Soft": "Мягкий"
-  ,"Medium": "Средний"
-  ,"Strong": "Сильный"
-  ,"Chart range": "Диапазон графика"
-  ,"Scenarios List": "Список сценариев"
-  ,"Conditions inside scenario: AND. Scenarios for one pin: OR.": "Условия внутри сценария: И. Сценарии одного пина: ИЛИ."
-  ,"Enabled (TRUE)": "Включен (TRUE)"
-  ,"No target pins of type \"power\" found.": "Целевые пины типа \"power\" не найдены."
-  ,"Scenarios": "Сценариев"
-  ,"Scenario": "Сценарий"
-  ,"h": "ч"
-  ,"Theme": "Тема"
-  ,"Light": "Светлая"
-  ,"Dark": "Темная"
-  ,"System": "Системная"
-  ,"Pricing badge": "Тарифы для Arduino, ESP и любых IoT-контроллеров"
-  ,"Pricing hero title": "Управляйте автополивом одной теплицы бесплатно"
-  ,"Pricing hero description": "Home Aidvor помогает подключать контроллеры, смотреть телеметрию, управлять реле и запускать сценарии. Бесплатный тариф — это не демо-режим: он позволяет реально управлять одним объектом, например автополивом одной теплицы. Платные тарифы нужны, когда появляются дополнительные устройства, длинная история, уведомления и несколько объектов."
-  ,"Pricing compare kicker": "Сравнение тарифов"
-  ,"Pricing compare title": "Выберите план под ваш масштаб"
-  ,"Pricing compare desc": "Сравните ключевые ограничения и выберите уровень, который подходит вашему проекту."
-  ,"Feature": "Параметр"
-  ,"For integrators": "Для интеграторов"
-  ,"Integrator title": "Запускайте проекты для клиентов"
-  ,"Integrator description": "Если вы собираете решения под заказ, платформа дает удобный базис: роли, API и масштабирование по тарифам."
-  ,"White-label dashboards": "White-label панели"
-  ,"Role-based access": "Ролевой доступ"
-  ,"Alice and API integration": "Интеграция с Алисой и API"
-  ,"Priority support": "Приоритетная поддержка"
-  ,"FAQ title": "Частые вопросы по тарифам"
-  ,"FAQ q1": "Можно начать с бесплатного тарифа и перейти позже?"
-  ,"FAQ a1": "Да. Вы можете начать с Free, а затем выбрать платный тариф. После оплаты ограничения обновятся автоматически."
-  ,"FAQ q2": "Что если срок платного тарифа закончился?"
-  ,"FAQ a2": "Выбранный тариф остается в профиле, но начинают применяться ограничения FREE, пока подписка не будет продлена."
-  ,"Pricing cta title": "Подключите первое устройство и проверьте платформу в реальном проекте"
-  ,"Pricing cta desc": "Начните бесплатно, настройте контроллер и переходите на платный уровень только когда это действительно нужно."
+  "Alice access updated.": "Доступ к Алисе обновлен.",
+  "Authorize access": "Подтверждение доступа",
+  "Application": "Приложение",
+  "Grant this app access to your devices and sensor states for Yandex Alice.": "Разрешите приложению доступ к вашим устройствам и показаниям датчиков для Яндекс Алисы.",
+  "Allow": "Разрешить",
+  "Deny": "Запретить",
+  "Users": "Пользователи",
+  "Plans": "Тарифы",
+  "Status": "Статус",
+  "Last Seen": "Последняя активность",
+  "View": "Просмотр",
+  "Not selected": "Не выбрано",
+  "User plan updated.": "Тариф пользователя обновлен.",
+  "Pin updated.": "Пин обновлен.",
+  "Pins": "Пины",
+  "Style": "Тип",
+  "Edit Pin": "Редактирование пина",
+  "Back": "Назад",
+  "ID": "ID",
+  "E-mail": "E-mail",
+  "Label": "Название",
+  "Selected plan": "Выбранный тариф",
+  "If status is pending or expired, FREE limits are applied.": "Если статус pending или expired, применяются лимиты FREE.",
+  "Effective plan": "Действующий тариф",
+  "pin_data limit": "Лимит наблюдений",
+  "Slots left": "Осталось слотов",
+  "Controllers limit": "Лимит контроллеров",
+  "Unlimited": "Без лимита",
+  "Alice integration": "Интеграция с Алисой",
+  "Selected": "Выбрано",
+  "Choose Plan": "Выбрать тариф",
+  "Pay": "Оплатить",
+  "No active plans available.": "Нет активных тарифов.",
+  "Recent payments": "Последние платежи",
+  "No payments yet.": "Платежей пока нет.",
+  "Amount": "Сумма",
+  "Created": "Создан",
+  "Paid at": "Оплачен",
+  "Plan selected. Complete payment to activate it. Until payment, FREE limits apply.": "Тариф выбран. Для активации завершите оплату. До оплаты действуют лимиты FREE.",
+  "Payments are disabled.": "Оплата отключена.",
+  "YooKassa credentials are not configured.": "Учетные данные YooKassa не настроены.",
+  "Selected plan does not require payment.": "Выбранный тариф не требует оплаты.",
+  "Failed to create payment.": "Не удалось создать платеж.",
+  "Payment created, but no confirmation URL returned.": "Платеж создан, но URL подтверждения не получен.",
+  "Edit user": "Редактировать пользователя",
+  "Assign plan": "Назначить тариф",
+  "Current subscription": "Текущая подписка",
+  "Starts at": "Дата начала",
+  "Ends at": "Дата окончания",
+  "Source": "Источник",
+  "User updated.": "Пользователь обновлен.",
+  "User plan assignment updated.": "Назначение тарифа обновлено.",
+  "Moisture raw dry": "Сырое значение сухого датчика",
+  "Moisture raw wet": "Сырое значение влажного датчика",
+  "Show humidity as percent": "Показывать влажность в процентах",
+  "Roles": "Роли",
+  "Alice Enabled": "Алиса включена",
+  "Digital Style": "Тип пина",
+  "Monitored": "Мониторинг включен",
+  "External Enabled": "Доступен во внешних системах",
+  "Chart Range Hours": "Период графика (часы)",
+  "Moisture Raw Dry": "Калибровка сухой точки",
+  "Moisture Raw Wet": "Калибровка влажной точки",
+  "Moisture Show Percent": "Показывать влажность в процентах",
+  "Controller ID": "ID контроллера",
+  "Code": "Код",
+  "Currency": "Валюта",
+  "Max Controllers": "Лимит контроллеров",
+  "Max Pin Data Rows": "Лимит записей pin_data",
+  "Active": "Активен",
+  "payment": "платеж",
+  "payments": "платежи",
+  "Provider": "Провайдер",
+  "Provider Payment ID": "ID платежа провайдера",
+  "Paid At": "Оплачен",
+  "Idempotence Key": "Ключ идемпотентности",
+  "Meta": "Мета",
+  "No pins found.": "Пины не найдены.",
+  "Internal unique identifier. Use lowercase latin letters, numbers and underscore.": "Внутренний уникальный идентификатор. Используйте строчные латинские буквы, цифры и символ подчеркивания.",
+  "Dev payment completed. Plan activated.": "Тестовая оплата выполнена. Тариф активирован.",
+  "SmartHome Platform": "Платформа SmartHome",
+  "Access your dashboard, devices and automations.": "Войдите в систему, чтобы управлять контроллерами, устройствами и автоматизациями.",
+  "Create your account to start managing controllers and telemetry.": "Создайте аккаунт, чтобы начать управлять контроллерами и телеметрией.",
+  "Features": "Возможности",
+  "Pricing": "Тарифы",
+  "Download": "Скачать",
+  "Get Started": "Начать",
+  "Sign in": "Войти",
+  "Smarter yard,\nmade easy.": "Умный двор,\nсделать легко.",
+  "Open, reliable control for every device.": "Открытое и надежное управление каждым устройством.",
+  "Powerful controllers.": "Мощные контроллеры.",
+  "Manage all your smart devices from a central, fast and reliable dashboard.": "Управляйте всеми устройствами из единой быстрой и надежной панели.",
+  "Monitor sensors, energy, and more with near-instant updates.": "Следите за датчиками, энергией и другими показателями почти в реальном времени.",
+  "Automate routines and integrate with Alice for hands-free control.": "Автоматизируйте рутину и подключайте Алису для голосового управления.",
+  "Provision, monitor and manage all controllers from one place.": "Подключайте, отслеживайте и управляйте всеми контроллерами в одном месте.",
+  "See real-time data, chart history and transformed sensor values.": "Смотрите данные в реальном времени, историю графиков и преобразованные значения датчиков.",
+  "Scenes + Alice API": "Сценарии + API Алисы",
+  "status.pending": "Ожидает оплаты",
+  "status.active": "Активен",
+  "status.expired": "Истек",
+  "status.canceled": "Отменен",
+  "status.succeeded": "Успешно",
+  "status.failed": "Ошибка",
+  "Build automation logic and sync with Yandex Alice integration.": "Создавайте логику автоматизации и синхронизируйте её с интеграцией Яндекс Алисы.",
+  "Download OpenWrt .ipk": "Скачать OpenWrt .ipk",
+  "Get AiDvor for OpenWrt routers and start managing your SmartHome securely.": "Скачайте AiDvor для роутеров OpenWrt и начните безопасно управлять вашим SmartHome.",
+  "Open Downloads": "Открыть загрузки",
+  "Simple, honest, open.": "Просто, честно, открыто.",
+  "Basic support": "Базовая поддержка",
+  "Full telemetry": "Полная телеметрия",
+  "Limited plan limits": "Лимиты базового тарифа",
+  "Start Free": "Начать бесплатно",
+  "Premium support": "Премиум поддержка",
+  "Advanced automations": "Расширенная автоматизация",
+  "Early access updates": "Ранний доступ к обновлениям",
+  "Buy Now": "Купить",
+  "Help Center": "Центр помощи",
+  "Documentation": "Документация",
+  "Product": "Продукт",
+  "API Contract": "Контракт API",
+  "OpenWrt Package": "Пакет OpenWrt",
+  "Company": "Компания",
+  "About": "О проекте",
+  "Careers": "Карьера",
+  "Blog": "Блог",
+  "Brand Assets": "Материалы бренда",
+  "Open-Source & Brand Page": "Open-Source и страница бренда",
+  "Card contrast": "Контраст карточек",
+  "Soft": "Мягкий",
+  "Medium": "Средний",
+  "Strong": "Сильный",
+  "Chart range": "Диапазон графика",
+  "Scenarios List": "Список сценариев",
+  "Conditions inside scenario: AND. Scenarios for one pin: OR.": "Условия внутри сценария: И. Сценарии одного пина: ИЛИ.",
+  "Enabled (TRUE)": "Включен (TRUE)",
+  "No target pins of type \"power\" found.": "Целевые пины типа \"power\" не найдены.",
+  "h": "ч",
+  "Theme": "Тема",
+  "Light": "Светлая",
+  "Dark": "Темная",
+  "System": "Системная",
+  "Pricing badge": "Тарифы для Arduino, ESP и любых IoT-контроллеров",
+  "Pricing hero title": "Управляйте автополивом одной теплицы бесплатно",
+  "Pricing hero description": "Home Aidvor помогает подключать контроллеры, смотреть телеметрию, управлять реле и запускать сценарии. Бесплатный тариф — это не демо-режим: он позволяет реально управлять одним объектом, например автополивом одной теплицы. Платные тарифы нужны, когда появляются дополнительные устройства, длинная история, уведомления и несколько объектов.",
+  "Pricing compare kicker": "Сравнение тарифов",
+  "Pricing compare title": "Выберите план под ваш масштаб",
+  "Pricing compare desc": "Сравните ключевые ограничения и выберите уровень, который подходит вашему проекту.",
+  "Feature": "Параметр",
+  "For integrators": "Для интеграторов",
+  "Integrator title": "Запускайте проекты для клиентов",
+  "Integrator description": "Если вы собираете решения под заказ, платформа дает удобный базис: роли, API и масштабирование по тарифам.",
+  "White-label dashboards": "White-label панели",
+  "Role-based access": "Ролевой доступ",
+  "Alice and API integration": "Интеграция с Алисой и API",
+  "Priority support": "Приоритетная поддержка",
+  "FAQ title": "Частые вопросы по тарифам",
+  "FAQ q1": "Можно начать с бесплатного тарифа и перейти позже?",
+  "FAQ a1": "Да. Вы можете начать с Free, а затем выбрать платный тариф. После оплаты ограничения обновятся автоматически.",
+  "FAQ q2": "Что если срок платного тарифа закончился?",
+  "FAQ a2": "Выбранный тариф остается в профиле, но начинают применяться ограничения FREE, пока подписка не будет продлена.",
+  "Pricing cta title": "Подключите первое устройство и проверьте платформу в реальном проекте",
+  "Pricing cta desc": "Начните бесплатно, настройте контроллер и переходите на платный уровень только когда это действительно нужно.",
+  "History of tariff and connected services payments.": "История оплат тарифов и подключенных услуг.",
+  "Plan: at least one condition is true": "План: хотя бы одно условие истинно",
+  "Plan: all conditions are true": "План: все условия истинны",
+  "pin_id is required in URL.": "В URL обязателен параметр pin_id.",
+  "Plan: all scenarios are true": "План: все сценарии истинны",
+  "Plan: mixed scenario states (true and false)": "План: смешанные состояния сценариев (true и false)",
+  "Plan: all scenarios are false": "План: все сценарии ложны"
 }

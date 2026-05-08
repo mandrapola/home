@@ -42,9 +42,7 @@
                 const stateClass = lane === 'plan'
                     ? (planState === 'green'
                         ? ' power-gantt-segment--plan-green'
-                        : (planState === 'red'
-                            ? ' power-gantt-segment--plan-red'
-                            : ' power-gantt-segment--plan-yellow'))
+                        : ' power-gantt-segment--plan-yellow')
                     : '';
                 return `<span class="power-gantt-segment${stateClass}" style="left:${left.toFixed(2)}px;width:${width.toFixed(2)}px;"></span>`;
             }).join('');
@@ -196,18 +194,63 @@
         }
     }
 
+    async function fetchJson(url) {
+        const response = await fetch(url, {
+            headers: { 'Accept': 'application/json' },
+        });
+        const data = await response.json();
+        return { response, data };
+    }
+
     async function loadReport() {
         reportBody.textContent = t('loading', 'Loading...');
         try {
-            const response = await fetch('/api/pairing/report', {
-                headers: { 'Accept': 'application/json' },
-            });
-            const data = await response.json();
-            if (!response.ok) {
-                reportBody.textContent = data.message || t('chart_failed', 'Failed to load chart.');
+            const pinsResp = await fetchJson('/api/pairing/report-pins');
+            if (!pinsResp.response.ok) {
+                reportBody.textContent = pinsResp.data.message || t('chart_failed', 'Failed to load chart.');
                 return;
             }
-            renderReportGantt(data);
+
+            const pins = Array.isArray(pinsResp.data?.pins) ? pinsResp.data.pins : [];
+            if (pins.length === 0) {
+                reportBody.textContent = t('power_events_empty', 'No power events for current day.');
+                return;
+            }
+
+            const rows = [];
+            let timelineStart = '';
+            let timelineEnd = '';
+            let timeZone = '';
+            let date = '';
+
+            for (const pin of pins) {
+                const pinId = String(pin?.pin_id || '');
+                if (!pinId) continue;
+                const reportResp = await fetchJson(`/api/pairing/report?pin_id=${encodeURIComponent(pinId)}`);
+                if (!reportResp.response.ok) {
+                    reportBody.textContent = reportResp.data.message || t('chart_failed', 'Failed to load chart.');
+                    return;
+                }
+
+                if (!timelineStart) {
+                    timelineStart = String(reportResp.data?.timeline_start || '');
+                    timelineEnd = String(reportResp.data?.timeline_end || '');
+                    timeZone = String(reportResp.data?.time_zone || '');
+                    date = String(reportResp.data?.date || '');
+                }
+
+                if (Array.isArray(reportResp.data?.rows) && reportResp.data.rows.length > 0) {
+                    rows.push(...reportResp.data.rows);
+                }
+            }
+
+            renderReportGantt({
+                date,
+                time_zone: timeZone,
+                timeline_start: timelineStart,
+                timeline_end: timelineEnd,
+                rows,
+            });
         } catch (_) {
             reportBody.textContent = t('chart_failed', 'Failed to load chart.');
         }

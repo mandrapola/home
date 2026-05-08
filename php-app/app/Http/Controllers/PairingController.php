@@ -144,6 +144,31 @@ class PairingController extends Controller
         ]);
     }
 
+    public function myReportPins(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['error' => 'unauthorized'], 401);
+        }
+
+        $pins = DB::table('pin as p')
+            ->join('controller_user as cu', 'cu.controller_id', '=', 'p.controller_id')
+            ->where('cu.user_id', (string) $user->id)
+            ->where('p.digital_style', 'power')
+            ->where('p.controller_id', '!=', self::SYSTEM_CONTROLLER_ID)
+            ->orderByDesc('p.show_on_report')
+            ->orderBy('p.pin')
+            ->get(['p.id', 'p.pin', 'p.label']);
+
+        return response()->json([
+            'pins' => $pins->map(fn (object $p) => [
+                'pin_id' => (string) $p->id,
+                'pin' => (string) $p->pin,
+                'label' => (string) ($p->label ?? $p->pin),
+            ])->values()->all(),
+        ]);
+    }
+
     public function myControllerPowerEvents(Request $request, string $controllerId): JsonResponse
     {
         if (! Str::isUuid($controllerId)) {
@@ -513,313 +538,164 @@ class PairingController extends Controller
         $dayEndLocalExclusive = $dayStartLocal->copy()->addDay();
         $dayStartUtc = $dayStartLocal->copy()->utc();
         $dayEndUtcExclusive = $dayEndLocalExclusive->copy()->utc();
-        $nowUtc = Carbon::now('UTC');
 
-        $reportPins = DB::table('pin as p')
-            ->join('controller_user as cu', 'cu.controller_id', '=', 'p.controller_id')
-            ->join('controller as c', 'c.id', '=', 'p.controller_id')
-            ->where('cu.user_id', (string) $user->id)
+        $selectedPinId = trim((string) $request->query('pin_id', ''));
+        if ($selectedPinId === '') {
+            return response()->json(['error' => 'validation_error', 'message' => 'pin_id is required'], 422);
+        }
+
+        $selectedPin = DB::table('pin as p')
+            ->where('p.id', $selectedPinId)
             ->where('p.digital_style', 'power')
-            ->where('p.show_on_report', 1)
-            ->where('c.id', '!=', self::SYSTEM_CONTROLLER_ID)
-            ->orderBy('c.name')
-            ->orderBy('p.pin')
-            ->get(['p.id', 'p.pin', 'p.label', 'p.controller_id', 'c.name as controller_name']);
+            ->where('p.controller_id', '!=', self::SYSTEM_CONTROLLER_ID)
+            ->whereExists(function ($q) use ($user) {
+                $q->selectRaw('1')
+                    ->from('controller_user as cu')
+                    ->whereColumn('cu.controller_id', 'p.controller_id')
+                    ->where('cu.user_id', (string) $user->id);
+            })
+            ->first(['p.id', 'p.pin', 'p.label', 'p.controller_id']);
 
-        if ($reportPins->isEmpty()) {
-            return response()->json([
-                'date' => $dayStartLocal->format('Y-m-d'),
-                'time_zone' => $timeZone,
-                'timeline_start' => $dayStartLocal->toIso8601String(),
-                'timeline_end' => $dayEndLocalExclusive->toIso8601String(),
-                'rows' => [],
-            ]);
+        if (! $selectedPin) {
+            return response()->json(['error' => 'forbidden', 'message' => 'Pin is not available for report.'], 403);
         }
 
-        $reportPinIds = $reportPins->pluck('id')->map(fn ($id) => (string) $id)->all();
-        $sourceMaxAgeSeconds = max(60, (int) config('smarthome.pin_data_average_interval_minutes', 5) * 60);
+        $timelineLength = 86400;
+        $factTimeline = array_fill(0, $timelineLength, 0);
+        $planTimeline = array_fill(0, $timelineLength, 0);
 
-        $sampleRows = DB::table('pin_data as pd')
-            ->join('pin as p', 'p.id', '=', 'pd.pin_id')
-            ->join('controller_user as cu', 'cu.controller_id', '=', 'p.controller_id')
-            ->where('cu.user_id', (string) $user->id)
-            ->where('pd.created_at', '>=', $dayStartUtc)
-            ->where('pd.created_at', '<', $dayEndUtcExclusive)
-            ->orderBy('pd.created_at')
-            ->get(['pd.created_at']);
+        $pinId = (string) $selectedPin->id;
+        $factRows = DB::table('pin_data')
+            ->where('pin_id', $pinId)
+            ->where('created_at', '>=', $dayStartUtc)
+            ->where('created_at', '<', $dayEndUtcExclusive)
+            ->where('value', 1)
+            ->orderBy('created_at')
+            ->get(['created_at']);
 
-        $rawSampleTimestamps = [];
-        foreach ($sampleRows as $sampleRow) {
-            $utc = Carbon::parse((string) $sampleRow->created_at, 'UTC');
-            $key = $utc->format('Y-m-d H:i:s');
-            if (! isset($rawSampleTimestamps[$key])) {
-                $rawSampleTimestamps[$key] = $utc;
+        foreach ($factRows as $row) {
+            $sec = $this->secondOffsetFromDayStart((string) $row->created_at, $dayStartUtc, $timelineLength);
+            if ($sec !== null) {
+                $factTimeline[$sec] = 1;
             }
         }
-        $rawSampleTimestamps = array_values($rawSampleTimestamps);
-
-        $stepSeconds = IoTController::MIN_INTERVAL_SECONDS;
-        if (count($rawSampleTimestamps) > 1) {
-            $diffFrequency = [];
-            for ($i = 1; $i < count($rawSampleTimestamps); $i++) {
-                $diff = $rawSampleTimestamps[$i - 1]->diffInSeconds($rawSampleTimestamps[$i], false);
-                if ($diff <= 0 || $diff > 3600) {
-                    continue;
-                }
-                $diffFrequency[$diff] = ($diffFrequency[$diff] ?? 0) + 1;
-            }
-            if (count($diffFrequency) > 0) {
-                arsort($diffFrequency);
-                $observedStep = (int) array_key_first($diffFrequency);
-                $stepSeconds = max(IoTController::MIN_INTERVAL_SECONDS, $observedStep);
-            }
-        }
-
-        $sampleTimestamps = [];
-        for ($cursor = $dayStartUtc->copy(); $cursor->lt($dayEndUtcExclusive); $cursor->addSeconds($stepSeconds)) {
-            $sampleTimestamps[] = $cursor->copy();
-        }
-        if (count($sampleTimestamps) === 0) {
-            $sampleTimestamps[] = $dayStartUtc->copy();
-        }
+        $this->forwardFillTimeline($factTimeline);
 
         $scenarioRows = DB::table('scenario')
-            ->whereIn('pin_id', $reportPinIds)
-            ->get(['id', 'pin_id']);
+            ->where('pin_id', $pinId)
+            ->get(['id']);
         $scenarioIds = $scenarioRows->pluck('id')->map(fn ($id) => (string) $id)->all();
 
-        $conditions = collect();
+        $conditionsByScenarioId = [];
+        $sourcePinIds = [];
         if (count($scenarioIds) > 0) {
             $conditions = DB::table('scenario_condition')
                 ->whereIn('scenario_id', $scenarioIds)
                 ->get(['scenario_id', 'pin_id', 'operator', 'threshold']);
-        }
-
-        $scenarioByPinId = [];
-        foreach ($scenarioRows as $scenarioRow) {
-            $targetPinId = (string) $scenarioRow->pin_id;
-            $scenarioByPinId[$targetPinId] ??= [];
-            $scenarioByPinId[$targetPinId][] = (string) $scenarioRow->id;
-        }
-
-        $conditionsByScenarioId = [];
-        $sourcePinIds = [];
-        foreach ($conditions as $condition) {
-            $scenarioId = (string) $condition->scenario_id;
-            $conditionsByScenarioId[$scenarioId] ??= [];
-            $conditionsByScenarioId[$scenarioId][] = $condition;
-            $conditionPinId = (string) $condition->pin_id;
-            if ($conditionPinId !== self::SYSTEM_CURRENT_TIME_PIN_ID) {
-                $sourcePinIds[] = $conditionPinId;
+            foreach ($conditions as $condition) {
+                $scenarioId = (string) $condition->scenario_id;
+                $conditionsByScenarioId[$scenarioId] ??= [];
+                $conditionsByScenarioId[$scenarioId][] = $condition;
+                $condPinId = (string) $condition->pin_id;
+                if ($condPinId !== self::SYSTEM_CURRENT_TIME_PIN_ID) {
+                    $sourcePinIds[] = $condPinId;
+                }
             }
         }
-        $sourcePinIds = array_values(array_unique(array_merge($sourcePinIds, $reportPinIds)));
 
-        $accessibleSourcePinIds = DB::table('pin as p')
-            ->join('controller_user as cu', 'cu.controller_id', '=', 'p.controller_id')
-            ->where('cu.user_id', (string) $user->id)
-            ->whereIn('p.id', $sourcePinIds)
-            ->pluck('p.id')
-            ->map(fn ($id) => (string) $id)
-            ->all();
-        $sourcePinIds = $accessibleSourcePinIds;
+        $sourcePinIds = array_values(array_unique($sourcePinIds));
+        if (count($sourcePinIds) > 0) {
+            $sourcePinIds = DB::table('pin as p')
+                ->join('controller_user as cu', 'cu.controller_id', '=', 'p.controller_id')
+                ->where('cu.user_id', (string) $user->id)
+                ->whereIn('p.id', $sourcePinIds)
+                ->pluck('p.id')
+                ->map(fn ($id) => (string) $id)
+                ->all();
+        }
 
-        $normalizeValue = static function (string $pinId, ?float $rawValue): ?float {
-            return $rawValue;
-        };
-
-        $seriesByPinId = [];
-        foreach ($sourcePinIds as $pinId) {
-            $seriesByPinId[$pinId] = [];
+        $sourceTimelineByPin = [];
+        foreach ($sourcePinIds as $sourcePinId) {
+            $line = array_fill(0, $timelineLength, null);
             $rows = DB::table('pin_data')
-                ->where('pin_id', $pinId)
+                ->where('pin_id', $sourcePinId)
                 ->where('created_at', '>=', $dayStartUtc)
                 ->where('created_at', '<', $dayEndUtcExclusive)
                 ->orderBy('created_at')
                 ->get(['created_at', 'value']);
-
             foreach ($rows as $row) {
                 if (! is_numeric($row->value)) {
                     continue;
                 }
-                $seriesByPinId[$pinId][] = [
-                    'ts' => Carbon::parse((string) $row->created_at, 'UTC'),
-                    'value' => $normalizeValue($pinId, (float) $row->value),
-                ];
+                $sec = $this->secondOffsetFromDayStart((string) $row->created_at, $dayStartUtc, $timelineLength);
+                if ($sec !== null) {
+                    $line[$sec] = (float) $row->value;
+                }
             }
+            $this->forwardFillTimeline($line);
+            $sourceTimelineByPin[$sourcePinId] = $line;
         }
 
-        $pointersByPinId = [];
-        foreach ($seriesByPinId as $pinId => $series) {
-            $pointersByPinId[$pinId] = 0;
-            if (count($series) === 0) {
-                continue;
-            }
-            while (
-                ($pointersByPinId[$pinId] + 1) < count($series)
-                && $series[$pointersByPinId[$pinId] + 1]['ts']->lessThanOrEqualTo($dayStartUtc)
-            ) {
-                $pointersByPinId[$pinId]++;
-            }
-        }
+        foreach (range(0, $timelineLength - 1) as $secondOfDay) {
+            $evaluatedScenarios = 0;
+            $falseScenarios = 0;
+            $trueScenarios = 0;
 
-        $valueAt = function (string $pinId, Carbon $timestampUtc) use (&$seriesByPinId, &$pointersByPinId, $sourceMaxAgeSeconds): ?float {
-            $series = $seriesByPinId[$pinId] ?? [];
-            if (count($series) === 0) {
-                return null;
-            }
-            $idx = (int) ($pointersByPinId[$pinId] ?? 0);
-            while (($idx + 1) < count($series) && $series[$idx + 1]['ts']->lessThanOrEqualTo($timestampUtc)) {
-                $idx++;
-            }
-            $pointersByPinId[$pinId] = $idx;
-            $valuePointTs = $series[$idx]['ts'] ?? null;
-            if (! ($valuePointTs instanceof Carbon)) {
-                return null;
-            }
-            if ($valuePointTs->greaterThan($timestampUtc)) {
-                return null;
-            }
-            if ($valuePointTs->diffInSeconds($timestampUtc, false) > $sourceMaxAgeSeconds) {
-                return null;
-            }
-            return isset($series[$idx]['value']) ? (float) $series[$idx]['value'] : null;
-        };
-
-        $evaluateCondition = static function (string $operator, ?float $sourceValue, float $threshold): bool {
-            if ($sourceValue === null) {
-                return false;
-            }
-            return match (strtolower(trim($operator))) {
-                'gt' => $sourceValue > $threshold,
-                'gte' => $sourceValue >= $threshold,
-                'lt' => $sourceValue < $threshold,
-                'lte' => $sourceValue <= $threshold,
-                'eq' => abs($sourceValue - $threshold) < 0.000001,
-                'ne' => abs($sourceValue - $threshold) >= 0.000001,
-                default => false,
-            };
-        };
-
-        $rowsPayload = [];
-        foreach ($reportPins as $reportPin) {
-            $pinId = (string) $reportPin->id;
-            $scenarioIdList = $scenarioByPinId[$pinId] ?? [];
-            $factIntervals = [];
-            $planIntervals = [];
-
-            $factRows = DB::table('pin_data')
-                ->where('pin_id', $pinId)
-                ->where('created_at', '>=', $dayStartUtc)
-                ->where('created_at', '<', $dayEndUtcExclusive)
-                ->orderBy('created_at')
-                ->get(['created_at', 'value']);
-
-            for ($i = 0; $i < count($factRows); $i++) {
-                $factStartTs = Carbon::parse((string) $factRows[$i]->created_at, 'UTC');
-                if ($factStartTs->greaterThanOrEqualTo($nowUtc)) {
-                    break;
-                }
-                $nextFactTs = ($i + 1) < count($factRows)
-                    ? Carbon::parse((string) $factRows[$i + 1]->created_at, 'UTC')
-                    : $dayEndUtcExclusive->copy();
-                $factEndTs = $nextFactTs->copy();
-                if ($factEndTs->greaterThan($nowUtc)) {
-                    $factEndTs = $nowUtc->copy();
-                }
-                if ($factEndTs->lessThanOrEqualTo($factStartTs)) {
+            foreach ($scenarioIds as $scenarioId) {
+                $scenarioConditions = $conditionsByScenarioId[$scenarioId] ?? [];
+                if (count($scenarioConditions) === 0) {
                     continue;
                 }
 
-                $normalizedFactValue = $normalizeValue($pinId, is_numeric($factRows[$i]->value) ? (float) $factRows[$i]->value : null);
-                $factOn = $normalizedFactValue !== null && ((int) round($normalizedFactValue)) > 0;
-                if (! $factOn) {
-                    continue;
+                $scenarioTrue = true;
+                foreach ($scenarioConditions as $condition) {
+                    $condPinId = (string) $condition->pin_id;
+                    $sourceValue = null;
+                    if ($condPinId === self::SYSTEM_CURRENT_TIME_PIN_ID) {
+                        $sourceValue = (float) $secondOfDay;
+                    } elseif (isset($sourceTimelineByPin[$condPinId])) {
+                        $sourceValue = $sourceTimelineByPin[$condPinId][$secondOfDay];
+                        $sourceValue = is_numeric($sourceValue) ? (float) $sourceValue : null;
+                    }
+
+                    $threshold = is_numeric($condition->threshold) ? (float) $condition->threshold : 0.0;
+                    if (! $this->evaluateReportCondition((string) $condition->operator, $sourceValue, $threshold)) {
+                        $scenarioTrue = false;
+                        break;
+                    }
                 }
 
-                $factIntervals[] = [
-                    'start' => $factStartTs->copy()->setTimezone($timeZone)->toIso8601String(),
-                    'end' => $factEndTs->copy()->setTimezone($timeZone)->toIso8601String(),
-                ];
-            }
-
-            for ($i = 0; $i < count($sampleTimestamps); $i++) {
-                $startTs = $sampleTimestamps[$i];
-                $endTs = $sampleTimestamps[$i + 1] ?? $dayEndUtcExclusive;
-                if ($endTs->lessThanOrEqualTo($startTs)) {
-                    continue;
-                }
-
-                $planState = null;
-                $pickHigherPriorityState = static function (?string $current, ?string $candidate): ?string {
-                    if ($candidate === null) {
-                        return $current;
-                    }
-                    $priority = ['none' => 0, 'green' => 1, 'yellow' => 2, 'red' => 3];
-                    $currentPriority = $priority[$current ?? 'none'] ?? 0;
-                    $candidatePriority = $priority[$candidate] ?? 0;
-                    return $candidatePriority >= $currentPriority ? $candidate : $current;
-                };
-
-                foreach ($scenarioIdList as $scenarioId) {
-                    $scenarioConditions = $conditionsByScenarioId[$scenarioId] ?? [];
-                    if (count($scenarioConditions) === 0) {
-                        continue;
-                    }
-
-                    $allTrue = true;
-                    $timeConditionsAllTrue = true;
-                    $hasCurrentTimeCondition = false;
-
-                    foreach ($scenarioConditions as $condition) {
-                        $sourcePinId = (string) $condition->pin_id;
-                        if ($sourcePinId === self::SYSTEM_CURRENT_TIME_PIN_ID) {
-                            $hasCurrentTimeCondition = true;
-                            $localTime = $startTs->copy()->setTimezone($timeZone);
-                            $sourceValue = ((int) $localTime->format('H') * 3600) + ((int) $localTime->format('i') * 60) + (int) $localTime->format('s');
-                        } else {
-                            $sourceValue = $valueAt($sourcePinId, $startTs);
-                        }
-
-                        $threshold = is_numeric($condition->threshold) ? (float) $condition->threshold : 0.0;
-                        $conditionTrue = $evaluateCondition((string) $condition->operator, $sourceValue, $threshold);
-                        if (! $conditionTrue) {
-                            $allTrue = false;
-                            if ($sourcePinId === self::SYSTEM_CURRENT_TIME_PIN_ID) {
-                                $timeConditionsAllTrue = false;
-                            }
-                        }
-                    }
-
-                    $scenarioState = null;
-                    if ($hasCurrentTimeCondition) {
-                        if ($timeConditionsAllTrue) {
-                            $scenarioState = $allTrue ? 'green' : 'yellow';
-                        }
-                    } elseif ($allTrue) {
-                        $scenarioState = 'red';
-                    }
-
-                    $planState = $pickHigherPriorityState($planState, $scenarioState);
-                }
-
-                if ($planState !== null) {
-                    $planIntervals[] = [
-                        'start' => $startTs->copy()->setTimezone($timeZone)->toIso8601String(),
-                        'end' => $endTs->copy()->setTimezone($timeZone)->toIso8601String(),
-                        'state' => $planState,
-                    ];
+                $evaluatedScenarios++;
+                if (! $scenarioTrue) {
+                    $falseScenarios++;
+                } else {
+                    $trueScenarios++;
                 }
             }
 
-            $rowsPayload[] = [
-                'pin_id' => $pinId,
-                'pin' => (string) $reportPin->pin,
-                'label' => trim(((string) ($reportPin->controller_name ?? '')) . ' · ' . ((string) ($reportPin->label ?? $reportPin->pin))),
-                'fact' => $factIntervals,
-                'plan' => $planIntervals,
-            ];
+            if ($evaluatedScenarios === 0 || $trueScenarios === 0) {
+                $planTimeline[$secondOfDay] = 0;
+            } elseif ($falseScenarios === 0) {
+                $planTimeline[$secondOfDay] = 1;
+            } else {
+                $planTimeline[$secondOfDay] = 2;
+            }
         }
+        $this->forwardFillTimeline($planTimeline);
+
+        $rowsPayload = [[
+            'pin_id' => $pinId,
+            'pin' => (string) $selectedPin->pin,
+            'label' => (string) ($selectedPin->label ?? $selectedPin->pin),
+            'fact' => $this->timelineToIntervals($factTimeline, $dayStartLocal, $timeZone, fn (int $v) => $v === 1, static fn () => null),
+            'plan' => $this->timelineToIntervals(
+                $planTimeline,
+                $dayStartLocal,
+                $timeZone,
+                fn (int $v) => $v > 0,
+                static fn (int $v) => $v === 1 ? 'green' : 'yellow'
+            ),
+        ]];
 
         return response()->json([
             'date' => $dayStartLocal->format('Y-m-d'),
@@ -828,6 +704,101 @@ class PairingController extends Controller
             'timeline_end' => $dayEndLocalExclusive->toIso8601String(),
             'rows' => $rowsPayload,
         ]);
+    }
+
+    private function secondOffsetFromDayStart(string $createdAtUtc, Carbon $dayStartUtc, int $timelineLength): ?int
+    {
+        $sec = $dayStartUtc->diffInSeconds(Carbon::parse($createdAtUtc, 'UTC'), false);
+        if ($sec < 0 || $sec >= $timelineLength) {
+            return null;
+        }
+
+        return (int) $sec;
+    }
+
+    /**
+     * @param array<int, int|float|null> $timeline
+     */
+    private function forwardFillTimeline(array &$timeline): void
+    {
+        $last = $timeline[0] ?? 0;
+        foreach ($timeline as $i => $value) {
+            if ($value === null) {
+                $timeline[$i] = $last;
+            } else {
+                $last = $value;
+            }
+        }
+    }
+
+    private function evaluateReportCondition(string $operator, ?float $sourceValue, float $threshold): bool
+    {
+        if ($sourceValue === null) {
+            return false;
+        }
+        return match (strtolower(trim($operator))) {
+            'gt' => $sourceValue > $threshold,
+            'gte' => $sourceValue >= $threshold,
+            'lt' => $sourceValue < $threshold,
+            'lte' => $sourceValue <= $threshold,
+            'eq' => abs($sourceValue - $threshold) < 0.000001,
+            'ne' => abs($sourceValue - $threshold) >= 0.000001,
+            default => false,
+        };
+    }
+
+    /**
+     * @param array<int, int|float|null> $timeline
+     * @param callable(int):bool $isOn
+     * @param callable(int):(?string) $stateResolver
+     * @return array<int, array{start:string,end:string,state?:string}>
+     */
+    private function timelineToIntervals(array $timeline, Carbon $dayStartLocal, string $timeZone, callable $isOn, callable $stateResolver): array
+    {
+        $intervals = [];
+        $len = count($timeline);
+        $start = null;
+        $state = null;
+
+        for ($i = 0; $i < $len; $i++) {
+            $value = (int) ($timeline[$i] ?? 0);
+            $on = $isOn($value);
+            $newState = $on ? $stateResolver($value) : null;
+
+            if ($start === null && $on) {
+                $start = $i;
+                $state = $newState;
+                continue;
+            }
+
+            if ($start !== null) {
+                if (! $on || $newState !== $state) {
+                    $payload = [
+                        'start' => $dayStartLocal->copy()->addSeconds($start)->setTimezone($timeZone)->toIso8601String(),
+                        'end' => $dayStartLocal->copy()->addSeconds($i)->setTimezone($timeZone)->toIso8601String(),
+                    ];
+                    if ($state !== null) {
+                        $payload['state'] = $state;
+                    }
+                    $intervals[] = $payload;
+                    $start = $on ? $i : null;
+                    $state = $on ? $newState : null;
+                }
+            }
+        }
+
+        if ($start !== null) {
+            $payload = [
+                'start' => $dayStartLocal->copy()->addSeconds($start)->setTimezone($timeZone)->toIso8601String(),
+                'end' => $dayStartLocal->copy()->addDay()->setTimezone($timeZone)->toIso8601String(),
+            ];
+            if ($state !== null) {
+                $payload['state'] = $state;
+            }
+            $intervals[] = $payload;
+        }
+
+        return $intervals;
     }
 
     public function myControllerPinChartData(Request $request, string $controllerId): JsonResponse

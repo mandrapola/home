@@ -79,8 +79,7 @@
   "Request pairing code first": "Request pairing code first",
   "Enter 4-digit code": "Enter 4-digit code",
   "Code is not confirmed": "Code is not confirmed",
-  "Controller successfully linked to your account.": "Controller successfully linked to your account."
-  ,
+  "Controller successfully linked to your account.": "Controller successfully linked to your account.",
   "Controllers": "Controllers",
   "No linked controllers.": "No linked controllers.",
   "Controller Settings": "Controller Settings",
@@ -114,8 +113,7 @@
   "Scenario Name": "Scenario Name",
   "Condition": "Condition",
   "Source (Pin)": "Source (Pin)",
-  "Threshold": "Threshold"
-  ,
+  "Threshold": "Threshold",
   "Power Events": "Report",
   "Fact": "Fact",
   "Plan": "Plan",
@@ -124,8 +122,7 @@
   "Plan: time conditions true and all conditions true": "Plan: time conditions true and all conditions true",
   "Plan: time conditions true but some other conditions false": "Plan: time conditions true but some other conditions false",
   "Plan: no time condition and all conditions true now": "Plan: no time condition and all conditions true now",
-  "Plan: no time condition and all conditions true": "Plan: no time condition and all conditions true"
-  ,
+  "Plan: no time condition and all conditions true": "Plan: no time condition and all conditions true",
   "Gateway authorization approved. New secret sent to gateway.": "Gateway authorization approved. New secret sent to gateway.",
   "Gateway code is invalid or expired.": "Gateway code is invalid or expired.",
   "Authorize Gateway (OpenWrt)": "Authorize Gateway (OpenWrt)",
@@ -160,163 +157,167 @@
   "Enable": "Enable",
   "Disable": "Disable",
   "No users found.": "No users found.",
-  "Alice access updated.": "Alice access updated."
-  ,"Authorize access": "Authorize access"
-  ,"Application": "Application"
-  ,"Grant this app access to your devices and sensor states for Yandex Alice.": "Grant this app access to your devices and sensor states for Yandex Alice."
-  ,"Allow": "Allow"
-  ,"Deny": "Deny"
-  ,"Admin": "Admin"
-  ,"Users": "Users"
-  ,"Plans": "Plans"
-  ,"Status": "Status"
-  ,"Last Seen": "Last Seen"
-  ,"View": "View"
-  ,"Not selected": "Not selected"
-  ,"User plan updated.": "User plan updated."
-  ,"Pin updated.": "Pin updated."
-  ,"Pins": "Pins"
-  ,"Style": "Style"
-  ,"Edit Pin": "Edit Pin"
-  ,"Back": "Back"
-  ,"ID": "ID"
-  ,"E-mail": "E-mail"
-  ,"Label": "Label"
-  ,"Selected plan": "Selected plan"
-  ,"If status is pending or expired, FREE limits are applied.": "If status is pending or expired, FREE limits are applied."
-  ,"Effective plan": "Effective plan"
-  ,"pin_data limit": "pin_data limit"
-  ,"Slots left": "Slots left"
-  ,"Controllers limit": "Controllers limit"
-  ,"Unlimited": "Unlimited"
-  ,"Alice integration": "Alice integration"
-  ,"Selected": "Selected"
-  ,"Choose Plan": "Choose Plan"
-  ,"Pay": "Pay"
-  ,"No active plans available.": "No active plans available."
-  ,"Recent payments": "Recent payments"
-  ,"No payments yet.": "No payments yet."
-  ,"Amount": "Amount"
-  ,"Created": "Created"
-  ,"Paid at": "Paid at"
-  ,"Plan selected. Complete payment to activate it. Until payment, FREE limits apply.": "Plan selected. Complete payment to activate it. Until payment, FREE limits apply."
-  ,"Payments are disabled.": "Payments are disabled."
-  ,"YooKassa credentials are not configured.": "YooKassa credentials are not configured."
-  ,"Selected plan does not require payment.": "Selected plan does not require payment."
-  ,"Failed to create payment.": "Failed to create payment."
-  ,"Payment created, but no confirmation URL returned.": "Payment created, but no confirmation URL returned."
-  ,"Edit user": "Edit user"
-  ,"Assign plan": "Assign plan"
-  ,"Current subscription": "Current subscription"
-  ,"Starts at": "Starts at"
-  ,"Ends at": "Ends at"
-  ,"Source": "Source"
-  ,"User updated.": "User updated."
-  ,"User plan assignment updated.": "User plan assignment updated."
-  ,"Moisture raw dry": "Moisture raw dry"
-  ,"Moisture raw wet": "Moisture raw wet"
-  ,"Show humidity as percent": "Show humidity as percent"
-  ,"Roles": "Roles"
-  ,"Alice Enabled": "Alice Enabled"
-  ,"Digital Style": "Digital Style"
-  ,"Monitored": "Monitored"
-  ,"External Enabled": "External Enabled"
-  ,"Chart Range Hours": "Chart Range Hours"
-  ,"Moisture Raw Dry": "Moisture Raw Dry"
-  ,"Moisture Raw Wet": "Moisture Raw Wet"
-  ,"Moisture Show Percent": "Moisture Show Percent"
-  ,"Controller ID": "Controller ID"
-  ,"Code": "Code"
-  ,"Currency": "Currency"
-  ,"Max Controllers": "Max Controllers"
-  ,"Max Pin Data Rows": "Max Pin Data Rows"
-  ,"Active": "Active"
-  ,"payment": "payment"
-  ,"payments": "payments"
-  ,"Provider": "Provider"
-  ,"Provider Payment ID": "Provider Payment ID"
-  ,"Paid At": "Paid At"
-  ,"Idempotence Key": "Idempotence Key"
-  ,"Meta": "Meta"
-  ,"No pins found.": "No pins found."
-  ,"Internal unique identifier. Use lowercase latin letters, numbers and underscore.": "Internal unique identifier. Use lowercase latin letters, numbers and underscore."
-  ,"Dev payment completed. Plan activated.": "Dev payment completed. Plan activated."
-  ,"SmartHome Platform": "SmartHome Platform"
-  ,"Access your dashboard, devices and automations.": "Access your dashboard, devices and automations."
-  ,"Create your account to start managing controllers and telemetry.": "Create your account to start managing controllers and telemetry."
-  ,"Features": "Features"
-  ,"Pricing": "Pricing"
-  ,"Download": "Download"
-  ,"Get Started": "Get Started"
-  ,"Sign in": "Sign in"
-  ,"Smarter yard,\nmade easy.": "Smarter yard,\nmade easy."
-  ,"Open, reliable control for every device.": "Open, reliable control for every device."
-  ,"Powerful controllers.": "Powerful controllers."
-  ,"Manage all your smart devices from a central, fast and reliable dashboard.": "Manage all your smart devices from a central, fast and reliable dashboard."
-  ,"Monitor sensors, energy, and more with near-instant updates.": "Monitor sensors, energy, and more with near-instant updates."
-  ,"Automate routines and integrate with Alice for hands-free control.": "Automate routines and integrate with Alice for hands-free control."
-  ,"Provision, monitor and manage all controllers from one place.": "Provision, monitor and manage all controllers from one place."
-  ,"See real-time data, chart history and transformed sensor values.": "See real-time data, chart history and transformed sensor values."
-  ,"Scenes + Alice API": "Scenes + Alice API"
-  ,"Build automation logic and sync with Yandex Alice integration.": "Build automation logic and sync with Yandex Alice integration."
-  ,"Download OpenWrt .ipk": "Download OpenWrt .ipk"
-  ,"Get AiDvor for OpenWrt routers and start managing your SmartHome securely.": "Get AiDvor for OpenWrt routers and start managing your SmartHome securely."
-  ,"Open Downloads": "Open Downloads"
-  ,"Simple, honest, open.": "Simple, honest, open."
-  ,"Basic support": "Basic support"
-  ,"Full telemetry": "Full telemetry"
-  ,"Limited plan limits": "Limited plan limits"
-  ,"Start Free": "Start Free"
-  ,"Premium support": "Premium support"
-  ,"Advanced automations": "Advanced automations"
-  ,"Early access updates": "Early access updates"
-  ,"Buy Now": "Buy Now"
-  ,"Help Center": "Help Center"
-  ,"Documentation": "Documentation"
-  ,"Product": "Product"
-  ,"API Contract": "API Contract"
-  ,"OpenWrt Package": "OpenWrt Package"
-  ,"Company": "Company"
-  ,"About": "About"
-  ,"Careers": "Careers"
-  ,"Blog": "Blog"
-  ,"Brand Assets": "Brand Assets"
-  ,"Open-Source & Brand Page": "Open-Source & Brand Page"
-  ,"Card contrast": "Card contrast"
-  ,"Soft": "Soft"
-  ,"Medium": "Medium"
-  ,"Strong": "Strong"
-  ,"Chart range": "Chart range"
-  ,"Scenarios List": "Scenarios list"
-  ,"Conditions inside scenario: AND. Scenarios for one pin: OR.": "Conditions inside scenario: AND. Scenarios for one pin: OR."
-  ,"Enabled (TRUE)": "Enabled (TRUE)"
-  ,"No target pins of type \"power\" found.": "No target pins of type \"power\" found."
-  ,"Scenarios": "Scenarios"
-  ,"Scenario": "Scenario"
-  ,"h": "h"
-  ,"Theme": "Theme"
-  ,"Light": "Light"
-  ,"Dark": "Dark"
-  ,"System": "System"
-  ,"Pricing badge": "Plans for Arduino, ESP and any IoT controllers"
-  ,"Pricing hero title": "Run one greenhouse irrigation setup for free"
-  ,"Pricing hero description": "Home Aidvor helps you connect controllers, monitor telemetry, control relays and run automation scenes. The free plan is not a demo: it can manage one real setup, for example a single greenhouse irrigation system. Paid plans are useful when you add more devices, longer history, notifications and multiple sites."
-  ,"Pricing compare kicker": "Plan comparison"
-  ,"Pricing compare title": "Pick a plan for your scale"
-  ,"Pricing compare desc": "Compare key limits and choose the level that matches your project."
-  ,"Feature": "Feature"
-  ,"For integrators": "For integrators"
-  ,"Integrator title": "Launch client projects faster"
-  ,"Integrator description": "If you build solutions for customers, the platform gives you a practical base: roles, API and tariff-based scaling."
-  ,"White-label dashboards": "White-label dashboards"
-  ,"Role-based access": "Role-based access"
-  ,"Alice and API integration": "Alice and API integration"
-  ,"Priority support": "Priority support"
-  ,"FAQ title": "Pricing FAQ"
-  ,"FAQ q1": "Can I start on Free and upgrade later?"
-  ,"FAQ a1": "Yes. You can start with Free and switch to a paid plan anytime. After payment, limits are applied automatically."
-  ,"FAQ q2": "What happens when a paid plan expires?"
-  ,"FAQ a2": "The selected plan remains in the profile, but FREE limits are applied until renewal."
-  ,"Pricing cta title": "Connect your first device and validate the platform in a real project"
-  ,"Pricing cta desc": "Start for free, configure a controller, and move to a paid tier only when you actually need it."
+  "Alice access updated.": "Alice access updated.",
+  "Authorize access": "Authorize access",
+  "Application": "Application",
+  "Grant this app access to your devices and sensor states for Yandex Alice.": "Grant this app access to your devices and sensor states for Yandex Alice.",
+  "Allow": "Allow",
+  "Deny": "Deny",
+  "Users": "Users",
+  "Plans": "Plans",
+  "Status": "Status",
+  "Last Seen": "Last Seen",
+  "View": "View",
+  "Not selected": "Not selected",
+  "User plan updated.": "User plan updated.",
+  "Pin updated.": "Pin updated.",
+  "Pins": "Pins",
+  "Style": "Style",
+  "Edit Pin": "Edit Pin",
+  "Back": "Back",
+  "ID": "ID",
+  "E-mail": "E-mail",
+  "Label": "Label",
+  "Selected plan": "Selected plan",
+  "If status is pending or expired, FREE limits are applied.": "If status is pending or expired, FREE limits are applied.",
+  "Effective plan": "Effective plan",
+  "pin_data limit": "pin_data limit",
+  "Slots left": "Slots left",
+  "Controllers limit": "Controllers limit",
+  "Unlimited": "Unlimited",
+  "Alice integration": "Alice integration",
+  "Selected": "Selected",
+  "Choose Plan": "Choose Plan",
+  "Pay": "Pay",
+  "No active plans available.": "No active plans available.",
+  "Recent payments": "Recent payments",
+  "No payments yet.": "No payments yet.",
+  "Amount": "Amount",
+  "Created": "Created",
+  "Paid at": "Paid at",
+  "Plan selected. Complete payment to activate it. Until payment, FREE limits apply.": "Plan selected. Complete payment to activate it. Until payment, FREE limits apply.",
+  "Payments are disabled.": "Payments are disabled.",
+  "YooKassa credentials are not configured.": "YooKassa credentials are not configured.",
+  "Selected plan does not require payment.": "Selected plan does not require payment.",
+  "Failed to create payment.": "Failed to create payment.",
+  "Payment created, but no confirmation URL returned.": "Payment created, but no confirmation URL returned.",
+  "Edit user": "Edit user",
+  "Assign plan": "Assign plan",
+  "Current subscription": "Current subscription",
+  "Starts at": "Starts at",
+  "Ends at": "Ends at",
+  "Source": "Source",
+  "User updated.": "User updated.",
+  "User plan assignment updated.": "User plan assignment updated.",
+  "Moisture raw dry": "Moisture raw dry",
+  "Moisture raw wet": "Moisture raw wet",
+  "Show humidity as percent": "Show humidity as percent",
+  "Roles": "Roles",
+  "Alice Enabled": "Alice Enabled",
+  "Digital Style": "Digital Style",
+  "Monitored": "Monitored",
+  "External Enabled": "External Enabled",
+  "Chart Range Hours": "Chart Range Hours",
+  "Moisture Raw Dry": "Moisture Raw Dry",
+  "Moisture Raw Wet": "Moisture Raw Wet",
+  "Moisture Show Percent": "Moisture Show Percent",
+  "Controller ID": "Controller ID",
+  "Code": "Code",
+  "Currency": "Currency",
+  "Max Controllers": "Max Controllers",
+  "Max Pin Data Rows": "Max Pin Data Rows",
+  "Active": "Active",
+  "payment": "payment",
+  "payments": "payments",
+  "Provider": "Provider",
+  "Provider Payment ID": "Provider Payment ID",
+  "Paid At": "Paid At",
+  "Idempotence Key": "Idempotence Key",
+  "Meta": "Meta",
+  "No pins found.": "No pins found.",
+  "Internal unique identifier. Use lowercase latin letters, numbers and underscore.": "Internal unique identifier. Use lowercase latin letters, numbers and underscore.",
+  "Dev payment completed. Plan activated.": "Dev payment completed. Plan activated.",
+  "SmartHome Platform": "SmartHome Platform",
+  "Access your dashboard, devices and automations.": "Access your dashboard, devices and automations.",
+  "Create your account to start managing controllers and telemetry.": "Create your account to start managing controllers and telemetry.",
+  "Features": "Features",
+  "Pricing": "Pricing",
+  "Download": "Download",
+  "Get Started": "Get Started",
+  "Sign in": "Sign in",
+  "Smarter yard,\nmade easy.": "Smarter yard,\nmade easy.",
+  "Open, reliable control for every device.": "Open, reliable control for every device.",
+  "Powerful controllers.": "Powerful controllers.",
+  "Manage all your smart devices from a central, fast and reliable dashboard.": "Manage all your smart devices from a central, fast and reliable dashboard.",
+  "Monitor sensors, energy, and more with near-instant updates.": "Monitor sensors, energy, and more with near-instant updates.",
+  "Automate routines and integrate with Alice for hands-free control.": "Automate routines and integrate with Alice for hands-free control.",
+  "Provision, monitor and manage all controllers from one place.": "Provision, monitor and manage all controllers from one place.",
+  "See real-time data, chart history and transformed sensor values.": "See real-time data, chart history and transformed sensor values.",
+  "Scenes + Alice API": "Scenes + Alice API",
+  "Build automation logic and sync with Yandex Alice integration.": "Build automation logic and sync with Yandex Alice integration.",
+  "Download OpenWrt .ipk": "Download OpenWrt .ipk",
+  "Get AiDvor for OpenWrt routers and start managing your SmartHome securely.": "Get AiDvor for OpenWrt routers and start managing your SmartHome securely.",
+  "Open Downloads": "Open Downloads",
+  "Simple, honest, open.": "Simple, honest, open.",
+  "Basic support": "Basic support",
+  "Full telemetry": "Full telemetry",
+  "Limited plan limits": "Limited plan limits",
+  "Start Free": "Start Free",
+  "Premium support": "Premium support",
+  "Advanced automations": "Advanced automations",
+  "Early access updates": "Early access updates",
+  "Buy Now": "Buy Now",
+  "Help Center": "Help Center",
+  "Documentation": "Documentation",
+  "Product": "Product",
+  "API Contract": "API Contract",
+  "OpenWrt Package": "OpenWrt Package",
+  "Company": "Company",
+  "About": "About",
+  "Careers": "Careers",
+  "Blog": "Blog",
+  "Brand Assets": "Brand Assets",
+  "Open-Source & Brand Page": "Open-Source & Brand Page",
+  "Card contrast": "Card contrast",
+  "Soft": "Soft",
+  "Medium": "Medium",
+  "Strong": "Strong",
+  "Chart range": "Chart range",
+  "Scenarios List": "Scenarios list",
+  "Conditions inside scenario: AND. Scenarios for one pin: OR.": "Conditions inside scenario: AND. Scenarios for one pin: OR.",
+  "Enabled (TRUE)": "Enabled (TRUE)",
+  "No target pins of type \"power\" found.": "No target pins of type \"power\" found.",
+  "h": "h",
+  "Theme": "Theme",
+  "Light": "Light",
+  "Dark": "Dark",
+  "System": "System",
+  "Pricing badge": "Plans for Arduino, ESP and any IoT controllers",
+  "Pricing hero title": "Run one greenhouse irrigation setup for free",
+  "Pricing hero description": "Home Aidvor helps you connect controllers, monitor telemetry, control relays and run automation scenes. The free plan is not a demo: it can manage one real setup, for example a single greenhouse irrigation system. Paid plans are useful when you add more devices, longer history, notifications and multiple sites.",
+  "Pricing compare kicker": "Plan comparison",
+  "Pricing compare title": "Pick a plan for your scale",
+  "Pricing compare desc": "Compare key limits and choose the level that matches your project.",
+  "Feature": "Feature",
+  "For integrators": "For integrators",
+  "Integrator title": "Launch client projects faster",
+  "Integrator description": "If you build solutions for customers, the platform gives you a practical base: roles, API and tariff-based scaling.",
+  "White-label dashboards": "White-label dashboards",
+  "Role-based access": "Role-based access",
+  "Alice and API integration": "Alice and API integration",
+  "Priority support": "Priority support",
+  "FAQ title": "Pricing FAQ",
+  "FAQ q1": "Can I start on Free and upgrade later?",
+  "FAQ a1": "Yes. You can start with Free and switch to a paid plan anytime. After payment, limits are applied automatically.",
+  "FAQ q2": "What happens when a paid plan expires?",
+  "FAQ a2": "The selected plan remains in the profile, but FREE limits are applied until renewal.",
+  "Pricing cta title": "Connect your first device and validate the platform in a real project",
+  "Pricing cta desc": "Start for free, configure a controller, and move to a paid tier only when you actually need it.",
+  "History of tariff and connected services payments.": "History of tariff and connected services payments.",
+  "Plan: at least one condition is true": "Plan: at least one condition is true",
+  "Plan: all conditions are true": "Plan: all conditions are true",
+  "pin_id is required in URL.": "pin_id is required in URL.",
+  "Plan: all scenarios are true": "Plan: all scenarios are true",
+  "Plan: mixed scenario states (true and false)": "Plan: mixed scenario states (true and false)",
+  "Plan: all scenarios are false": "Plan: all scenarios are false"
 }
