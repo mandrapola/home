@@ -20,6 +20,9 @@ class PairingController extends Controller
 {
     private const SYSTEM_CONTROLLER_ID = '0195f7e0-0000-7000-8000-000000000001';
     private const SYSTEM_CURRENT_TIME_PIN_ID = '0195f7e0-0000-7000-8000-000000000002';
+    private const DEFAULT_TIME_ZONE = 'Europe/Moscow';
+    private const REPORT_TIMELINE_STEP_SECONDS = 5;
+    private const REPORT_TIMELINE_LENGTH = 17280;
 
     public function __construct(
         private readonly PlanLimitService $planLimitService,
@@ -56,9 +59,6 @@ class PairingController extends Controller
     public function myControllers(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (! $user) {
-            return response()->json(['error' => 'unauthorized'], 401);
-        }
 
         $rows = DB::table('controller as c')
             ->join('controller_user as cu', 'cu.controller_id', '=', 'c.id')
@@ -94,9 +94,6 @@ class PairingController extends Controller
         }
 
         $user = $request->user();
-        if (! $user) {
-            return response()->json(['error' => 'unauthorized'], 401);
-        }
 
         $isOwner = DB::table('controller_user')
             ->where('controller_id', $controllerId)
@@ -147,9 +144,6 @@ class PairingController extends Controller
     public function myReportPins(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (! $user) {
-            return response()->json(['error' => 'unauthorized'], 401);
-        }
 
         $pins = DB::table('pin as p')
             ->join('controller_user as cu', 'cu.controller_id', '=', 'p.controller_id')
@@ -176,9 +170,6 @@ class PairingController extends Controller
         }
 
         $user = $request->user();
-        if (! $user) {
-            return response()->json(['error' => 'unauthorized'], 401);
-        }
 
         $isOwner = DB::table('controller_user')
             ->where('controller_id', $controllerId)
@@ -189,10 +180,7 @@ class PairingController extends Controller
             return response()->json(['error' => 'forbidden', 'message' => 'Controller is not linked to current user'], 403);
         }
 
-        $timeZone = (string) ($user->time_zone ?: 'Europe/Moscow');
-        if (! in_array($timeZone, \DateTimeZone::listIdentifiers(), true)) {
-            $timeZone = 'Europe/Moscow';
-        }
+        $timeZone = $this->resolveUserTimeZone($user);
 
         $dayStartLocal = Carbon::now($timeZone)->startOfDay();
         $dayEndLocalExclusive = $dayStartLocal->copy()->addDay();
@@ -525,14 +513,8 @@ class PairingController extends Controller
     public function myReport(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (! $user) {
-            return response()->json(['error' => 'unauthorized'], 401);
-        }
 
-        $timeZone = (string) ($user->time_zone ?: 'Europe/Moscow');
-        if (! in_array($timeZone, \DateTimeZone::listIdentifiers(), true)) {
-            $timeZone = 'Europe/Moscow';
-        }
+        $timeZone = $this->resolveUserTimeZone($user);
 
         $dayStartLocal = Carbon::now($timeZone)->startOfDay();
         $dayEndLocalExclusive = $dayStartLocal->copy()->addDay();
@@ -560,7 +542,8 @@ class PairingController extends Controller
             return response()->json(['error' => 'forbidden', 'message' => 'Pin is not available for report.'], 403);
         }
 
-        $timelineLength = 86400;
+        $timelineLength = self::REPORT_TIMELINE_LENGTH;
+        $timelineStepSeconds = self::REPORT_TIMELINE_STEP_SECONDS;
         $factTimeline = array_fill(0, $timelineLength, 0);
         $planTimeline = array_fill(0, $timelineLength, 0);
 
@@ -574,7 +557,12 @@ class PairingController extends Controller
             ->get(['created_at']);
 
         foreach ($factRows as $row) {
-            $sec = $this->secondOffsetFromDayStart((string) $row->created_at, $dayStartUtc, $timelineLength);
+            $sec = $this->secondOffsetFromDayStart(
+                (string) $row->created_at,
+                $dayStartUtc,
+                $timelineLength,
+                $timelineStepSeconds
+            );
             if ($sec !== null) {
                 $factTimeline[$sec] = 1;
             }
@@ -627,7 +615,12 @@ class PairingController extends Controller
                 if (! is_numeric($row->value)) {
                     continue;
                 }
-                $sec = $this->secondOffsetFromDayStart((string) $row->created_at, $dayStartUtc, $timelineLength);
+                $sec = $this->secondOffsetFromDayStart(
+                    (string) $row->created_at,
+                    $dayStartUtc,
+                    $timelineLength,
+                    $timelineStepSeconds
+                );
                 if ($sec !== null) {
                     $line[$sec] = (float) $row->value;
                 }
@@ -636,7 +629,8 @@ class PairingController extends Controller
             $sourceTimelineByPin[$sourcePinId] = $line;
         }
 
-        foreach (range(0, $timelineLength - 1) as $secondOfDay) {
+        foreach (range(0, $timelineLength - 1) as $timelineIndex) {
+            $secondOfDay = $timelineIndex * $timelineStepSeconds;
             $evaluatedScenarios = 0;
             $falseScenarios = 0;
             $trueScenarios = 0;
@@ -654,7 +648,7 @@ class PairingController extends Controller
                     if ($condPinId === self::SYSTEM_CURRENT_TIME_PIN_ID) {
                         $sourceValue = (float) $secondOfDay;
                     } elseif (isset($sourceTimelineByPin[$condPinId])) {
-                        $sourceValue = $sourceTimelineByPin[$condPinId][$secondOfDay];
+                        $sourceValue = $sourceTimelineByPin[$condPinId][$timelineIndex] ?? null;
                         $sourceValue = is_numeric($sourceValue) ? (float) $sourceValue : null;
                     }
 
@@ -674,11 +668,11 @@ class PairingController extends Controller
             }
 
             if ($evaluatedScenarios === 0 || $trueScenarios === 0) {
-                $planTimeline[$secondOfDay] = 0;
+                $planTimeline[$timelineIndex] = 0;
             } elseif ($falseScenarios === 0) {
-                $planTimeline[$secondOfDay] = 1;
+                $planTimeline[$timelineIndex] = 1;
             } else {
-                $planTimeline[$secondOfDay] = 2;
+                $planTimeline[$timelineIndex] = 2;
             }
         }
         $this->forwardFillTimeline($planTimeline);
@@ -687,11 +681,19 @@ class PairingController extends Controller
             'pin_id' => $pinId,
             'pin' => (string) $selectedPin->pin,
             'label' => (string) ($selectedPin->label ?? $selectedPin->pin),
-            'fact' => $this->timelineToIntervals($factTimeline, $dayStartLocal, $timeZone, fn (int $v) => $v === 1, static fn () => null),
+            'fact' => $this->timelineToIntervals(
+                $factTimeline,
+                $dayStartLocal,
+                $timeZone,
+                $timelineStepSeconds,
+                fn (int $v) => $v === 1,
+                static fn () => null
+            ),
             'plan' => $this->timelineToIntervals(
                 $planTimeline,
                 $dayStartLocal,
                 $timeZone,
+                $timelineStepSeconds,
                 fn (int $v) => $v > 0,
                 static fn (int $v) => $v === 1 ? 'green' : 'yellow'
             ),
@@ -706,14 +708,34 @@ class PairingController extends Controller
         ]);
     }
 
-    private function secondOffsetFromDayStart(string $createdAtUtc, Carbon $dayStartUtc, int $timelineLength): ?int
+    private function secondOffsetFromDayStart(
+        string $createdAtUtc,
+        Carbon $dayStartUtc,
+        int $timelineLength,
+        int $timelineStepSeconds
+    ): ?int
     {
-        $sec = $dayStartUtc->diffInSeconds(Carbon::parse($createdAtUtc, 'UTC'), false);
-        if ($sec < 0 || $sec >= $timelineLength) {
+        $secondsFromStart = $dayStartUtc->diffInSeconds(Carbon::parse($createdAtUtc, 'UTC'), false);
+        if ($secondsFromStart < 0) {
             return null;
         }
 
-        return (int) $sec;
+        $index = (int) floor($secondsFromStart / max(1, $timelineStepSeconds));
+        if ($index < 0 || $index >= $timelineLength) {
+            return null;
+        }
+
+        return $index;
+    }
+
+    private function resolveUserTimeZone(object $user): string
+    {
+        $timeZone = (string) ($user->time_zone ?: self::DEFAULT_TIME_ZONE);
+        if (! in_array($timeZone, \DateTimeZone::listIdentifiers(), true)) {
+            return self::DEFAULT_TIME_ZONE;
+        }
+
+        return $timeZone;
     }
 
     /**
@@ -753,7 +775,14 @@ class PairingController extends Controller
      * @param callable(int):(?string) $stateResolver
      * @return array<int, array{start:string,end:string,state?:string}>
      */
-    private function timelineToIntervals(array $timeline, Carbon $dayStartLocal, string $timeZone, callable $isOn, callable $stateResolver): array
+    private function timelineToIntervals(
+        array $timeline,
+        Carbon $dayStartLocal,
+        string $timeZone,
+        int $timelineStepSeconds,
+        callable $isOn,
+        callable $stateResolver
+    ): array
     {
         $intervals = [];
         $len = count($timeline);
@@ -774,8 +803,8 @@ class PairingController extends Controller
             if ($start !== null) {
                 if (! $on || $newState !== $state) {
                     $payload = [
-                        'start' => $dayStartLocal->copy()->addSeconds($start)->setTimezone($timeZone)->toIso8601String(),
-                        'end' => $dayStartLocal->copy()->addSeconds($i)->setTimezone($timeZone)->toIso8601String(),
+                        'start' => $dayStartLocal->copy()->addSeconds($start * $timelineStepSeconds)->setTimezone($timeZone)->toIso8601String(),
+                        'end' => $dayStartLocal->copy()->addSeconds($i * $timelineStepSeconds)->setTimezone($timeZone)->toIso8601String(),
                     ];
                     if ($state !== null) {
                         $payload['state'] = $state;
@@ -789,7 +818,7 @@ class PairingController extends Controller
 
         if ($start !== null) {
             $payload = [
-                'start' => $dayStartLocal->copy()->addSeconds($start)->setTimezone($timeZone)->toIso8601String(),
+                'start' => $dayStartLocal->copy()->addSeconds($start * $timelineStepSeconds)->setTimezone($timeZone)->toIso8601String(),
                 'end' => $dayStartLocal->copy()->addDay()->setTimezone($timeZone)->toIso8601String(),
             ];
             if ($state !== null) {
@@ -808,9 +837,6 @@ class PairingController extends Controller
         }
 
         $user = $request->user();
-        if (! $user) {
-            return response()->json(['error' => 'unauthorized'], 401);
-        }
 
         $isOwner = DB::table('controller_user')
             ->where('controller_id', $controllerId)
@@ -821,10 +847,7 @@ class PairingController extends Controller
             return response()->json(['error' => 'forbidden', 'message' => 'Controller is not linked to current user'], 403);
         }
 
-        $timeZone = (string) ($user->time_zone ?: 'Europe/Moscow');
-        if (! in_array($timeZone, \DateTimeZone::listIdentifiers(), true)) {
-            $timeZone = 'Europe/Moscow';
-        }
+        $timeZone = $this->resolveUserTimeZone($user);
 
         $pins = DB::table('pin')
             ->where('controller_id', $controllerId)
@@ -892,9 +915,6 @@ class PairingController extends Controller
         }
 
         $user = $request->user();
-        if (! $user) {
-            return response()->json(['error' => 'unauthorized'], 401);
-        }
 
         $isOwner = DB::table('controller_user')
             ->where('controller_id', $controllerId)
@@ -1026,9 +1046,6 @@ class PairingController extends Controller
         }
 
         $user = $request->user();
-        if (! $user) {
-            return response()->json(['error' => 'unauthorized'], 401);
-        }
 
         $isOwner = DB::table('controller_user')
             ->where('controller_id', $controllerId)
@@ -1092,9 +1109,6 @@ class PairingController extends Controller
         }
 
         $user = $request->user();
-        if (! $user) {
-            return response()->json(['error' => 'unauthorized'], 401);
-        }
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -1135,9 +1149,6 @@ class PairingController extends Controller
     public function startAll(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (! $user) {
-            return response()->json(['error' => 'unauthorized'], 401);
-        }
 
         $allowance = $this->planLimitService->controllerAttachAllowance($user);
         if (! $allowance['allowed']) {
@@ -1224,9 +1235,6 @@ class PairingController extends Controller
         ]);
 
         $user = $request->user();
-        if (! $user) {
-            return response()->json(['error' => 'unauthorized'], 401);
-        }
 
         $allowance = $this->planLimitService->controllerAttachAllowance($user);
         if (! $allowance['allowed']) {
@@ -1316,9 +1324,6 @@ class PairingController extends Controller
         }
 
         $user = $request->user();
-        if (! $user) {
-            return response()->json(['error' => 'unauthorized'], 401);
-        }
 
         $allowance = $this->planLimitService->controllerAttachAllowance($user);
         if (! $allowance['allowed']) {
@@ -1394,9 +1399,6 @@ class PairingController extends Controller
         ]);
 
         $user = $request->user();
-        if (! $user) {
-            return response()->json(['error' => 'unauthorized'], 401);
-        }
 
         $allowance = $this->planLimitService->controllerAttachAllowance($user);
         if (! $allowance['allowed']) {
