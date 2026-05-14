@@ -1,22 +1,24 @@
 # AiDvor / Home Aidvor — Agent Context
 
 ## 1) Проект и цель
-AiDvor — веб-платформа для удаленного управления DIY IoT-контроллерами (Arduino/ESP/OpenWrt gateway), мониторинга датчиков, сценариев автоматизации, интеграции с Яндекс Алисой и тарифной модели с оплатой.
+AiDvor — веб-платформа для удаленного управления DIY IoT-контроллерами (Arduino + ESP8266), мониторинга датчиков, сценариев автоматизации, интеграции с Яндекс Алисой и тарифной модели с оплатой.
 
 Основной web/app домен в проде: `https://home.aidvor.ru`.
 
 ## 2) Текущая архитектура
 Монорепо с несколькими частями:
 - `php-app/` — Laravel приложение (основной backend + web UI + admin).
-- `home-openwrt/` — Node.js gateway/runtime для OpenWrt.
-- `openwrt-package/` — пакет `home-aidvor` для OpenWrt (`.ipk`).
 - `client/arduino/` — скетчи контроллеров.
 - `db/mysql/` — SQL/bootstrap для локальной БД.
 - `docker-compose.yml` — локальное окружение.
 
+Текущая основная аппаратная схема:
+- Arduino Uno читает датчики, управляет реле и формирует компактный CSV по UART.
+- ESP8266 принимает CSV от Uno, подключается к Wi‑Fi, преобразует CSV в JSON report-contract, подписывает запрос HMAC и отправляет данные на сервер.
+- Сервер возвращает JSON с `send_interval_seconds`, `digital_outputs`, `monitor`; ESP8266 преобразует его в CSV-команды для Uno.
+
 Локально по умолчанию:
 - Laravel: `http://localhost:3000`
-- Gateway: `http://localhost:3001`
 - MySQL: `localhost:3306`
 
 ## 3) Стек и версии
@@ -24,7 +26,6 @@ AiDvor — веб-платформа для удаленного управле�
 - Laravel: `laravel/framework ^13.0`
 - Backpack: `backpack/crud ^7.0`, `backpack/theme-tabler ^2.0`
 - ACL: `spatie/laravel-permission ^7.4`
-- Node.js (gateway runtime): 20.x
 - Frontend toolchain (`php-app/package.json`):
   - `vite ^8.0.0`
   - `tailwindcss ^3.1.0`
@@ -33,7 +34,9 @@ AiDvor — веб-платформа для удаленного управле�
 ## 4) Ключевые домены
 
 ### 4.1 Контроллеры/пины/телеметрия
-- Телеметрия поступает через API report endpoint.
+- Телеметрия поступает через API report endpoint `/api/controller/report`.
+- Серверный report-contract ожидает JSON: `controller_id` + массив `readings[]`.
+- ESP8266-прокси подписывает запрос HMAC-заголовками `X-Proxy-Id`, `X-Timestamp`, `X-Nonce`, `X-Signature`.
 - На основе telemetry + scenarios формируются управляющие сигналы (`digital_outputs`).
 - Для sensor-пинов может применяться преобразование/калибровка значений (в т.ч. для графиков, карточек, условий сценариев).
 
@@ -54,7 +57,6 @@ AiDvor — веб-платформа для удаленного управле�
 - Dev-режим поддерживает тестовую локальную активацию тарифа.
 
 ## 5) Роли и доступ
-- `is_admin` не использовать.
 - Проверка прав через роли Spatie, ключевая роль: `administrator`.
 - Админка доступна только пользователям с админ-правами.
 - Пользовательский UI не должен давать прямых ссылок в админку.
@@ -97,8 +99,10 @@ Laravel env (`php-app/.env`), ключевые группы:
   - `YOOKASSA_WEBHOOK_SECRET`
   - `YOOKASSA_RETURN_URL`
   - `YOOKASSA_API_BASE_URL`
-- OpenWrt downloads:
-  - `OPENWRT_DOWNLOAD_BASE_URL`
+- Controller proxy HMAC:
+  - `PROXY_HMAC_ENABLED`
+  - `PROXY_ID`
+  - `PROXY_SECRET`
 
 ## 9) Документация в репо
 - `README.md` (корневой)
@@ -125,7 +129,12 @@ Laravel env (`php-app/.env`), ключевые группы:
   - `php-app/app/Http/Controllers/Admin/*`
 - Pairing + report handling:
   - `php-app/app/Http/Controllers/PairingController.php`
+  - `php-app/app/Http/Controllers/Api/ControllerReportController.php`
+  - `php-app/app/Http/Middleware/VerifyProxyHmac.php`
   - `php-app/app/Listeners/ProcessControllerReadingsOnReport.php`
+- Arduino/ESP8266:
+  - `client/arduino/arduino_uno_greenhouse_uart_controller_v1/`
+  - `client/arduino/esp8266_greenhouse_wifi_proxy_v1/`
 - User pages/views:
   - `php-app/resources/views/*`
 
@@ -231,7 +240,7 @@ docker compose exec -T server php artisan test --testsuite=Feature
 - Платежная логика и статусы активации подписок.
 - OAuth/Alice провайдерный flow и security middleware.
 - Проверки доступа/ролей/админские middleware.
-- Формат API контрактов, используемых gateway/контроллерами.
+- Формат API контрактов, используемых контроллерами и ESP8266-прокси.
 - Миграции/структуру таблиц в прод-совместимых частях.
 - Секреты/ключи/переменные окружения в репозитории.
 
@@ -284,6 +293,7 @@ docker compose exec -T server php artisan test --testsuite=Feature
 1. Изменено: <1-3 пункта>
 2. Файлы: <пути>
 3. Проверка: <команда/шаги>
+4. Настройки: <имя agents файла используемого в работе>
 
 ### 18.4 Антипаттерны
 - Большие объяснения без запроса пользователя.
