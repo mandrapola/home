@@ -57,6 +57,7 @@ const size_t ANALOG_COUNT = sizeof(ANALOG_PINS) / sizeof(ANALOG_PINS[0]);
 unsigned long lastSendMs = 0;
 char requestPayload[190];
 char responseBody[160];
+char asyncEspLine[160];
 
 static bool appendFmt(char *dst, size_t dstSize, size_t *used, const char *fmt, ...) {
   if (*used >= dstSize) return false;
@@ -284,9 +285,53 @@ static bool readEspLine(char *out, size_t outSize, unsigned long timeoutMs) {
   return false;
 }
 
-static bool exchangeWithEsp(const char *request, char *response, size_t responseSize) {
-  while (esp.available() > 0) esp.read();
+static bool readEspLineNonBlocking(char *out, size_t outSize) {
+  static size_t used = 0;
 
+  if (outSize == 0) return false;
+
+  while (esp.available() > 0) {
+    char c = (char) esp.read();
+    if (c == '\r') continue;
+
+    if (c == '\n') {
+      out[used] = '\0';
+      bool hasLine = used > 0;
+      used = 0;
+      return hasLine;
+    }
+
+    if (used + 1 < outSize) {
+      out[used++] = c;
+      out[used] = '\0';
+    } else {
+      used = 0;
+      out[0] = '\0';
+      return false;
+    }
+  }
+
+  return false;
+}
+
+static void applyEspCsvCommand(const char *csv) {
+  long httpStatus = findCsvLong(csv, "http_status", 200);
+  if (httpStatus >= 400) {
+    showHttpStatusErrorOnDisplay((int) httpStatus);
+    setAllRelaysOff();
+    return;
+  }
+
+  long nextIntervalSec = findCsvLong(csv, "send_interval_seconds", -1);
+  if (nextIntervalSec >= 1 && nextIntervalSec <= 3600) {
+    sendIntervalMs = (unsigned long) nextIntervalSec * 1000UL;
+  }
+
+  applyDigitalOutputsFromCsv(csv);
+  updatePairingDisplayFromCsv(csv);
+}
+
+static bool exchangeWithEsp(const char *request, char *response, size_t responseSize) {
   Serial.println(F("UNO->ESP:"));
   Serial.println(request);
   esp.println(request);
@@ -330,20 +375,7 @@ static void postMeasurements() {
     return;
   }
 
-  long httpStatus = findCsvLong(responseBody, "http_status", 200);
-  if (httpStatus >= 400) {
-    showHttpStatusErrorOnDisplay((int) httpStatus);
-    setAllRelaysOff();
-    return;
-  }
-
-  long nextIntervalSec = findCsvLong(responseBody, "send_interval_seconds", -1);
-  if (nextIntervalSec >= 1 && nextIntervalSec <= 3600) {
-    sendIntervalMs = (unsigned long) nextIntervalSec * 1000UL;
-  }
-
-  applyDigitalOutputsFromCsv(responseBody);
-  updatePairingDisplayFromCsv(responseBody);
+  applyEspCsvCommand(responseBody);
 }
 
 void setup() {
@@ -369,6 +401,12 @@ void setup() {
 
 void loop() {
   unsigned long now = millis();
+
+  if (readEspLineNonBlocking(asyncEspLine, sizeof(asyncEspLine))) {
+    Serial.println(F("ESP async->UNO:"));
+    Serial.println(asyncEspLine);
+    applyEspCsvCommand(asyncEspLine);
+  }
 
   if (lastSendMs == 0 || (now - lastSendMs) >= sendIntervalMs) {
     postMeasurements();

@@ -5,3 +5,4 @@ node_modules
 /home-openwrt/
 .env
 *.zip
+client/arduino/**/data/config.txt

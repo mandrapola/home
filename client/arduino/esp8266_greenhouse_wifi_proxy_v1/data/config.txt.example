@@ -1,0 +1,14 @@
+# AiDvor ESP8266 proxy runtime config.
+# Copy this file to config.txt before uploading LittleFS to the ESP8266.
+# Do not commit real passwords or secrets.
+
+wifi_ssid=YOUR_WIFI_SSID
+wifi_password=YOUR_WIFI_PASSWORD
+report_url=https://home.aidvor.ru/api/controller/report
+report_path=/api/controller/report
+remote_ui_url=https://home.aidvor.ru/dashboard
+proxy_id=YOUR_PROXY_ID
+proxy_secret=YOUR_PROXY_SECRET
+local_login=admin
+local_password=CHANGE_ME_LOCAL_ADMIN_PASSWORD
+cloud_grace_seconds=300
