@@ -2,7 +2,6 @@
 .output
 node_modules
 .DS_Store
-/home-openwrt/
 .env
 *.zip
 client/arduino/**/data/config.txt

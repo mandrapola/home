@@ -53,8 +53,10 @@ const char *ANALOG_KEYS[] = { "soil_moisture_raw", "light_level_raw" };
 
 const size_t DIGITAL_COUNT = sizeof(DIGITAL_PINS) / sizeof(DIGITAL_PINS[0]);
 const size_t ANALOG_COUNT = sizeof(ANALOG_PINS) / sizeof(ANALOG_PINS[0]);
+const unsigned long RELAY_MAX_ON_MS = 300000UL;
 
 unsigned long lastSendMs = 0;
+unsigned long relayTurnedOnAtMs[DIGITAL_COUNT] = { 0, 0, 0, 0 };
 char requestPayload[190];
 char responseBody[160];
 char asyncEspLine[160];
@@ -87,7 +89,16 @@ static int relayWireToLogical(size_t relayIndex, int wireLevel) {
 static void setAllRelaysOff() {
   for (size_t i = 0; i < DIGITAL_COUNT; i++) {
     digitalWrite(DIGITAL_PINS[i], relayLogicalToWire(i, 0));
+    relayTurnedOnAtMs[i] = 0;
   }
+}
+
+static void setRelayLogical(size_t relayIndex, int logicalValue) {
+  if (relayIndex >= DIGITAL_COUNT) return;
+
+  int logical = logicalValue > 0 ? 1 : 0;
+  digitalWrite(DIGITAL_PINS[relayIndex], relayLogicalToWire(relayIndex, logical));
+  relayTurnedOnAtMs[relayIndex] = logical > 0 ? millis() : 0;
 }
 
 static void showConnectionErrorOnDisplay() {
@@ -174,7 +185,9 @@ static bool findCsvString(const char *csv, const char *key, char *out, size_t ou
 static void applyDigitalOutputsFromCsv(const char *csv) {
   for (size_t i = 0; i < DIGITAL_COUNT; i++) {
     long v = findCsvLong(csv, DIGITAL_KEYS[i], -1);
-    if (v >= 0) digitalWrite(DIGITAL_PINS[i], relayLogicalToWire(i, (int) v));
+    if (v == 0 || v == 1) {
+      setRelayLogical(i, (int) v);
+    }
   }
 }
 
@@ -318,7 +331,6 @@ static void applyEspCsvCommand(const char *csv) {
   long httpStatus = findCsvLong(csv, "http_status", 200);
   if (httpStatus >= 400) {
     showHttpStatusErrorOnDisplay((int) httpStatus);
-    setAllRelaysOff();
     return;
   }
 
@@ -370,12 +382,32 @@ static void postMeasurements() {
   }
 
   if (!exchangeWithEsp(requestPayload, responseBody, sizeof(responseBody))) {
-    setAllRelaysOff();
     showConnectionErrorOnDisplay();
     return;
   }
 
   applyEspCsvCommand(responseBody);
+}
+
+static void checkRelayWatchdogs() {
+  unsigned long now = millis();
+
+  for (size_t i = 0; i < DIGITAL_COUNT; i++) {
+    if (relayWireToLogical(i, digitalRead(DIGITAL_PINS[i])) <= 0) {
+      relayTurnedOnAtMs[i] = 0;
+      continue;
+    }
+
+    if (relayTurnedOnAtMs[i] == 0) {
+      relayTurnedOnAtMs[i] = now;
+      continue;
+    }
+
+    if ((now - relayTurnedOnAtMs[i]) >= RELAY_MAX_ON_MS) {
+      setRelayLogical(i, 0);
+      showConnectionErrorOnDisplay();
+    }
+  }
 }
 
 void setup() {
@@ -407,6 +439,8 @@ void loop() {
     Serial.println(asyncEspLine);
     applyEspCsvCommand(asyncEspLine);
   }
+
+  checkRelayWatchdogs();
 
   if (lastSendMs == 0 || (now - lastSendMs) >= sendIntervalMs) {
     postMeasurements();

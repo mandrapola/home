@@ -1,0 +1,10 @@
+{
+    auto_https disable_redirects
+    default_sni 192.168.0.201
+}
+
+https://192.168.0.201:443, https://localhost:443, https://127.0.0.1:443 {
+    tls internal
+    encode gzip
+    reverse_proxy server:80
+}

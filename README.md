@@ -11,18 +11,11 @@ docker compose up -d --build
 Сервисы:
 - `server` (PHP/Apache): `http://localhost:3000`
 - `db` (MySQL): `localhost:3306`
-- `getaway` (home-openwrt gateway): `http://localhost:3001`
 
 Node в корне репозитория используется только как вспомогательный tooling (например, `npm run test:api`).
 
 ```bash
 npm run test:api
-```
-
-Для запуска теста из контейнера `getaway` укажите адрес PHP-сервера:
-
-```bash
-API_BASE_URL=http://server npm run test:api
 ```
 
 ## Актуальная структура сервера
@@ -36,7 +29,7 @@ API_BASE_URL=http://server npm run test:api
 
 ## Контракты обмена
 
-### 1) Gateway -> Server (`POST /api/controller/report`) — JSON-only
+### 1) ESP Server-> Server (`POST /api/controller/report`) — JSON-only
 
 Пример запроса (в cloud):
 
@@ -72,7 +65,7 @@ curl -X POST http://localhost:3000/api/controller/report \
 `pairing_code` передается только когда пользователь запустил привязку контроллера.
 `digital_outputs` содержит целевые значения `relay_*` для контроллера.
 
-### 2) Controller -> Gateway (`POST http://<gateway>:3001/api/controller/report`) — CSV
+### 2) Controller -> ESP — CSV
 
 Arduino отправляет CSV-строку в формате:
 
@@ -80,7 +73,7 @@ Arduino отправляет CSV-строку в формате:
 controller_id=<uuid>;relay_1=0;relay_2=1;...;air_temperature=23.4;air_humidity=41.2
 ```
 
-Gateway конвертирует эту строку в JSON для cloud-сервера и конвертирует JSON-ответ cloud обратно в CSV для контроллера.
+ESP конвертирует эту строку в JSON для cloud-сервера и конвертирует JSON-ответ cloud обратно в CSV для контроллера.
 
 Коды ошибок API сервера:
 - `401 proxy_auth_failed` — отсутствует/неверна HMAC подпись proxy.
@@ -136,9 +129,9 @@ Gateway конвертирует эту строку в JSON для cloud-сер
   - `controller:{id}:pin_state:{pin}`
   - `controller:{id}:pin_on_seconds_24h:{pin}`
 
-## Home OpenWRT Gateway
+## ESP Server
 
-`home-openwrt` работает как локальный шлюз:
+`ESP Server` работает как локальный шлюз:
 - в `online` режиме проксирует запросы к глобальному серверу;
 - в `offline` режиме отвечает локально и поддерживает ручное управление пинами.
 - для контроллера сохраняет CSV-протокол, для cloud-сервера использует JSON-протокол.

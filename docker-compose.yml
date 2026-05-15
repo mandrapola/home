@@ -35,33 +35,17 @@ services:
       /etc/apache2/conf-available/*.conf &&
       apache2-foreground"
 
-  getaway:
-    image: node:20-alpine
-    container_name: getaway
-    working_dir: /app/home-openwrt
+  https-proxy:
+    image: caddy:2-alpine
+    container_name: https-proxy
     ports:
-      - "3001:3000"
-    environment:
-      - PORT=3000
-      - CLOUD_BASE_URL=http://server
-      - CLOUD_HEALTH_PATH=/api/ping
-      - CLOUD_REPORT_PATH=/api/controller/report
-      - CLOUD_SETTINGS_PATH_TEMPLATE=/api/controllers/{id}/settings
-      - HEARTBEAT_INTERVAL_MS=5000
-      - CLOUD_REQUEST_TIMEOUT_MS=1500
-      - STORAGE_PATH=/tmp/home-openwrt-storage
-      - STORAGE_CHECK_INTERVAL_MS=10000
-      - MANUAL_PINS=${MANUAL_PINS:-}
-      - MANUAL_PIN_INVERT=${MANUAL_PIN_INVERT:-}
-      - DEFAULT_SEND_INTERVAL_SECONDS=5
-      - PROXY_HMAC_ENABLED=${PROXY_HMAC_ENABLED:-false}
-      - PROXY_HMAC_PROXY_ID=${PROXY_HMAC_PROXY_ID:-}
-      - PROXY_HMAC_SECRET=${PROXY_HMAC_SECRET:-}
+      - "3443:443"
     depends_on:
       - server
     volumes:
-      - .:/app
-    command: sh -c "mkdir -p /tmp/home-openwrt-storage && node src/server.js"
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
 
   db:
     image: mysql:8.0
@@ -84,3 +68,5 @@ services:
 
 volumes:
   mysql_data:
+  caddy_data:
+  caddy_config:

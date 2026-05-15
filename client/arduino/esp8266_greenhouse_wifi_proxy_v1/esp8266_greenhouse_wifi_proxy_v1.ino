@@ -29,13 +29,13 @@ const size_t REQUEST_MAX = 260;
 const size_t JSON_MAX = 520;
 const size_t RESPONSE_MAX = 220;
 const char CONFIG_PATH[] = "/config.txt";
+const char REPORT_PATH[] = "/api/controller/report";
+const char DASHBOARD_PATH[] = "/dashboard";
 
 struct ProxyConfig {
   char wifiSsid[33];
   char wifiPassword[65];
-  char reportUrl[128];
-  char reportPath[65];
-  char remoteUiUrl[128];
+  char serverUrl[128];
   char proxyId[33];
   char proxySecret[96];
   char localLogin[33];
@@ -133,12 +133,8 @@ static void setConfigValue(const String &key, const String &value) {
     copyConfigValue(config.wifiSsid, sizeof(config.wifiSsid), value);
   } else if (key == "wifi_password") {
     copyConfigValue(config.wifiPassword, sizeof(config.wifiPassword), value);
-  } else if (key == "report_url") {
-    copyConfigValue(config.reportUrl, sizeof(config.reportUrl), value);
-  } else if (key == "report_path") {
-    copyConfigValue(config.reportPath, sizeof(config.reportPath), value);
-  } else if (key == "remote_ui_url") {
-    copyConfigValue(config.remoteUiUrl, sizeof(config.remoteUiUrl), value);
+  } else if (key == "server_url") {
+    copyConfigValue(config.serverUrl, sizeof(config.serverUrl), value);
   } else if (key == "proxy_id") {
     copyConfigValue(config.proxyId, sizeof(config.proxyId), value);
   } else if (key == "proxy_secret") {
@@ -160,9 +156,7 @@ static bool validateConfigValues(ProxyConfig &candidate) {
 
   return candidate.wifiSsid[0] != '\0'
     && candidate.wifiPassword[0] != '\0'
-    && candidate.reportUrl[0] != '\0'
-    && candidate.reportPath[0] != '\0'
-    && candidate.remoteUiUrl[0] != '\0'
+    && candidate.serverUrl[0] != '\0'
     && candidate.proxyId[0] != '\0'
     && candidate.proxySecret[0] != '\0'
     && candidate.localLogin[0] != '\0'
@@ -222,12 +216,8 @@ static bool writeConfigFile(const ProxyConfig &nextConfig) {
   file.println(nextConfig.wifiSsid);
   file.print(F("wifi_password="));
   file.println(nextConfig.wifiPassword);
-  file.print(F("report_url="));
-  file.println(nextConfig.reportUrl);
-  file.print(F("report_path="));
-  file.println(nextConfig.reportPath);
-  file.print(F("remote_ui_url="));
-  file.println(nextConfig.remoteUiUrl);
+  file.print(F("server_url="));
+  file.println(nextConfig.serverUrl);
   file.print(F("proxy_id="));
   file.println(nextConfig.proxyId);
   file.print(F("proxy_secret="));
@@ -595,10 +585,26 @@ static bool buildHmacHeaders(const char *payload) {
   snprintf(nonceBuffer, sizeof(nonceBuffer), "%06lx%06lx", (unsigned long) ESP.getChipId(), (unsigned long) millis());
 
   sha256Hex(payload, bodyHashHex, sizeof(bodyHashHex));
-  snprintf(canonicalBuffer, sizeof(canonicalBuffer), "POST\n%s\n%s\n%s\n%s\n%s", config.reportPath, bodyHashHex, timestampBuffer, nonceBuffer, config.proxyId);
+  snprintf(canonicalBuffer, sizeof(canonicalBuffer), "POST\n%s\n%s\n%s\n%s\n%s", REPORT_PATH, bodyHashHex, timestampBuffer, nonceBuffer, config.proxyId);
   hmacSha256Hex(config.proxySecret, canonicalBuffer, signatureHex, sizeof(signatureHex));
 
   return bodyHashHex[0] != '\0' && signatureHex[0] != '\0';
+}
+
+static String buildServerUrl(const char *path) {
+  String url = config.serverUrl;
+  url.trim();
+
+  while (url.endsWith("/")) {
+    url.remove(url.length() - 1);
+  }
+
+  if (path[0] != '/') {
+    url += '/';
+  }
+  url += path;
+
+  return url;
 }
 
 static void postToServer(const char *payload) {
@@ -633,7 +639,8 @@ static void postToServer(const char *payload) {
   http.setTimeout(15000);
   http.setFollowRedirects(HTTPC_DISABLE_FOLLOW_REDIRECTS);
 
-  if (!http.begin(client, config.reportUrl)) {
+  String reportUrl = buildServerUrl(REPORT_PATH);
+  if (!http.begin(client, reportUrl)) {
     markCloudFailure("http_begin_failed", 0);
     Serial.println(F("http_status=0;error=http_begin_failed"));
     return;
@@ -764,7 +771,8 @@ static void sendLocalPage() {
   html += F("async function relay(pin,value){await api('/relay',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'pin='+pin+'&value='+value});load()}");
   html += F("async function load(){const s=await api('/status');");
   html += F("document.getElementById('summary').innerHTML='Cloud: <b class=\"'+(s.cloud_online?'ok':'bad')+'\">'+(s.cloud_online?'online':'offline')+'</b><br>IP: '+s.ip+'<br>HTTP: '+s.last_http_status+' / '+s.last_error+'<br>Safe off: '+s.safe_off_active+'<br>Offline seconds: '+s.cloud_offline_seconds+' / '+s.cloud_grace_seconds;");
-  html += F("let rh='';for(const k in s.readings){rh+='<div class=item><b>'+k+'</b><br>'+s.readings[k]+'</div>'}document.getElementById('readings').innerHTML=rh;");
+  html += F("const labels={soil_moisture_raw:'Влажность почвы',light_level_raw:'Освещенность',air_humidity:'Влажность воздуха',air_temperature:'Температура воздуха'};");
+  html += F("let rh='';for(const k in s.readings){rh+='<div class=item><b>'+(labels[k]||k)+'</b><br>'+s.readings[k]+'</div>'}document.getElementById('readings').innerHTML=rh;");
   html += F("document.getElementById('control-note').textContent=s.cloud_online?'Управление выполняется сервером. Локальные кнопки доступны при потере связи.':'Сервер недоступен. Локальное управление активно.';");
   html += F("let d=s.cloud_online?' disabled':'';let rr='';for(const k in s.relays){rr+='<div class=item><b>'+k+': '+s.relays[k]+'</b><br><button class=on '+d+' onclick=\"relay(\\''+k+'\\',1)\">ON</button><button class=off '+d+' onclick=\"relay(\\''+k+'\\',0)\">OFF</button></div>'}document.getElementById('relays').innerHTML=rr}");
   html += F("load();setInterval(load,5000)</script></div></body></html>");
@@ -772,9 +780,12 @@ static void sendLocalPage() {
   webServer.send(200, F("text/html"), html);
 }
 
-static void addTextInput(String &html, const char *name, const char *label, const char *value) {
+static void addTextInput(String &html, const char *name, const char *label, const char *help, const char *value) {
   html += F("<label>");
   html += label;
+  html += F("<span class='help'>");
+  html += help;
+  html += F("</span>");
   html += F("<input name='");
   html += name;
   html += F("' value='");
@@ -782,9 +793,12 @@ static void addTextInput(String &html, const char *name, const char *label, cons
   html += F("'></label>");
 }
 
-static void addSecretInput(String &html, const char *name, const char *label) {
+static void addSecretInput(String &html, const char *name, const char *label, const char *help) {
   html += F("<label>");
   html += label;
+  html += F("<span class='help'>");
+  html += help;
+  html += F("</span>");
   html += F("<input name='");
   html += name;
   html += F("' type='password' placeholder='оставьте пустым, чтобы не менять'></label>");
@@ -803,28 +817,27 @@ static void sendConfigPage(const char *message = "") {
   html += F("<style>body{margin:0;font-family:Arial,sans-serif;background:#071a13;color:#f4fff8}");
   html += F(".wrap{max-width:760px;margin:0 auto;padding:24px}.card{background:#10281d;border:1px solid #28543d;border-radius:18px;padding:18px;margin:14px 0}");
   html += F("label{display:block;margin:12px 0;color:#a8c8b8}input{box-sizing:border-box;width:100%;padding:10px;margin-top:5px;border-radius:10px;border:1px solid #28543d;background:#071a13;color:#f4fff8}");
-  html += F("button{border:0;border-radius:10px;padding:12px 16px;font-weight:700;background:#62dc91;cursor:pointer}.msg{color:#62dc91}a{color:#62dc91}</style></head><body><div class='wrap'>");
+  html += F(".help{display:block;margin-top:4px;font-size:13px;line-height:1.4;color:#7fa794}button{border:0;border-radius:10px;padding:12px 16px;font-weight:700;background:#62dc91;cursor:pointer}.msg{color:#62dc91}a{color:#62dc91}</style></head><body><div class='wrap'>");
   html += F("<h1>Настройки ESP</h1><p><a href='/local'>Назад</a></p>");
+  html += F("<p class='help'>После сохранения ESP перезапустится автоматически. Новые настройки применятся после перезапуска.</p>");
   if (message[0] != '\0') {
     html += F("<div class='card msg'>");
     html += message;
     html += F("</div>");
   }
   html += F("<form class='card' method='post' action='/config'>");
-  addTextInput(html, "wifi_ssid", "Wi-Fi SSID", config.wifiSsid);
-  addSecretInput(html, "wifi_password", "Wi-Fi password");
-  addTextInput(html, "report_url", "Report URL", config.reportUrl);
-  addTextInput(html, "report_path", "Report path", config.reportPath);
-  addTextInput(html, "remote_ui_url", "Remote UI URL", config.remoteUiUrl);
-  addTextInput(html, "proxy_id", "Proxy ID", config.proxyId);
-  addSecretInput(html, "proxy_secret", "Proxy secret");
-  addTextInput(html, "local_login", "Local login", config.localLogin);
-  addSecretInput(html, "local_password", "Local password");
+  addTextInput(html, "wifi_ssid", "Wi-Fi сеть", "Имя Wi-Fi сети, к которой подключается ESP8266.", config.wifiSsid);
+  addSecretInput(html, "wifi_password", "Пароль Wi-Fi", "Оставьте пустым, если не хотите менять текущий пароль.");
+  addTextInput(html, "server_url", "Адрес сервера AiDvor", "Базовый адрес сервера без пути. Пример: http://192.168.0.201:3000 или https://home.aidvor.ru.", config.serverUrl);
+  addTextInput(html, "proxy_id", "ID прокси", "Идентификатор ESP-прокси. Должен совпадать с настройками сервера.", config.proxyId);
+  addSecretInput(html, "proxy_secret", "Секрет прокси", "Используется для HMAC-подписи запросов. Оставьте пустым, если не хотите менять.");
+  addTextInput(html, "local_login", "Логин локальной админки", "Логин для входа на страницы ESP: /local, /status, /config.", config.localLogin);
+  addSecretInput(html, "local_password", "Пароль локальной админки", "Оставьте пустым, если не хотите менять текущий пароль.");
   char grace[16];
   snprintf(grace, sizeof(grace), "%lu", config.cloudGraceSeconds);
-  addTextInput(html, "cloud_grace_seconds", "Cloud grace seconds", grace);
+  addTextInput(html, "cloud_grace_seconds", "Задержка отключения реле, секунд", "Сколько секунд ESP сохраняет состояние реле после потери связи с сервером. После истечения времени все реле выключаются.", grace);
   html += F("<p><button type='submit'>Сохранить</button></p>");
-  html += F("<p>Новые настройки применятся после reset ESP.</p></form></div></body></html>");
+  html += F("</form></div></body></html>");
 
   webServer.send(200, F("text/html"), html);
 }
@@ -836,9 +849,7 @@ static void handleConfigPost() {
 
   ProxyConfig nextConfig = config;
   if (webServer.hasArg("wifi_ssid")) copyConfigValue(nextConfig.wifiSsid, sizeof(nextConfig.wifiSsid), webServer.arg("wifi_ssid"));
-  if (webServer.hasArg("report_url")) copyConfigValue(nextConfig.reportUrl, sizeof(nextConfig.reportUrl), webServer.arg("report_url"));
-  if (webServer.hasArg("report_path")) copyConfigValue(nextConfig.reportPath, sizeof(nextConfig.reportPath), webServer.arg("report_path"));
-  if (webServer.hasArg("remote_ui_url")) copyConfigValue(nextConfig.remoteUiUrl, sizeof(nextConfig.remoteUiUrl), webServer.arg("remote_ui_url"));
+  if (webServer.hasArg("server_url")) copyConfigValue(nextConfig.serverUrl, sizeof(nextConfig.serverUrl), webServer.arg("server_url"));
   if (webServer.hasArg("proxy_id")) copyConfigValue(nextConfig.proxyId, sizeof(nextConfig.proxyId), webServer.arg("proxy_id"));
   if (webServer.hasArg("local_login")) copyConfigValue(nextConfig.localLogin, sizeof(nextConfig.localLogin), webServer.arg("local_login"));
 
@@ -856,7 +867,7 @@ static void handleConfigPost() {
     nextConfig.cloudGraceSeconds = seconds > 0 ? (unsigned long) seconds : config.cloudGraceSeconds;
   }
 
-  if (nextConfig.reportPath[0] != '/' || !validateConfigValues(nextConfig)) {
+  if (!validateConfigValues(nextConfig)) {
     webServer.send(400, F("text/plain"), F("Invalid config"));
     return;
   }
@@ -874,7 +885,8 @@ static void handleConfigPost() {
 
 static void handleRoot() {
   if (cloudOnline && configLoaded) {
-    webServer.sendHeader(F("Location"), config.remoteUiUrl);
+    String dashboardUrl = buildServerUrl(DASHBOARD_PATH);
+    webServer.sendHeader(F("Location"), dashboardUrl);
     webServer.send(302, F("text/plain"), F("Redirecting to AiDvor"));
     return;
   }
