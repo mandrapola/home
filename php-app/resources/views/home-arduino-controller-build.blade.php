@@ -113,8 +113,8 @@
                 <tr><td><span class="pin-chip">D9</span></td><td>relay_4</td></tr>
                 <tr><td><span class="pin-chip">A0</span></td><td>soil_moisture_raw</td></tr>
                 <tr><td><span class="pin-chip">A1</span></td><td>light_level_raw</td></tr>
-                <tr><td><span class="pin-chip">D4</span></td><td>TM1637 DIO</td></tr>
-                <tr><td><span class="pin-chip">D7</span></td><td>TM1637 CLK</td></tr>
+                <tr><td><span class="pin-chip">D7</span></td><td>TM1637 DIO</td></tr>
+                <tr><td><span class="pin-chip">D8</span></td><td>TM1637 CLK</td></tr>
                 </tbody>
             </table>
             <div class="legend">
@@ -248,14 +248,14 @@
                 <ul>
                     <li>5V → VCC дисплея</li>
                     <li>GND → GND дисплея</li>
-                    <li>D4 → DIO дисплея</li>
-                    <li>D7 → CLK дисплея</li>
+                    <li>D7 → DIO дисплея</li>
+                    <li>D8 → CLK дисплея</li>
                 </ul>
             </div>
             <div class="step-diagram">
                 <strong>TM1637</strong><br>
-                DIO → <code>D4</code><br>
-                CLK → <code>D7</code><br>
+                DIO → <code>D7</code><br>
+                CLK → <code>D8</code><br>
                 VCC/GND → <code>5V/GND</code>
                 <svg viewBox="0 0 260 110" aria-hidden="true">
                     <rect x="12" y="36" width="88" height="34" rx="8" fill="#111a22"></rect>
@@ -264,8 +264,8 @@
                     <text class="d-label" x="188" y="48" text-anchor="middle">UNO</text>
                     <circle class="d-pin" cx="136" cy="30" r="5"></circle><text class="d-pin-text" x="136" y="32" text-anchor="middle">5V</text>
                     <circle class="d-pin" cx="162" cy="30" r="5"></circle><text class="d-pin-text" x="162" y="32" text-anchor="middle">G</text>
-                    <circle class="d-pin" cx="194" cy="30" r="5"></circle><text class="d-pin-text" x="194" y="32" text-anchor="middle">D4</text>
-                    <circle class="d-pin" cx="238" cy="30" r="5"></circle><text class="d-pin-text" x="238" y="32" text-anchor="middle">D7</text>
+                    <circle class="d-pin" cx="194" cy="30" r="5"></circle><text class="d-pin-text" x="194" y="32" text-anchor="middle">D7</text>
+                    <circle class="d-pin" cx="238" cy="30" r="5"></circle><text class="d-pin-text" x="238" y="32" text-anchor="middle">D8</text>
                     <path class="d-wire-power" d="M100 40 L136 30"></path>
                     <path class="d-wire-gnd" d="M100 68 L162 30"></path>
                     <path class="d-wire-sig" d="M100 52 L194 30"></path>
@@ -314,7 +314,7 @@
         <h2>Проверка перед включением</h2>
         <ul class="parts-list">
             <li>Проверьте, что питание модулей соответствует схеме: <strong>5V</strong> и <strong>GND</strong> не перепутаны.</li>
-            <li>Убедитесь, что сигнальные линии подключены к правильным пинам: D2, D3, D4, D5, D6, D7, D9, A0, A1.</li>
+            <li>Убедитесь, что сигнальные линии подключены к правильным пинам: D2, D3, D5, D6, D7, D8, D9, A0, A1.</li>
             <li>Проверьте, что датчик влажности почвы подключен именно к <strong>AO/AOUT</strong>, а не к цифровому выходу.</li>
             <li>Проверьте делитель фоторезистора: резистор 10 кОм должен идти между A1 и GND.</li>
             <li>Убедитесь, что релейный модуль запитан отдельно от нагрузки и не коммутирует питание Arduino напрямую.</li>
