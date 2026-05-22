@@ -12,6 +12,7 @@ DROP TABLE IF EXISTS system_settings;
 DROP TABLE IF EXISTS pin_data;
 DROP TABLE IF EXISTS pin;
 DROP TABLE IF EXISTS controller_pairings;
+DROP TABLE IF EXISTS controller_registration_attempts;
 DROP TABLE IF EXISTS alice_accounts;
 DROP TABLE IF EXISTS controller_user;
 DROP TABLE IF EXISTS controller;
@@ -149,7 +150,7 @@ CREATE TABLE controller_pairings (
   controller_id CHAR(36) NOT NULL,
   user_id BIGINT UNSIGNED NOT NULL,
   code VARCHAR(4) NOT NULL,
-  status VARCHAR(16) NOT NULL DEFAULT 'pending',
+  status VARCHAR(32) NOT NULL DEFAULT 'pending',
   expires_at TIMESTAMP NOT NULL,
   displayed_at TIMESTAMP NULL,
   claimed_at TIMESTAMP NULL,
@@ -159,6 +160,30 @@ CREATE TABLE controller_pairings (
   KEY idx_pairing_user_status (user_id, status),
   CONSTRAINT fk_controller_pairings_controller FOREIGN KEY (controller_id) REFERENCES controller(id) ON DELETE CASCADE,
   CONSTRAINT fk_controller_pairings_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE controller_registration_attempts (
+  id CHAR(36) NOT NULL PRIMARY KEY,
+  device_uid VARCHAR(64) NOT NULL,
+  code VARCHAR(4) NOT NULL,
+  challenge_code VARCHAR(4) NULL,
+  registration_token_hash VARCHAR(64) NULL,
+  status VARCHAR(16) NOT NULL DEFAULT 'pending',
+  registered_controller_id CHAR(36) NULL,
+  requested_user_id BIGINT UNSIGNED NULL,
+  last_seen_at TIMESTAMP NULL,
+  challenge_started_at TIMESTAMP NULL,
+  expires_at TIMESTAMP NOT NULL,
+  claimed_at TIMESTAMP NULL,
+  created_at TIMESTAMP NULL,
+  updated_at TIMESTAMP NULL,
+  KEY idx_registration_device_active (device_uid, status, expires_at),
+  KEY idx_registration_code_active (code, status, expires_at),
+  KEY idx_registration_user_status (requested_user_id, status, expires_at),
+  KEY idx_registration_token_status (registration_token_hash, status),
+  KEY idx_registration_controller (registered_controller_id),
+  CONSTRAINT fk_registration_controller FOREIGN KEY (registered_controller_id) REFERENCES controller(id) ON DELETE SET NULL,
+  CONSTRAINT fk_registration_user FOREIGN KEY (requested_user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE pin (

@@ -14,6 +14,8 @@ class ControllerReportResponseBuilder
     private array $digitalOutputs = [];
 
     private ?string $monitor = null;
+    private ?string $controllerId = null;
+    private bool $registrationRequired = false;
 
     public static function make(): self
     {
@@ -51,19 +53,43 @@ class ControllerReportResponseBuilder
         return $this;
     }
 
+    public function withControllerId(?string $controllerId): self
+    {
+        $this->controllerId = $controllerId !== null ? trim($controllerId) : null;
+        return $this;
+    }
+
+    public function withRegistrationRequired(bool $registrationRequired): self
+    {
+        $this->registrationRequired = $registrationRequired;
+        return $this;
+    }
+
     /**
      * @return array{
      *   send_interval_seconds:int,
      *   digital_outputs:array<string,int>,
-     *   monitor:?string
+     *   monitor:?string,
+     *   controller_id?:string,
+     *   registration_required?:bool
      * }
      */
     public function build(): array
     {
-        return [
+        $payload = [
             'send_interval_seconds' => $this->sendIntervalSeconds,
             'digital_outputs' => $this->digitalOutputs,
             'monitor' => $this->monitor,
         ];
+
+        if ($this->controllerId !== null) {
+            $payload['controller_id'] = $this->controllerId;
+        }
+
+        if ($this->registrationRequired) {
+            $payload['registration_required'] = true;
+        }
+
+        return $payload;
     }
 }

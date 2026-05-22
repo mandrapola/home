@@ -25,7 +25,6 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
-const char controllerId[] = "019d5529-ceee-7748-b9a8-a2e3ce1e8b8f";
 unsigned long sendIntervalMs = 30000UL;
 
 const uint8_t ESP_RX_PIN = 10; // Arduino receives from ESP TX.
@@ -219,9 +218,6 @@ static void updatePairingDisplayFromCsv(const char *csv) {
 static bool buildRequestPayload(char *out, size_t outSize, float humidity, float temperature) {
   size_t used = 0;
   bool first = true;
-
-  if (!appendFmt(out, outSize, &used, "controller_id=%s", controllerId)) return false;
-  first = false;
 
   for (size_t i = 0; i < DIGITAL_COUNT; i++) {
     int v = relayWireToLogical(i, digitalRead(DIGITAL_PINS[i]));

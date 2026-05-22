@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Validator;
 class ReportReading
 {
     private string $controllerId = '';
+    private string $deviceUid = '';
 
     /**
      * @var array<int, array{pin:string,value:float}>
@@ -29,6 +30,17 @@ class ReportReading
     public function setControllerId(string $controllerId): self
     {
         $this->controllerId = trim($controllerId);
+        return $this;
+    }
+
+    public function getDeviceUid(): string
+    {
+        return $this->deviceUid;
+    }
+
+    public function setDeviceUid(string $deviceUid): self
+    {
+        $this->deviceUid = trim($deviceUid);
         return $this;
     }
 
@@ -64,15 +76,28 @@ class ReportReading
 
     private function hydrateFromRequest(Request $request): void
     {
-        $validated = Validator::make($request->all(), [
-            'controller_id' => ['required', 'string', 'uuid'],
+        $validator = Validator::make($request->all(), [
+            'device_uid' => ['nullable', 'string', 'max:64'],
+            'controller_id' => ['nullable', 'string', 'max:64'],
             'readings' => ['nullable', 'array'],
             'readings.*.pin' => ['required_with:readings', 'string'],
             'readings.*.value' => ['required_with:readings'],
-        ])->validate();
+        ]);
+
+        $validator->after(function ($validator) use ($request): void {
+            $controllerId = trim((string) $request->input('controller_id', ''));
+            $deviceUid = trim((string) $request->input('device_uid', ''));
+
+            if ($controllerId === '' && $deviceUid === '') {
+                $validator->errors()->add('controller_id', 'controller_id or device_uid is required');
+            }
+        });
+
+        $validated = $validator->validate();
 
         $this
-            ->setControllerId((string) $validated['controller_id'])
+            ->setControllerId((string) ($validated['controller_id'] ?? ''))
+            ->setDeviceUid((string) ($validated['device_uid'] ?? ''))
             ->setReadings((array) ($validated['readings'] ?? []));
     }
 
@@ -86,4 +111,3 @@ class ReportReading
         return is_numeric($value) ? (float) $value : null;
     }
 }
-

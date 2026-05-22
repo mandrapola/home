@@ -26,7 +26,7 @@
 const unsigned long WIFI_CONNECT_TIMEOUT_MS = 20000UL;
 const unsigned long TIME_SYNC_TIMEOUT_MS = 15000UL;
 const size_t REQUEST_MAX = 260;
-const size_t JSON_MAX = 520;
+const size_t JSON_MAX = 620;
 const size_t RESPONSE_MAX = 220;
 const char CONFIG_PATH[] = "/config.txt";
 const char REPORT_PATH[] = "/api/controller/report";
@@ -40,6 +40,7 @@ struct ProxyConfig {
   char proxySecret[96];
   char localLogin[33];
   char localPassword[49];
+  char controllerId[37];  // UUID or empty
   unsigned long cloudGraceSeconds;
 };
 
@@ -143,6 +144,8 @@ static void setConfigValue(const String &key, const String &value) {
     copyConfigValue(config.localLogin, sizeof(config.localLogin), value);
   } else if (key == "local_password") {
     copyConfigValue(config.localPassword, sizeof(config.localPassword), value);
+  } else if (key == "controller_id") {
+    copyConfigValue(config.controllerId, sizeof(config.controllerId), value);
   } else if (key == "cloud_grace_seconds") {
     long seconds = value.toInt();
     config.cloudGraceSeconds = seconds > 0 ? (unsigned long) seconds : 300UL;
@@ -226,6 +229,8 @@ static bool writeConfigFile(const ProxyConfig &nextConfig) {
   file.println(nextConfig.localLogin);
   file.print(F("local_password="));
   file.println(nextConfig.localPassword);
+  file.print(F("controller_id="));
+  file.println(nextConfig.controllerId);
   file.print(F("cloud_grace_seconds="));
   file.println(nextConfig.cloudGraceSeconds);
   file.close();
@@ -409,24 +414,25 @@ static bool isNumericCsvValue(const char *value) {
 static bool csvToJson(const char *csv, char *out, size_t outSize) {
   char key[32];
   char value[56];
-  char controllerId[48] = "";
+  char deviceUid[48] = "";
   const char *cursor = csv;
 
-  while (readCsvToken(&cursor, key, sizeof(key), value, sizeof(value))) {
-    if (strcmp(key, "controller_id") == 0) {
-      strncpy(controllerId, value, sizeof(controllerId) - 1);
-      controllerId[sizeof(controllerId) - 1] = '\0';
-      break;
-    }
-  }
+  snprintf(deviceUid, sizeof(deviceUid), "esp_%06lx", (unsigned long) ESP.getChipId());
 
-  if (controllerId[0] == '\0') {
+  if (deviceUid[0] == '\0') {
     return false;
   }
 
   size_t used = 0;
   bool firstReading = true;
-  if (!appendFmt(out, outSize, &used, "{\"controller_id\":\"%s\",\"readings\":[", controllerId)) {
+  if (!appendFmt(
+    out,
+    outSize,
+    &used,
+    "{\"controller_id\":\"%s\",\"device_uid\":\"%s\",\"readings\":[",
+    config.controllerId,
+    deviceUid
+  )) {
     return false;
   }
 
@@ -507,6 +513,24 @@ static String extractJsonStringField(const String &json, const char *fieldName) 
   if (secondQuote <= firstQuote) return "";
 
   return json.substring(firstQuote + 1, secondQuote);
+}
+
+static void saveControllerIdFromResponse(const String &json) {
+  String controllerId = extractJsonStringField(json, "controller_id");
+  controllerId.trim();
+
+  if (controllerId.length() == 0 || controllerId.length() >= sizeof(config.controllerId)) {
+    return;
+  }
+
+  if (controllerId.equals(config.controllerId)) {
+    return;
+  }
+
+  copyConfigValue(config.controllerId, sizeof(config.controllerId), controllerId);
+  if (!writeConfigFile(config)) {
+    setLastError("controller_id_save_failed");
+  }
 }
 
 static bool jsonToUnoCsv(const String &json, char *out, size_t outSize) {
@@ -680,6 +704,8 @@ static void postToServer(const char *payload) {
     return;
   }
 
+  saveControllerIdFromResponse(body);
+
   if (jsonToUnoCsv(body, requestLine, sizeof(requestLine))) {
     updateStateFromCsv(requestLine);
     Serial.println(requestLine);
@@ -712,6 +738,8 @@ static String buildStatusJson() {
   json += safeOffActive ? F("true") : F("false");
   json += F(",\"ip\":\"");
   json += WiFi.localIP().toString();
+  json += F("\",\"controller_id\":\"");
+  json += config.controllerId;
   json += F("\",\"last_http_status\":");
   json += String(lastHttpStatus);
   json += F(",\"last_error\":\"");
@@ -829,6 +857,7 @@ static void sendConfigPage(const char *message = "") {
   addTextInput(html, "wifi_ssid", "Wi-Fi сеть", "Имя Wi-Fi сети, к которой подключается ESP8266.", config.wifiSsid);
   addSecretInput(html, "wifi_password", "Пароль Wi-Fi", "Оставьте пустым, если не хотите менять текущий пароль.");
   addTextInput(html, "server_url", "Адрес сервера AiDvor", "Базовый адрес сервера без пути. Пример: http://192.168.0.201:3000 или https://home.aidvor.ru.", config.serverUrl);
+  addTextInput(html, "controller_id", "ID контроллера", "Заполняется сервером после регистрации. Оставьте пустым перед первой регистрацией.", config.controllerId);
   addTextInput(html, "proxy_id", "ID прокси", "Идентификатор ESP-прокси. Должен совпадать с настройками сервера.", config.proxyId);
   addSecretInput(html, "proxy_secret", "Секрет прокси", "Используется для HMAC-подписи запросов. Оставьте пустым, если не хотите менять.");
   addTextInput(html, "local_login", "Логин локальной админки", "Логин для входа на страницы ESP: /local, /status, /config.", config.localLogin);
@@ -850,6 +879,7 @@ static void handleConfigPost() {
   ProxyConfig nextConfig = config;
   if (webServer.hasArg("wifi_ssid")) copyConfigValue(nextConfig.wifiSsid, sizeof(nextConfig.wifiSsid), webServer.arg("wifi_ssid"));
   if (webServer.hasArg("server_url")) copyConfigValue(nextConfig.serverUrl, sizeof(nextConfig.serverUrl), webServer.arg("server_url"));
+  if (webServer.hasArg("controller_id")) copyConfigValue(nextConfig.controllerId, sizeof(nextConfig.controllerId), webServer.arg("controller_id"));
   if (webServer.hasArg("proxy_id")) copyConfigValue(nextConfig.proxyId, sizeof(nextConfig.proxyId), webServer.arg("proxy_id"));
   if (webServer.hasArg("local_login")) copyConfigValue(nextConfig.localLogin, sizeof(nextConfig.localLogin), webServer.arg("local_login"));
 

@@ -5,6 +5,7 @@
 wifi_ssid=YOUR_WIFI_SSID
 wifi_password=YOUR_WIFI_PASSWORD
 server_url=https://home.aidvor.ru
+controller_id=
 proxy_id=YOUR_PROXY_ID
 proxy_secret=YOUR_PROXY_SECRET
 local_login=admin

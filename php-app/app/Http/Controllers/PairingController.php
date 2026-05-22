@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Events\ControllerPaired;
 use App\Models\ControllerPairing;
+use App\Models\ControllerRegistrationAttempt;
 use App\Models\IoTController;
 use App\Services\Billing\PlanLimitService;
 use App\Services\Report\PinValueTransformer;
@@ -42,6 +43,91 @@ class PairingController extends Controller
         }
 
         throw new \RuntimeException('Unable to generate unique pairing code');
+    }
+
+    private function activeRegistrationAndPairingCodes(array $excludeRegistrationAttemptIds = []): array
+    {
+        $query = ControllerRegistrationAttempt::query()
+            ->where('status', 'pending')
+            ->where('expires_at', '>', now());
+
+        if (count($excludeRegistrationAttemptIds) > 0) {
+            $query->whereNotIn('id', $excludeRegistrationAttemptIds);
+        }
+
+        $takenCodes = $query
+            ->pluck('code')
+            ->mapWithKeys(fn ($code) => [(string) $code => true])
+            ->all();
+
+        ControllerPairing::query()
+            ->where('status', 'pending')
+            ->where('expires_at', '>', now())
+            ->pluck('code')
+            ->each(function ($code) use (&$takenCodes): void {
+                $takenCodes[(string) $code] = true;
+            });
+
+        return $takenCodes;
+    }
+
+    private function generateRegistrationCode(array &$takenCodes, ?string $avoidCode = null): string
+    {
+        if ($avoidCode !== null && $avoidCode !== '') {
+            $takenCodes[$avoidCode] = true;
+        }
+
+        return $this->generateUniqueCode($takenCodes);
+    }
+
+    private function createControllerFromRegistrationAttempt(ControllerRegistrationAttempt $registrationAttempt, mixed $user): array
+    {
+        $controllerId = (string) Str::uuid();
+        $now = now();
+        $deviceUid = (string) $registrationAttempt->device_uid;
+        $controllerName = 'ESP ' . strtoupper(substr($deviceUid, -6));
+
+        IoTController::query()->create([
+            'id' => $controllerId,
+            'name' => $controllerName,
+            'discription' => 'Registered from device_uid: ' . $deviceUid,
+            'send_interval_seconds' => IoTController::MIN_INTERVAL_SECONDS,
+            'status' => 'active',
+            'last_seen_at' => $registrationAttempt->last_seen_at ?? $now,
+            'claimed_at' => $now,
+        ]);
+
+        DB::table('controller_user')->insert([
+            'id' => (string) Str::uuid(),
+            'controller_id' => $controllerId,
+            'user_id' => (string) $user->id,
+            'role' => 'owner',
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $registrationAttempt->status = 'claimed';
+        $registrationAttempt->registered_controller_id = $controllerId;
+        $registrationAttempt->claimed_at = $now;
+        $registrationAttempt->save();
+
+        ControllerRegistrationAttempt::query()
+            ->where('device_uid', $deviceUid)
+            ->whereIn('status', ['pending', 'challenge_pending'])
+            ->where('id', '!=', (string) $registrationAttempt->id)
+            ->update(['status' => 'expired']);
+
+        event(new ControllerPaired($controllerId, (string) $user->id));
+
+        return [
+            'status' => 200,
+            'data' => [
+                'ok' => true,
+                'controller_id' => $controllerId,
+                'owner_user_id' => (string) $user->id,
+                'claimed_at' => optional($registrationAttempt->claimed_at)->toIso8601String(),
+            ],
+        ];
     }
 
     public function unclaimed(): JsonResponse
@@ -1232,6 +1318,7 @@ class PairingController extends Controller
     {
         $validated = $request->validate([
             'code' => ['required', 'string', 'size:4', 'regex:/^[0-9]{4}$/'],
+            'registration_token' => ['nullable', 'string', 'max:96'],
         ]);
 
         $user = $request->user();
@@ -1247,6 +1334,85 @@ class PairingController extends Controller
         }
 
         $result = DB::transaction(function () use ($validated, $user) {
+            ControllerRegistrationAttempt::query()
+                ->whereIn('status', ['pending', 'challenge_pending'])
+                ->where('expires_at', '<=', now())
+                ->update(['status' => 'expired']);
+
+            $registrationToken = trim((string) ($validated['registration_token'] ?? ''));
+            if ($registrationToken !== '') {
+                $registrationAttempt = ControllerRegistrationAttempt::query()
+                    ->where('registration_token_hash', hash('sha256', $registrationToken))
+                    ->where('requested_user_id', (string) $user->id)
+                    ->where('challenge_code', (string) $validated['code'])
+                    ->where('status', 'challenge_pending')
+                    ->where('expires_at', '>', now())
+                    ->lockForUpdate()
+                    ->first();
+
+                if (! $registrationAttempt) {
+                    return ['status' => 404, 'data' => ['error' => 'challenge_not_found', 'message' => 'Active controller challenge for this code not found']];
+                }
+
+                return $this->createControllerFromRegistrationAttempt($registrationAttempt, $user);
+            }
+
+            $registrationAttempts = ControllerRegistrationAttempt::query()
+                ->where('code', (string) $validated['code'])
+                ->where('status', 'pending')
+                ->where('expires_at', '>', now())
+                ->orderByDesc('created_at')
+                ->lockForUpdate()
+                ->get();
+
+            if ($registrationAttempts->count() > 1) {
+                $excludeIds = $registrationAttempts->pluck('id')->map(fn ($id) => (string) $id)->all();
+                $takenCodes = $this->activeRegistrationAndPairingCodes($excludeIds);
+                foreach ($registrationAttempts as $registrationAttempt) {
+                    $registrationAttempt->code = $this->generateRegistrationCode($takenCodes, (string) $validated['code']);
+                    $registrationAttempt->challenge_code = null;
+                    $registrationAttempt->registration_token_hash = null;
+                    $registrationAttempt->requested_user_id = null;
+                    $registrationAttempt->challenge_started_at = null;
+                    $registrationAttempt->expires_at = now()->addMinutes(10);
+                    $registrationAttempt->save();
+                }
+
+                return [
+                    'status' => 409,
+                    'data' => [
+                        'error' => 'registration_code_collision',
+                        'message' => 'Several controllers use this code. New codes were sent to displays. Enter the new code from your controller.',
+                        'new_code_required' => true,
+                    ],
+                ];
+            }
+
+            if ($registrationAttempts->count() === 1) {
+                $registrationAttempt = $registrationAttempts->first();
+                $registrationToken = Str::random(48);
+                $takenCodes = $this->activeRegistrationAndPairingCodes([(string) $registrationAttempt->id]);
+                $challengeCode = $this->generateRegistrationCode($takenCodes, (string) $registrationAttempt->code);
+
+                $registrationAttempt->status = 'challenge_pending';
+                $registrationAttempt->requested_user_id = (string) $user->id;
+                $registrationAttempt->challenge_code = $challengeCode;
+                $registrationAttempt->registration_token_hash = hash('sha256', $registrationToken);
+                $registrationAttempt->challenge_started_at = now();
+                $registrationAttempt->expires_at = now()->addMinutes(10);
+                $registrationAttempt->save();
+
+                return [
+                    'status' => 202,
+                    'data' => [
+                        'ok' => false,
+                        'challenge_required' => true,
+                        'registration_token' => $registrationToken,
+                        'message' => 'Enter the new code shown on the controller display.',
+                    ],
+                ];
+            }
+
             $pairing = ControllerPairing::query()
                 ->where('user_id', (string) $user->id)
                 ->where('code', (string) $validated['code'])

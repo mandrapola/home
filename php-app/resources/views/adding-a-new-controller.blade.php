@@ -6,26 +6,13 @@
         </div>
     </x-slot>
 
-    <div class="row g-3">
-        <div class="col-12 col-lg-5">
-            <div class="card shadow-sm h-100">
-                <div class="card-body">
-                    <h3 class="h6 mb-3">{{ __('1. Request Pairing Code') }}</h3>
-                    <p class="text-muted small mb-3">
-                        {{ __('Code will be sent to all unpaired controllers. Each controller gets a unique code.') }}
-                    </p>
-                    <div class="d-grid mt-3">
-                        <button id="start-pairing-btn" class="btn btn-primary">{{ __('Request 4-Digit Code') }}</button>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div class="row g-3 justify-content-center">
         <div class="col-12 col-lg-7">
             <div class="card shadow-sm h-100">
                 <div class="card-body">
-                    <h3 class="h6 mb-3">{{ __('2. Confirm Code from TM1637') }}</h3>
+                    <h3 class="h6 mb-3">{{ __('Confirm Controller Code') }}</h3>
                     <p class="text-muted small mb-3">
-                        {{ __('After requesting code, the controller receives it in API response and shows it on TM1637.') }}
+                        {{ __('Turn on the controller and wait until the code appears on its display. Enter the code here. If a second confirmation code appears, enter it here as well.') }}
                     </p>
                     <div class="mb-3">
                         <label for="pairing-code" class="form-label">{{ __('Code from Display') }}</label>
@@ -44,10 +31,9 @@
         (function () {
             const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
             const codeInput = document.getElementById('pairing-code');
-            const startBtn = document.getElementById('start-pairing-btn');
             const confirmBtn = document.getElementById('confirm-pairing-btn');
             const statusEl = document.getElementById('pairing-status');
-            let activeSession = false;
+            let registrationToken = '';
 
             function showStatus(type, text) {
                 statusEl.className = 'alert mt-3';
@@ -56,47 +42,45 @@
                 statusEl.classList.remove('d-none');
             }
 
-            startBtn.addEventListener('click', async () => {
-                const response = await fetch('/api/pairing/start-all', {
-                    method: 'POST',
-                    headers: {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf},
-                    body: JSON.stringify({})
-                });
-                const data = await response.json();
-                if (!response.ok) {
-                    showStatus('error', data.message || '{{ __('Failed to start pairing') }}');
-                    return;
-                }
-
-                activeSession = true;
-                showStatus('ok', '{{ __('Codes sent to unpaired controllers') }}: ' + data.created_count + '. {{ __('Enter code from desired controller.') }}');
-            });
-
             confirmBtn.addEventListener('click', async () => {
                 const code = codeInput.value.trim();
-                if (!activeSession) {
-                    showStatus('error', '{{ __('Request pairing code first') }}');
-                    return;
-                }
                 if (code.length !== 4) {
                     showStatus('error', '{{ __('Enter 4-digit code') }}');
                     return;
                 }
 
+                const payload = {code: code};
+                if (registrationToken) {
+                    payload.registration_token = registrationToken;
+                }
+
                 const response = await fetch('/api/pairing/confirm-by-code', {
                     method: 'POST',
                     headers: {'Accept': 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf},
-                    body: JSON.stringify({code: code})
+                    body: JSON.stringify(payload)
                 });
                 const data = await response.json();
                 if (!response.ok) {
+                    if (data.new_code_required) {
+                        registrationToken = '';
+                        codeInput.value = '';
+                        showStatus('error', '{{ __('Several controllers use this code. New codes were sent to displays. Enter the new code from your controller.') }}');
+                        return;
+                    }
                     showStatus('error', data.message || '{{ __('Code is not confirmed') }}');
+                    return;
+                }
+
+                if (data.challenge_required) {
+                    registrationToken = data.registration_token || '';
+                    codeInput.value = '';
+                    showStatus('ok', '{{ __('Enter the new code from controller display.') }}');
                     return;
                 }
 
                 showStatus('ok', '{{ __('Controller successfully linked to your account.') }}');
                 codeInput.value = '';
-                activeSession = false;
+                registrationToken = '';
             });
         })();
     </script>
