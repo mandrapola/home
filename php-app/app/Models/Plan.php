@@ -15,6 +15,7 @@ class Plan extends Model
         'name',
         'description',
         'price_amount',
+        'daily_price_units',
         'price_currency',
         'max_controllers',
         'max_pin_data_rows',
@@ -26,6 +27,7 @@ class Plan extends Model
     {
         return [
             'price_amount' => 'decimal:2',
+            'daily_price_units' => 'integer',
             'max_controllers' => 'integer',
             'max_pin_data_rows' => 'integer',
             'alice_enabled' => 'boolean',

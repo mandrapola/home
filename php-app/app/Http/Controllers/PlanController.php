@@ -3,9 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Plan;
+use App\Models\PaymentTransaction;
 use App\Models\UserPlanSubscription;
 use App\Services\Billing\PlanLimitService;
-use App\Services\Billing\SubscriptionActivationService;
+use App\Services\Billing\UserBalanceService;
 use App\Support\Billing\SubscriptionSource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -19,14 +20,14 @@ class PlanController extends Controller
 {
     public function __construct(
         private readonly PlanLimitService $planLimitService,
-        private readonly SubscriptionActivationService $subscriptionActivationService,
+        private readonly UserBalanceService $userBalanceService,
     ) {
     }
 
     public function index(Request $request): View
     {
         $user = $request->user();
-        $plans = Plan::query()->where('is_active', true)->orderBy('price_amount')->get();
+        $plans = Plan::query()->where('is_active', true)->orderBy('daily_price_units')->get();
         $selectedSubscription = $user?->selectedPlanSubscription();
         $selectedPlanId = $user?->selected_plan_id;
         $usageSummary = $user ? $this->planLimitService->usageSummaryForUser($user) : null;
@@ -60,7 +61,7 @@ class PlanController extends Controller
 
         return redirect()
             ->route('user.plans.index')
-            ->with('status', __('Plan selected. Complete payment to activate it. Until payment, FREE limits apply.'));
+            ->with('status', __('Plan selected. Top up your balance to use paid limits.'));
     }
 
     public function limits(Request $request): JsonResponse
@@ -104,7 +105,8 @@ class PlanController extends Controller
             abort(401);
         }
 
-        $amount = number_format((float) $plan->price_amount, 2, '.', '');
+        $topUpUnits = (int) ($plan->daily_price_units ?? 0) * 31;
+        $amount = number_format((float) $topUpUnits, 2, '.', '');
         if ((float) $amount <= 0) {
             return redirect()->route('user.plans.index')->with('status', __('Selected plan does not require payment.'));
         }
@@ -135,7 +137,7 @@ class PlanController extends Controller
                 ]);
             }
 
-            PaymentTransaction::query()->create([
+            $order = PaymentTransaction::query()->create([
                 'user_id' => $user->id,
                 'plan_id' => $plan->id,
                 'amount' => $amount,
@@ -151,9 +153,14 @@ class PlanController extends Controller
                 ],
             ]);
 
-            $this->subscriptionActivationService->activatePlanForUser($user, (int) $plan->id);
+            $this->userBalanceService->credit(
+                $user,
+                $topUpUnits,
+                sprintf('Dev top-up for %s plan', $plan->name),
+                $order
+            );
 
-            return redirect()->route('user.plans.index')->with('status', __('Dev payment completed. Plan activated.'));
+            return redirect()->route('user.plans.index')->with('status', __('Dev payment completed. Balance topped up.'));
         }
 
         if (! $yooEnabled) {

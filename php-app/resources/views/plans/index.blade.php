@@ -224,6 +224,7 @@
             <div class="col-12">
                 <section id="plans" class="pricing-grid">
                     @forelse ($plans as $plan)
+                        @php($monthlyPriceUnits = (int) ($plan->daily_price_units ?? 0) * 31)
                         <article class="plan-card {{ (int) $selectedPlanId === (int) $plan->id ? 'is-selected' : '' }}">
                             <div class="card-body">
                                 <div class="plan-header">
@@ -232,8 +233,8 @@
                                         <p class="plan-description">{{ $plan->description }}</p>
                                     @endif
                                 </div>
-                                <div class="price-main">{{ number_format((float) $plan->price_amount, 2, '.', ' ') }} {{ $plan->price_currency }}</div>
-                                <p class="price-sub">{{ number_format((float) $plan->price_amount, 2, '.', ' ') }} {{ $plan->price_currency === 'RUB' ? ' / ' . rtrim(rtrim(number_format((float) $plan->price_amount, 2, '.', ''), '0'), '.') . ' ₽' : '' }}</p>
+                                <div class="price-main">{{ number_format($monthlyPriceUnits, 0, '.', ' ') }} {{ __('units/month') }}</div>
+                                <p class="price-sub">{{ number_format((int) ($plan->daily_price_units ?? 0), 0, '.', ' ') }} {{ __('units/day') }}</p>
                                 <ul>
                                     <li>{{ __('Controllers limit') }}: {{ $plan->max_controllers ?? __('Unlimited') }}</li>
                                     <li>{{ __('pin_data limit') }}: {{ $plan->max_pin_data_rows ?? __('Unlimited') }}</li>
@@ -246,7 +247,7 @@
                                             {{ (int) $selectedPlanId === (int) $plan->id ? __('Selected') : __('Choose Plan') }}
                                         </button>
                                     </form>
-                                    @if ((float) $plan->price_amount > 0)
+                                    @if ($monthlyPriceUnits > 0)
                                         <form method="POST" action="{{ route('user.plans.pay', $plan) }}">
                                             @csrf
                                             <button type="submit" class="btn btn-success w-100">{{ __('Pay') }}</button>

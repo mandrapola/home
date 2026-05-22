@@ -55,6 +55,16 @@ class User extends Authenticatable
         return $this->hasMany(PaymentTransaction::class);
     }
 
+    public function balance()
+    {
+        return $this->hasOne(UserBalance::class);
+    }
+
+    public function balanceTransactions(): HasMany
+    {
+        return $this->hasMany(BalanceTransaction::class);
+    }
+
     public function selectedPlanSubscription(): ?UserPlanSubscription
     {
         return $this->planSubscriptions()

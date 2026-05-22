@@ -6,6 +6,7 @@ namespace App\Listeners;
 
 use App\Events\ControllerReadingsReceived;
 use App\Services\Alice\AliceStateNotificationService;
+use App\Services\Billing\UserActivityService;
 use App\Services\Report\ControllerPinProvisioningService;
 use App\Services\Report\PinDataCleanupService;
 use App\Services\Report\PinDataHistoryService;
@@ -21,11 +22,14 @@ class ProcessControllerReadingsOnReport
         private readonly PinValueSyncService $pinValueSyncService,
         private readonly ScenarioDesiredValueService $scenarioDesiredValueService,
         private readonly AliceStateNotificationService $aliceStateNotificationService,
+        private readonly UserActivityService $userActivityService,
     ) {
     }
 
     public function handle(ControllerReadingsReceived $event): void
     {
+        $this->userActivityService->recordControllerReport($event->controllerId);
+
         $this->pinDataCleanupService->cleanupIfDue();
 
         $maps = $this->controllerPinProvisioningService->ensurePinsAndBuildMaps(

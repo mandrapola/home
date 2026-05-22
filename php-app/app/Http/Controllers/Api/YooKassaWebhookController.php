@@ -7,7 +7,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\PaymentTransaction;
 use App\Models\User;
-use App\Services\Billing\SubscriptionActivationService;
+use App\Services\Billing\UserBalanceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Log;
 class YooKassaWebhookController extends Controller
 {
     public function __construct(
-        private readonly SubscriptionActivationService $subscriptionActivationService,
+        private readonly UserBalanceService $userBalanceService,
     ) {
     }
 
@@ -91,14 +91,20 @@ class YooKassaWebhookController extends Controller
         }
 
         if ($event === 'payment.succeeded' || $providerStatus === 'succeeded') {
+            $wasSucceeded = $order->status === 'succeeded';
             $order->status = 'succeeded';
             $order->paid_at = now();
             $order->meta = $payload;
             $order->save();
 
             $user = User::query()->find($order->user_id);
-            if ($user) {
-                $this->subscriptionActivationService->activatePlanForUser($user, (int) $order->plan_id);
+            if ($user && ! $wasSucceeded) {
+                $this->userBalanceService->credit(
+                    $user,
+                    (int) round((float) $order->amount),
+                    'YooKassa balance top-up',
+                    $order
+                );
             }
         } elseif ($event === 'payment.canceled' || $providerStatus === 'canceled') {
             $order->status = 'canceled';

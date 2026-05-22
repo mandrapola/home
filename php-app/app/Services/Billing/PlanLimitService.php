@@ -20,6 +20,28 @@ class PlanLimitService
 
     public function resolveEffectivePlanForUser(User $user): ?Plan
     {
+        $defaultPlan = $this->getDefaultPlan();
+        $selectedPlan = $this->resolveSelectedPlanForUser($user);
+        if ($selectedPlan) {
+            $dailyPrice = (int) ($selectedPlan->daily_price_units ?? 0);
+            if ($dailyPrice <= 0) {
+                return $selectedPlan;
+            }
+
+            $balance = DB::table('user_balances')->where('user_id', $user->id)->first([
+                'balance_units',
+                'billing_blocked_at',
+            ]);
+
+            if ($balance) {
+                if ((int) $balance->balance_units > 0 && $balance->billing_blocked_at === null) {
+                    return $selectedPlan;
+                }
+
+                return $defaultPlan;
+            }
+        }
+
         $now = Carbon::now();
 
         $activeSubscription = DB::table('user_subscriptions as us')
@@ -38,7 +60,7 @@ class PlanLimitService
             return Plan::query()->find((int) $activeSubscription->id);
         }
 
-        return $this->getDefaultPlan();
+        return $defaultPlan;
     }
 
     public function resolveSelectedPlanForUser(User $user): ?Plan
@@ -126,7 +148,9 @@ class PlanLimitService
      *   controllers_max: int|null,
      *   pin_data_used: int,
      *   pin_data_max: int|null,
-     *   controller_slots_left: int|null
+     *   controller_slots_left: int|null,
+     *   balance_units: int,
+     *   billing_blocked: bool
      * }
      */
     public function usageSummaryForUser(User $user): array
@@ -147,6 +171,10 @@ class PlanLimitService
 
         $controllersMax = $effectivePlan?->max_controllers;
         $pinDataMax = $effectivePlan?->max_pin_data_rows;
+        $balance = DB::table('user_balances')->where('user_id', $user->id)->first([
+            'balance_units',
+            'billing_blocked_at',
+        ]);
 
         return [
             'selected_plan' => $selectedPlan,
@@ -156,6 +184,8 @@ class PlanLimitService
             'pin_data_used' => $pinDataUsed,
             'pin_data_max' => $pinDataMax,
             'controller_slots_left' => $controllersMax === null ? null : max(0, $controllersMax - $controllersUsed),
+            'balance_units' => (int) ($balance->balance_units ?? 0),
+            'billing_blocked' => $balance !== null && $balance->billing_blocked_at !== null,
         ];
     }
 }

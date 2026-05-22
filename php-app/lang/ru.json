@@ -329,5 +329,21 @@
   "pin_id is required in URL.": "В URL обязателен параметр pin_id.",
   "Plan: all scenarios are true": "План: все сценарии истинны",
   "Plan: mixed scenario states (true and false)": "План: смешанные состояния сценариев (true и false)",
-  "Plan: all scenarios are false": "План: все сценарии ложны"
+  "Plan: all scenarios are false": "План: все сценарии ложны",
+  "Daily price": "Стоимость дня",
+  "Monthly display price": "Стоимость за месяц",
+  "Legacy monthly price": "Старая месячная цена",
+  "units/month": "ед./месяц",
+  "units/day": "ед./день",
+  "Balance": "Баланс",
+  "Balance operations": "Операции по балансу",
+  "Top-ups and daily charges in internal units.": "Пополнения и дневные списания во внутренних единицах.",
+  "No balance operations yet.": "Операций по балансу пока нет.",
+  "Type": "Тип",
+  "Billing date": "Дата списания",
+  "balance.topup": "Пополнение",
+  "balance.daily_charge": "Дневное списание",
+  "balance.daily_charge_failed": "Частичное списание",
+  "Plan selected. Top up your balance to use paid limits.": "Тариф выбран. Пополните баланс, чтобы использовать платные лимиты.",
+  "Dev payment completed. Balance topped up.": "Тестовый платеж выполнен. Баланс пополнен."
 }

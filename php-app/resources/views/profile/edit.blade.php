@@ -19,6 +19,7 @@
         $selectedPlanName = $user->selectedPlan?->name ?? __('Not selected');
         $paymentsCount = $paymentOrders->count();
         $aliceConnected = (bool) $aliceLinkedAccount;
+        $balanceUnits = (int) ($userBalance->balance_units ?? 0);
     @endphp
 
     <style>
@@ -523,8 +524,8 @@
                     <div class="value">{{ $aliceConnected ? __('Connected') : __('Not connected') }}</div>
                 </div>
                 <div class="profile-stat">
-                    <div class="label">{{ __('payments') }}</div>
-                    <div class="value">{{ $paymentsCount }}</div>
+                    <div class="label">{{ __('Balance') }}</div>
+                    <div class="value">{{ number_format($balanceUnits, 0, '.', ' ') }}</div>
                 </div>
             </div>
         </section>
@@ -645,6 +646,47 @@
                                                 </td>
                                                 <td>{{ optional($order->created_at)->format('Y-m-d H:i') }}</td>
                                                 <td>{{ optional($order->paid_at)->format('Y-m-d H:i') ?? '—' }}</td>
+                                            </tr>
+                                        @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                </section>
+
+                <section class="profile-panel">
+                    <div class="payments-shell">
+                        <div class="payments-head">
+                            <div>
+                                <h2 class="payments-title">{{ __('Balance operations') }}</h2>
+                                <p class="payments-subtitle">{{ __('Top-ups and daily charges in internal units.') }}</p>
+                            </div>
+                        </div>
+                        <div class="payments-body">
+                            @if ($balanceTransactions->isEmpty())
+                                <p class="small-muted mb-0">{{ __('No balance operations yet.') }}</p>
+                            @else
+                                <div class="table-responsive">
+                                    <table class="table table-sm align-middle mb-0 payments-table">
+                                        <thead>
+                                        <tr>
+                                            <th>{{ __('Type') }}</th>
+                                            <th>{{ __('Amount') }}</th>
+                                            <th>{{ __('Balance') }}</th>
+                                            <th>{{ __('Billing date') }}</th>
+                                            <th>{{ __('Created') }}</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        @foreach ($balanceTransactions as $transaction)
+                                            <tr>
+                                                <td>{{ __('balance.' . $transaction->type) }}</td>
+                                                <td class="td-amount">{{ $transaction->amount_units > 0 ? '+' : '' }}{{ number_format((int) $transaction->amount_units, 0, '.', ' ') }}</td>
+                                                <td>{{ number_format((int) $transaction->balance_after_units, 0, '.', ' ') }}</td>
+                                                <td>{{ optional($transaction->billing_date)->format('Y-m-d') ?? '—' }}</td>
+                                                <td>{{ optional($transaction->created_at)->format('Y-m-d H:i') }}</td>
                                             </tr>
                                         @endforeach
                                         </tbody>

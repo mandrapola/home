@@ -323,5 +323,21 @@
   "pin_id is required in URL.": "pin_id is required in URL.",
   "Plan: all scenarios are true": "Plan: all scenarios are true",
   "Plan: mixed scenario states (true and false)": "Plan: mixed scenario states (true and false)",
-  "Plan: all scenarios are false": "Plan: all scenarios are false"
+  "Plan: all scenarios are false": "Plan: all scenarios are false",
+  "Daily price": "Daily price",
+  "Monthly display price": "Monthly display price",
+  "Legacy monthly price": "Legacy monthly price",
+  "units/month": "units/month",
+  "units/day": "units/day",
+  "Balance": "Balance",
+  "Balance operations": "Balance operations",
+  "Top-ups and daily charges in internal units.": "Top-ups and daily charges in internal units.",
+  "No balance operations yet.": "No balance operations yet.",
+  "Type": "Type",
+  "Billing date": "Billing date",
+  "balance.topup": "Top-up",
+  "balance.daily_charge": "Daily charge",
+  "balance.daily_charge_failed": "Partial charge",
+  "Plan selected. Top up your balance to use paid limits.": "Plan selected. Top up your balance to use paid limits.",
+  "Dev payment completed. Balance topped up.": "Dev payment completed. Balance topped up."
 }

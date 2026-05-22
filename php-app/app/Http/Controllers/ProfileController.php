@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Models\BalanceTransaction;
 use App\Models\PaymentTransaction;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -40,6 +41,14 @@ class ProfileController extends Controller
             'paymentOrders' => PaymentTransaction::query()
                 ->where('user_id', $request->user()->id)
                 ->with('plan:id,name')
+                ->orderByDesc('id')
+                ->limit(10)
+                ->get(),
+            'userBalance' => DB::table('user_balances')
+                ->where('user_id', $request->user()->id)
+                ->first(['balance_units', 'billing_blocked_at', 'billing_block_reason']),
+            'balanceTransactions' => BalanceTransaction::query()
+                ->where('user_id', $request->user()->id)
                 ->orderByDesc('id')
                 ->limit(10)
                 ->get(),

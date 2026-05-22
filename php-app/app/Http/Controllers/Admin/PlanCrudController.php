@@ -29,7 +29,7 @@ class PlanCrudController extends CrudController
     {
         CRUD::column('id')->label('ID');
         CRUD::column('name')->label(__('Name'));
-        CRUD::column('price_amount')->label(__('Price'));
+        CRUD::column('daily_price_units')->label(__('Daily price'));
         CRUD::column('price_currency')->label(__('Currency'));
         CRUD::column('max_controllers')->label(__('Max Controllers'));
         CRUD::column('max_pin_data_rows')->label(__('Max Pin Data Rows'));
@@ -42,7 +42,7 @@ class PlanCrudController extends CrudController
         CRUD::setValidation([
             'code' => ['required', 'string', 'max:64', 'unique:plans,code'],
             'name' => ['required', 'string', 'max:128'],
-            'price_amount' => ['required', 'numeric', 'min:0'],
+            'daily_price_units' => ['required', 'integer', 'min:0'],
             'price_currency' => ['required', 'string', 'size:3'],
         ]);
 
@@ -54,7 +54,7 @@ class PlanCrudController extends CrudController
 
         CRUD::field('name')->label(__('Name'));
         CRUD::field('description')->type('textarea')->label(__('Description'));
-        CRUD::field('price_amount')->type('number')->attributes(['step' => '0.01'])->label(__('Price'));
+        CRUD::field('daily_price_units')->type('number')->attributes(['step' => '1', 'min' => '0'])->label(__('Daily price'));
         CRUD::addField([
             'name' => 'code',
             'type' => 'text',
@@ -100,7 +100,7 @@ class PlanCrudController extends CrudController
         CRUD::setValidation([
             'code' => ['required', 'string', 'max:64', Rule::unique('plans', 'code')->ignore($id)],
             'name' => ['required', 'string', 'max:128'],
-            'price_amount' => ['required', 'numeric', 'min:0'],
+            'daily_price_units' => ['required', 'integer', 'min:0'],
             'price_currency' => ['required', 'string', 'size:3'],
         ]);
 
