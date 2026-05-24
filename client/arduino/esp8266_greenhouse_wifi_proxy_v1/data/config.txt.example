@@ -6,8 +6,12 @@ wifi_ssid=YOUR_WIFI_SSID
 wifi_password=YOUR_WIFI_PASSWORD
 server_url=https://home.aidvor.ru
 controller_id=
-proxy_id=YOUR_PROXY_ID
-proxy_secret=YOUR_PROXY_SECRET
+# Generated automatically by ESP during unregistered provisioning.
+provisioning_token=
+api_token=
+# Set tls_insecure=1 only for a local development HTTPS server.
+tls_insecure=0
+tls_fingerprint=YOUR_SERVER_CERTIFICATE_SHA1_FINGERPRINT
 local_login=admin
 local_password=CHANGE_ME_LOCAL_ADMIN_PASSWORD
 cloud_grace_seconds=300

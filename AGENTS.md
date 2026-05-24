@@ -14,7 +14,7 @@ AiDvor — веб-платформа для удаленного управле�
 
 Текущая основная аппаратная схема:
 - Arduino Uno читает датчики, управляет реле и формирует компактный CSV по UART.
-- ESP8266 принимает CSV от Uno, подключается к Wi‑Fi, преобразует CSV в JSON report-contract, подписывает запрос HMAC и отправляет данные на сервер.
+- ESP8266 принимает CSV от Uno, подключается к Wi‑Fi, преобразует CSV в JSON report-contract и отправляет данные с bearer token: временным provisioning token до регистрации, затем индивидуальным `api_token`.
 - Сервер возвращает JSON с `send_interval_seconds`, `digital_outputs`, `monitor`; ESP8266 преобразует его в CSV-команды для Uno.
 
 Локально по умолчанию:
@@ -36,7 +36,7 @@ AiDvor — веб-платформа для удаленного управле�
 ### 4.1 Контроллеры/пины/телеметрия
 - Телеметрия поступает через API report endpoint `/api/controller/report`.
 - Серверный report-contract ожидает JSON: `controller_id` + массив `readings[]`.
-- ESP8266-прокси подписывает запрос HMAC-заголовками `X-Proxy-Id`, `X-Timestamp`, `X-Nonce`, `X-Signature`.
+- До регистрации ESP8266 использует временный provisioning bearer token для `/api/controller/provision`; после регистрации использует индивидуальный bearer token для `/api/controller/report`.
 - На основе telemetry + scenarios формируются управляющие сигналы (`digital_outputs`).
 - Для sensor-пинов может применяться преобразование/калибровка значений (в т.ч. для графиков, карточек, условий сценариев).
 
@@ -99,10 +99,6 @@ Laravel env (`php-app/.env`), ключевые группы:
   - `YOOKASSA_WEBHOOK_SECRET`
   - `YOOKASSA_RETURN_URL`
   - `YOOKASSA_API_BASE_URL`
-- Controller proxy HMAC:
-  - `PROXY_HMAC_ENABLED`
-  - `PROXY_ID`
-  - `PROXY_SECRET`
 
 ## 9) Документация в репо
 - `README.md` (корневой)
@@ -130,7 +126,7 @@ Laravel env (`php-app/.env`), ключевые группы:
 - Pairing + report handling:
   - `php-app/app/Http/Controllers/PairingController.php`
   - `php-app/app/Http/Controllers/Api/ControllerReportController.php`
-  - `php-app/app/Http/Middleware/VerifyProxyHmac.php`
+  - `php-app/app/Http/Middleware/VerifyControllerToken.php`
   - `php-app/app/Listeners/ProcessControllerReadingsOnReport.php`
 - Arduino/ESP8266:
   - `client/arduino/arduino_uno_greenhouse_uart_controller_v1/`
@@ -158,6 +154,28 @@ docker compose exec -T server npm install
 docker compose exec -T server npm run dev
 docker compose exec -T server npm run build
 ```
+
+### 11.1 Прошивка ESP8266 proxy
+Перед прошивкой закрыть serial monitor, соединить `GPIO0` с `GND` и перезапустить ESP кнопкой `ESP-RST`.
+
+```bash
+arduino-cli compile \
+  --fqbn esp8266:esp8266:generic \
+  --build-path /tmp/esp8266_bearer_build \
+  client/arduino/esp8266_greenhouse_wifi_proxy_v1
+
+python3 -m esptool \
+  --port /dev/ttyUSB0 \
+  --baud 115200 \
+  --no-stub \
+  write_flash \
+  --flash_mode dout \
+  --flash_freq 40m \
+  --flash_size 4MB \
+  0x0 /tmp/esp8266_bearer_build/esp8266_greenhouse_wifi_proxy_v1.ino.bin
+```
+
+После прошивки убрать перемычку `GPIO0` -> `GND` и перезапустить ESP. Заливка скетча не заменяет `config.txt` во flash.
 
 ## 12) Проверки UI/ассетов
 Минимальный набор после UI-изменений:

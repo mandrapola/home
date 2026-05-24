@@ -20,6 +20,7 @@ use App\Support\ReportReading;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class ControllerReportController extends Controller
 {
@@ -91,18 +92,6 @@ class ControllerReportController extends Controller
         throw new \RuntimeException('Unable to generate unique registration code');
     }
 
-    private function claimedControllerIdForDevice(string $deviceUid): ?string
-    {
-        $controllerId = ControllerRegistrationAttempt::query()
-            ->where('device_uid', $deviceUid)
-            ->where('status', 'claimed')
-            ->whereNotNull('registered_controller_id')
-            ->orderByDesc('claimed_at')
-            ->value('registered_controller_id');
-
-        return $controllerId !== null ? (string) $controllerId : null;
-    }
-
     private function controllerExists(string $controllerId): bool
     {
         return DB::table('controller')
@@ -128,39 +117,36 @@ class ControllerReportController extends Controller
         return min(IoTController::MAX_INTERVAL_SECONDS, $minimumSeconds);
     }
 
-    private function registrationCodeResponse(string $deviceUid): JsonResponse
+    private function pendingApiToken(IoTController $controller): ?string
     {
-        $attempt = DB::transaction(function () use ($deviceUid): ControllerRegistrationAttempt {
-            ControllerRegistrationAttempt::query()
-                ->where('status', 'pending')
-                ->where('expires_at', '<=', now())
-                ->update(['status' => 'expired']);
+        $pendingToken = trim((string) $controller->pending_api_token);
+        if ($pendingToken !== '') {
+            return $pendingToken;
+        }
 
-            $activeAttempt = ControllerRegistrationAttempt::query()
-                ->where('device_uid', $deviceUid)
-                ->whereIn('status', ['pending', 'challenge_pending'])
-                ->where('expires_at', '>', now())
-                ->orderByDesc('created_at')
-                ->lockForUpdate()
-                ->first();
+        if (trim((string) $controller->api_token_hash) !== '') {
+            return null;
+        }
 
-            if ($activeAttempt) {
-                $activeAttempt->last_seen_at = now();
-                $activeAttempt->save();
+        $apiToken = Str::random(64);
+        $controller->api_token_hash = hash('sha256', $apiToken);
+        $controller->pending_api_token = $apiToken;
+        $controller->api_token_generated_at = now();
+        $controller->save();
 
-                return $activeAttempt;
-            }
+        return $apiToken;
+    }
 
-            return ControllerRegistrationAttempt::query()->create([
-                'id' => (string) \Illuminate\Support\Str::uuid(),
-                'device_uid' => $deviceUid,
-                'code' => $this->generateUniqueRegistrationCode(),
-                'status' => 'pending',
-                'last_seen_at' => now(),
-                'expires_at' => now()->addMinutes(self::REGISTRATION_TTL_MINUTES),
-            ]);
-        });
+    private function acknowledgeBearerToken(string $controllerId): void
+    {
+        IoTController::query()
+            ->where('id', $controllerId)
+            ->whereNotNull('pending_api_token')
+            ->update(['pending_api_token' => null]);
+    }
 
+    private function registrationResponse(ControllerRegistrationAttempt $attempt): JsonResponse
+    {
         $payload = ControllerReportResponseBuilder::make()
             ->withSendIntervalSeconds(IoTController::MIN_INTERVAL_SECONDS)
             ->withDigitalOutputs([])
@@ -172,43 +158,124 @@ class ControllerReportController extends Controller
         return response()->json($payload);
     }
 
+    public function provision(Request $request): JsonResponse
+    {
+        $reportReading = new ReportReading($request);
+        $deviceUid = $reportReading->getDeviceUid();
+        $readings = $reportReading->getReadings();
+        $provisioningToken = trim((string) $request->bearerToken());
+
+        if ($deviceUid === '' || count($readings) === 0) {
+            return $this->emptyReadingsResponse();
+        }
+
+        if (strlen($provisioningToken) < 32) {
+            return response()->json([
+                'error' => 'provision_auth_failed',
+                'message' => 'Provisioning bearer token is required.',
+            ], 401);
+        }
+
+        $tokenHash = hash('sha256', $provisioningToken);
+        $attempt = DB::transaction(function () use ($deviceUid, $tokenHash): ControllerRegistrationAttempt {
+            ControllerRegistrationAttempt::query()
+                ->whereIn('status', ['pending', 'challenge_pending'])
+                ->where('expires_at', '<=', now())
+                ->update(['status' => 'expired']);
+
+            $attempt = ControllerRegistrationAttempt::query()
+                ->where('device_uid', $deviceUid)
+                ->whereIn('status', ['pending', 'challenge_pending', 'claimed'])
+                ->where('expires_at', '>', now())
+                ->orderByDesc('created_at')
+                ->lockForUpdate()
+                ->first();
+
+            if (! $attempt) {
+                return ControllerRegistrationAttempt::query()->create([
+                    'id' => (string) Str::uuid(),
+                    'device_uid' => $deviceUid,
+                    'provisioning_token_hash' => $tokenHash,
+                    'code' => $this->generateUniqueRegistrationCode(),
+                    'status' => 'pending',
+                    'last_seen_at' => now(),
+                    'expires_at' => now()->addMinutes(self::REGISTRATION_TTL_MINUTES),
+                ]);
+            }
+
+            return $attempt;
+        });
+
+        if (! hash_equals((string) $attempt->provisioning_token_hash, $tokenHash)) {
+            return response()->json([
+                'error' => 'provision_auth_failed',
+                'message' => 'Invalid provisioning bearer token.',
+            ], 401);
+        }
+
+        $attempt->last_seen_at = now();
+        $attempt->save();
+
+        if ($attempt->status !== 'claimed') {
+            return $this->registrationResponse($attempt);
+        }
+
+        $controllerId = trim((string) $attempt->registered_controller_id);
+        $controller = IoTController::query()->find($controllerId, ['id', 'api_token_hash', 'pending_api_token']);
+        if (! $controller) {
+            $attempt->status = 'expired';
+            $attempt->save();
+
+            return response()->json([
+                'error' => 'controller_not_found',
+                'message' => 'Registered controller no longer exists. Start registration again.',
+            ], 404);
+        }
+
+        $apiToken = $this->pendingApiToken($controller);
+        if ($apiToken === null) {
+            return response()->json([
+                'error' => 'token_already_delivered',
+                'message' => 'Controller token was already activated.',
+            ], 409);
+        }
+
+        return response()->json(ControllerReportResponseBuilder::make()
+            ->withSendIntervalSeconds(IoTController::MIN_INTERVAL_SECONDS)
+            ->withDigitalOutputs([])
+            ->withMonitor(null)
+            ->withControllerId($controllerId)
+            ->withApiToken($apiToken)
+            ->build());
+    }
+
     public function __invoke(Request $request): JsonResponse
     {
         $reportReading = new ReportReading($request);
         $controllerId = $reportReading->getControllerId();
-        $deviceUid = $reportReading->getDeviceUid();
         $readings = $reportReading->getReadings();
-
         $ip = (string) ($request->ip() ?? 'unknown');
 
-        if (count($readings) === 0) {
+        if ($controllerId === '' || count($readings) === 0) {
             return $this->emptyReadingsResponse();
         }
 
-        if ($controllerId === '' && $deviceUid !== '') {
-            $claimedControllerId = $this->claimedControllerIdForDevice($deviceUid);
-            if ($claimedControllerId === null || ! $this->controllerExists($claimedControllerId)) {
-                return $this->registrationCodeResponse($deviceUid);
-            }
-
-            $controllerId = $claimedControllerId;
-        }
-
-        if ($controllerId !== '' && ! $this->controllerExists($controllerId)) {
-            if ($deviceUid !== '') {
-                $claimedControllerId = $this->claimedControllerIdForDevice($deviceUid);
-                if ($claimedControllerId !== null && $this->controllerExists($claimedControllerId)) {
-                    $controllerId = $claimedControllerId;
-                } else {
-                    return $this->registrationCodeResponse($deviceUid);
-                }
-            } else {
+        if (! $this->controllerExists($controllerId)) {
                 return response()->json([
                     'error' => 'controller_not_found',
-                    'message' => 'Controller not found and device_uid is missing.',
+                    'message' => 'Controller not found.',
                 ], 404);
-            }
         }
+
+        $authenticatedControllerId = trim((string) $request->attributes->get('authenticated_controller_id', ''));
+        if ($authenticatedControllerId !== '' && $authenticatedControllerId !== $controllerId) {
+            return response()->json([
+                'error' => 'controller_auth_failed',
+                'message' => 'Bearer token does not belong to this controller.',
+            ], 401);
+        }
+
+        $this->acknowledgeBearerToken($controllerId);
 
         $rateLimit = $this->reportRateLimitService->checkAndRecordAccepted($controllerId);
         if (! $rateLimit['allowed']) {

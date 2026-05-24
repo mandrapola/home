@@ -14,7 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->appendToGroup('web', \App\Http\Middleware\SetLocale::class);
         $middleware->alias([
-            'proxy.hmac' => \App\Http\Middleware\VerifyProxyHmac::class,
+            'controller.token' => \App\Http\Middleware\VerifyControllerToken::class,
             'alice.access' => \App\Http\Middleware\EnsureAliceAccessEnabled::class,
             'alice.resolve' => \App\Http\Middleware\ResolveAliceUser::class,
             'admin.user' => \App\Http\Middleware\EnsureAdminUser::class,

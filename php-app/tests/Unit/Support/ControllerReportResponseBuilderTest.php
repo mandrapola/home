@@ -29,4 +29,19 @@ class ControllerReportResponseBuilderTest extends TestCase
         $this->assertArrayHasKey('monitor', $payload);
         $this->assertNull($payload['monitor']);
     }
+
+    public function test_it_includes_api_token_only_when_it_is_set(): void
+    {
+        $payload = ControllerReportResponseBuilder::make()
+            ->withApiToken('individual-token')
+            ->build();
+
+        $this->assertSame('individual-token', $payload['api_token']);
+
+        $withoutToken = ControllerReportResponseBuilder::make()
+            ->withApiToken(null)
+            ->build();
+
+        $this->assertArrayNotHasKey('api_token', $withoutToken);
+    }
 }

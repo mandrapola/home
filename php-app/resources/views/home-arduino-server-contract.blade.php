@@ -140,7 +140,8 @@
     <section class="block">
         <h2>Ошибки и коды</h2>
         <ul>
-            <li><code>401 proxy_auth_failed</code> — HMAC-подпись отсутствует/некорректна.</li>
+            <li><code>401 controller_auth_failed</code> — bearer token контроллера отсутствует/некорректен.</li>
+            <li><code>401 provision_auth_failed</code> — временный provisioning token отсутствует/некорректен.</li>
             <li><code>403 forbidden</code> — контроллер не зарегистрирован и не в режиме привязки.</li>
             <li><code>400 bad_request</code> — некорректный формат payload.</li>
             <li><code>400 empty_readings</code> — нет валидных числовых readings.</li>

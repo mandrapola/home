@@ -16,6 +16,7 @@ class ControllerReportResponseBuilder
     private ?string $monitor = null;
     private ?string $controllerId = null;
     private bool $registrationRequired = false;
+    private ?string $apiToken = null;
 
     public static function make(): self
     {
@@ -65,13 +66,21 @@ class ControllerReportResponseBuilder
         return $this;
     }
 
+    public function withApiToken(?string $apiToken): self
+    {
+        $this->apiToken = $apiToken !== null ? trim($apiToken) : null;
+
+        return $this;
+    }
+
     /**
      * @return array{
      *   send_interval_seconds:int,
      *   digital_outputs:array<string,int>,
      *   monitor:?string,
      *   controller_id?:string,
-     *   registration_required?:bool
+     *   registration_required?:bool,
+     *   api_token?:string
      * }
      */
     public function build(): array
@@ -88,6 +97,10 @@ class ControllerReportResponseBuilder
 
         if ($this->registrationRequired) {
             $payload['registration_required'] = true;
+        }
+
+        if ($this->apiToken !== null && $this->apiToken !== '') {
+            $payload['api_token'] = $this->apiToken;
         }
 
         return $payload;

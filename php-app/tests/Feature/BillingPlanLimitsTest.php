@@ -6,7 +6,7 @@ namespace Tests\Feature;
 
 use App\Events\ControllerReadingsReceived;
 use App\Events\ControllerReportReceived;
-use App\Http\Middleware\VerifyProxyHmac;
+use App\Http\Middleware\VerifyControllerToken;
 use App\Models\Plan;
 use App\Models\User;
 use App\Services\Report\PinDataHistoryService;
@@ -38,7 +38,7 @@ class BillingPlanLimitsTest extends TestCase
             'send_interval_seconds' => 10,
         ]);
 
-        $this->withoutMiddleware(VerifyProxyHmac::class);
+        $this->withoutMiddleware(VerifyControllerToken::class);
 
         $payload = [
             'controller_id' => $controllerId,
@@ -216,7 +216,7 @@ class BillingPlanLimitsTest extends TestCase
             ],
         ]);
 
-        $this->withoutMiddleware(VerifyProxyHmac::class);
+        $this->withoutMiddleware(VerifyControllerToken::class);
 
         $response = $this->postJson('/api/controller/report', [
             'controller_id' => $controllerId,
@@ -280,7 +280,7 @@ class BillingPlanLimitsTest extends TestCase
             ],
         ]);
 
-        $this->withoutMiddleware(VerifyProxyHmac::class);
+        $this->withoutMiddleware(VerifyControllerToken::class);
 
         $response = $this->postJson('/api/controller/report', [
             'controller_id' => $controllerId,

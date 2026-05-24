@@ -18,6 +18,7 @@ class ControllerRegistrationAttempt extends Model
     protected $fillable = [
         'id',
         'device_uid',
+        'provisioning_token_hash',
         'code',
         'challenge_code',
         'registration_token_hash',

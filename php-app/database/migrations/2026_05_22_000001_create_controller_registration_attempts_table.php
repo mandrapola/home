@@ -13,6 +13,7 @@ return new class extends Migration
         Schema::create('controller_registration_attempts', function (Blueprint $table): void {
             $table->char('id', 36)->primary();
             $table->string('device_uid', 64);
+            $table->char('provisioning_token_hash', 64);
             $table->string('code', 4);
             $table->string('status', 32)->default('pending');
             $table->char('registered_controller_id', 36)->nullable();

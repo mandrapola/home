@@ -86,10 +86,14 @@ class PairingController extends Controller
         $now = now();
         $deviceUid = (string) $registrationAttempt->device_uid;
         $controllerName = 'ESP ' . strtoupper(substr($deviceUid, -6));
+        $apiToken = Str::random(64);
 
         IoTController::query()->create([
             'id' => $controllerId,
             'user_id' => (int) $user->id,
+            'api_token_hash' => hash('sha256', $apiToken),
+            'pending_api_token' => $apiToken,
+            'api_token_generated_at' => $now,
             'name' => $controllerName,
             'discription' => 'Registered from device_uid: ' . $deviceUid,
             'send_interval_seconds' => IoTController::MIN_INTERVAL_SECONDS,

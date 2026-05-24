@@ -85,6 +85,10 @@ return new class extends Migration
         Schema::create('controller', function (Blueprint $table): void {
             $table->char('id', 36)->primary();
             $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->char('api_token_hash', 64)->nullable()->unique();
+            $table->text('pending_api_token')->nullable();
+            $table->timestamp('api_token_generated_at')->nullable();
+            $table->timestamp('api_token_rotated_at')->nullable();
             $table->string('name', 255);
             $table->text('discription')->nullable();
             $table->integer('send_interval_seconds')->default(30);

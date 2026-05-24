@@ -55,11 +55,12 @@
 
 ### 4.1 Протокол
 - Транспорт: HTTP
-- Endpoint: `POST /api/controller/report`
-- Между `controller -> gateway`: CSV в `text/plain`
-- Между `gateway -> server`: JSON в `application/json`
+- Provisioning endpoint: `POST /api/controller/provision` с временным bearer token до привязки
+- Telemetry endpoint: `POST /api/controller/report` с индивидуальным `api_token` после привязки
+- Между `Arduino Uno -> ESP8266`: CSV по UART
+- Между `ESP8266 -> server`: JSON в `application/json`
 
-### 4.2 Запрос от контроллера к gateway (CSV)
+### 4.2 Запрос от Arduino Uno к ESP8266 (CSV)
 Пример:
 
 ```text
@@ -71,7 +72,7 @@ controller_id=019d5529-ceee-7748-b9a8-a2e3ce1e8b8f;relay_1=0;relay_2=1;relay_3=0
 - `soil_moisture_raw`, `light_level_raw` передаются как `ADC` значения.
 - `air_humidity`, `air_temperature` передаются из `DHT22` (если чтение недоступно, используется последняя валидная пара).
 
-### 4.3 Запрос от gateway к server (JSON)
+### 4.3 Запрос от ESP8266 к server (JSON)
 Пример:
 
 ```json
@@ -94,8 +95,9 @@ controller_id=019d5529-ceee-7748-b9a8-a2e3ce1e8b8f;relay_1=0;relay_2=1;relay_3=0
 - `controller_id` обязателен.
 - `readings` — массив объектов `{ pin, value }`.
 - Передаются только ключи, перечисленные в разделе 3.
+- Запрос авторизуется заголовком `Authorization: Bearer <api_token>`.
 
-### 4.4 Ответ от server к gateway (JSON)
+### 4.4 Ответ от server к ESP8266 (JSON)
 Пример:
 
 ```json
@@ -109,7 +111,7 @@ controller_id=019d5529-ceee-7748-b9a8-a2e3ce1e8b8f;relay_1=0;relay_2=1;relay_3=0
 }
 ```
 
-### 4.5 Ответ от gateway к контроллеру (CSV)
+### 4.5 Ответ от ESP8266 к Arduino Uno (CSV)
 Пример:
 
 ```text

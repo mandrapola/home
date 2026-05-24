@@ -43,6 +43,12 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(60)->by('alice-oauth-token:' . hash('sha256', $keySource));
         });
 
+        RateLimiter::for('controller-provision', function (Request $request) {
+            $deviceUid = trim((string) $request->input('device_uid', ''));
+            $keySource = $deviceUid !== '' ? $deviceUid . '|' . $request->ip() : (string) $request->ip();
+            return Limit::perMinute(30)->by('controller-provision:' . hash('sha256', $keySource));
+        });
+
         Event::listen(ControllerPaired::class, CleanupControllerPairingsOnPaired::class);
         Event::listen(ControllerReportReceived::class, EnsureControllerExistsOnReport::class);
         Event::listen(ControllerReadingsReceived::class, ProcessControllerReadingsOnReport::class);

@@ -3,7 +3,7 @@
 
   ESP8266 responsibilities:
     - receive CSV telemetry from Uno over Serial
-    - send HTTPS POST to AiDvor server
+    - send HTTPS POST to AiDvor server using provisioning or controller bearer tokens
     - return response CSV to Uno over Serial
 
   Wiring:
@@ -20,15 +20,13 @@
 #include <WiFiClientSecure.h>
 #include <ESP8266HTTPClient.h>
 #include <LittleFS.h>
-#include <bearssl/bearssl.h>
-#include <time.h>
 
 const unsigned long WIFI_CONNECT_TIMEOUT_MS = 20000UL;
-const unsigned long TIME_SYNC_TIMEOUT_MS = 15000UL;
 const size_t REQUEST_MAX = 260;
 const size_t JSON_MAX = 620;
 const size_t RESPONSE_MAX = 220;
 const char CONFIG_PATH[] = "/config.txt";
+const char PROVISION_PATH[] = "/api/controller/provision";
 const char REPORT_PATH[] = "/api/controller/report";
 const char DASHBOARD_PATH[] = "/dashboard";
 
@@ -36,12 +34,14 @@ struct ProxyConfig {
   char wifiSsid[33];
   char wifiPassword[65];
   char serverUrl[128];
-  char proxyId[33];
-  char proxySecret[96];
+  char provisioningToken[96];
+  char apiToken[96];
+  char tlsFingerprint[60];
   char localLogin[33];
   char localPassword[49];
   char controllerId[37];  // UUID or empty
   unsigned long cloudGraceSeconds;
+  bool tlsInsecure;
 };
 
 ProxyConfig config;
@@ -57,11 +57,6 @@ unsigned long cloudLostAtMs = 0;
 unsigned long restartAtMs = 0;
 char requestLine[REQUEST_MAX];
 char jsonPayload[JSON_MAX];
-char bodyHashHex[65];
-char signatureHex[65];
-char timestampBuffer[16];
-char nonceBuffer[32];
-char canonicalBuffer[220];
 char lastError[40] = "not_started";
 char lastTelemetryCsv[REQUEST_MAX] = "";
 char relayState[4] = { '0', '0', '0', '0' };
@@ -83,42 +78,6 @@ static bool appendFmt(char *dst, size_t dstSize, size_t *used, const char *fmt, 
   return true;
 }
 
-static void bytesToHex(const uint8_t *bytes, size_t len, char *out, size_t outSize) {
-  const char hex[] = "0123456789abcdef";
-  if (outSize < (len * 2) + 1) {
-    if (outSize > 0) out[0] = '\0';
-    return;
-  }
-
-  for (size_t i = 0; i < len; i++) {
-    out[i * 2] = hex[(bytes[i] >> 4) & 0x0f];
-    out[(i * 2) + 1] = hex[bytes[i] & 0x0f];
-  }
-  out[len * 2] = '\0';
-}
-
-static void sha256Hex(const char *text, char *out, size_t outSize) {
-  uint8_t digest[32];
-  br_sha256_context ctx;
-
-  br_sha256_init(&ctx);
-  br_sha256_update(&ctx, text, strlen(text));
-  br_sha256_out(&ctx, digest);
-  bytesToHex(digest, sizeof(digest), out, outSize);
-}
-
-static void hmacSha256Hex(const char *secret, const char *text, char *out, size_t outSize) {
-  uint8_t digest[32];
-  br_hmac_key_context keyCtx;
-  br_hmac_context hmacCtx;
-
-  br_hmac_key_init(&keyCtx, &br_sha256_vtable, secret, strlen(secret));
-  br_hmac_init(&hmacCtx, &keyCtx, 0);
-  br_hmac_update(&hmacCtx, text, strlen(text));
-  br_hmac_out(&hmacCtx, digest);
-  bytesToHex(digest, sizeof(digest), out, outSize);
-}
-
 static void copyConfigValue(char *dst, size_t dstSize, const String &value) {
   if (dstSize == 0) return;
 
@@ -136,10 +95,14 @@ static void setConfigValue(const String &key, const String &value) {
     copyConfigValue(config.wifiPassword, sizeof(config.wifiPassword), value);
   } else if (key == "server_url") {
     copyConfigValue(config.serverUrl, sizeof(config.serverUrl), value);
-  } else if (key == "proxy_id") {
-    copyConfigValue(config.proxyId, sizeof(config.proxyId), value);
-  } else if (key == "proxy_secret") {
-    copyConfigValue(config.proxySecret, sizeof(config.proxySecret), value);
+  } else if (key == "provisioning_token") {
+    copyConfigValue(config.provisioningToken, sizeof(config.provisioningToken), value);
+  } else if (key == "api_token") {
+    copyConfigValue(config.apiToken, sizeof(config.apiToken), value);
+  } else if (key == "tls_fingerprint") {
+    copyConfigValue(config.tlsFingerprint, sizeof(config.tlsFingerprint), value);
+  } else if (key == "tls_insecure") {
+    config.tlsInsecure = value == "1" || value.equalsIgnoreCase("true");
   } else if (key == "local_login") {
     copyConfigValue(config.localLogin, sizeof(config.localLogin), value);
   } else if (key == "local_password") {
@@ -160,8 +123,6 @@ static bool validateConfigValues(ProxyConfig &candidate) {
   return candidate.wifiSsid[0] != '\0'
     && candidate.wifiPassword[0] != '\0'
     && candidate.serverUrl[0] != '\0'
-    && candidate.proxyId[0] != '\0'
-    && candidate.proxySecret[0] != '\0'
     && candidate.localLogin[0] != '\0'
     && candidate.localPassword[0] != '\0';
 }
@@ -221,10 +182,14 @@ static bool writeConfigFile(const ProxyConfig &nextConfig) {
   file.println(nextConfig.wifiPassword);
   file.print(F("server_url="));
   file.println(nextConfig.serverUrl);
-  file.print(F("proxy_id="));
-  file.println(nextConfig.proxyId);
-  file.print(F("proxy_secret="));
-  file.println(nextConfig.proxySecret);
+  file.print(F("provisioning_token="));
+  file.println(nextConfig.provisioningToken);
+  file.print(F("api_token="));
+  file.println(nextConfig.apiToken);
+  file.print(F("tls_insecure="));
+  file.println(nextConfig.tlsInsecure ? F("1") : F("0"));
+  file.print(F("tls_fingerprint="));
+  file.println(nextConfig.tlsFingerprint);
   file.print(F("local_login="));
   file.println(nextConfig.localLogin);
   file.print(F("local_password="));
@@ -235,6 +200,24 @@ static bool writeConfigFile(const ProxyConfig &nextConfig) {
   file.println(nextConfig.cloudGraceSeconds);
   file.close();
   return true;
+}
+
+static bool ensureProvisioningToken() {
+  if (config.apiToken[0] != '\0' || config.provisioningToken[0] != '\0') {
+    return true;
+  }
+
+  const char hex[] = "0123456789abcdef";
+  char token[65];
+  for (size_t i = 0; i < 32; i++) {
+    uint8_t value = (uint8_t) (ESP.random() & 0xff);
+    token[i * 2] = hex[(value >> 4) & 0x0f];
+    token[(i * 2) + 1] = hex[value & 0x0f];
+  }
+  token[64] = '\0';
+  copyConfigValue(config.provisioningToken, sizeof(config.provisioningToken), String(token));
+
+  return writeConfigFile(config);
 }
 
 static bool readCsvLine(char *out, size_t outSize) {
@@ -515,21 +498,27 @@ static String extractJsonStringField(const String &json, const char *fieldName) 
   return json.substring(firstQuote + 1, secondQuote);
 }
 
-static void saveControllerIdFromResponse(const String &json) {
+static void saveProvisioningTokenFromResponse(const String &json) {
   String controllerId = extractJsonStringField(json, "controller_id");
+  String apiToken = extractJsonStringField(json, "api_token");
   controllerId.trim();
+  apiToken.trim();
 
-  if (controllerId.length() == 0 || controllerId.length() >= sizeof(config.controllerId)) {
-    return;
+  bool changed = false;
+
+  if (controllerId.length() > 0 && controllerId.length() < sizeof(config.controllerId) && !controllerId.equals(config.controllerId)) {
+    copyConfigValue(config.controllerId, sizeof(config.controllerId), controllerId);
+    changed = true;
   }
 
-  if (controllerId.equals(config.controllerId)) {
-    return;
+  if (apiToken.length() > 0 && apiToken.length() < sizeof(config.apiToken) && !apiToken.equals(config.apiToken)) {
+    copyConfigValue(config.apiToken, sizeof(config.apiToken), apiToken);
+    config.provisioningToken[0] = '\0';
+    changed = true;
   }
 
-  copyConfigValue(config.controllerId, sizeof(config.controllerId), controllerId);
-  if (!writeConfigFile(config)) {
-    setLastError("controller_id_save_failed");
+  if (changed && !writeConfigFile(config)) {
+    setLastError("credentials_save_failed");
   }
 }
 
@@ -576,45 +565,6 @@ static bool ensureWifi() {
   return WiFi.status() == WL_CONNECTED;
 }
 
-static bool ensureTime() {
-  time_t now = time(nullptr);
-  if (now > 1700000000) {
-    return true;
-  }
-
-  configTime(0, 0, "pool.ntp.org", "time.google.com", "time.cloudflare.com");
-
-  unsigned long startedAt = millis();
-  while ((millis() - startedAt) < TIME_SYNC_TIMEOUT_MS) {
-    now = time(nullptr);
-    if (now > 1700000000) {
-      return true;
-    }
-    delay(250);
-  }
-
-  return false;
-}
-
-static bool buildHmacHeaders(const char *payload) {
-  if (config.proxyId[0] == '\0' || config.proxySecret[0] == '\0') {
-    return false;
-  }
-
-  if (!ensureTime()) {
-    return false;
-  }
-
-  snprintf(timestampBuffer, sizeof(timestampBuffer), "%lu", (unsigned long) time(nullptr));
-  snprintf(nonceBuffer, sizeof(nonceBuffer), "%06lx%06lx", (unsigned long) ESP.getChipId(), (unsigned long) millis());
-
-  sha256Hex(payload, bodyHashHex, sizeof(bodyHashHex));
-  snprintf(canonicalBuffer, sizeof(canonicalBuffer), "POST\n%s\n%s\n%s\n%s\n%s", REPORT_PATH, bodyHashHex, timestampBuffer, nonceBuffer, config.proxyId);
-  hmacSha256Hex(config.proxySecret, canonicalBuffer, signatureHex, sizeof(signatureHex));
-
-  return bodyHashHex[0] != '\0' && signatureHex[0] != '\0';
-}
-
 static String buildServerUrl(const char *path) {
   String url = config.serverUrl;
   url.trim();
@@ -629,6 +579,26 @@ static String buildServerUrl(const char *path) {
   url += path;
 
   return url;
+}
+
+static bool configureTlsClient(WiFiClientSecure &client) {
+  String serverUrl = config.serverUrl;
+  serverUrl.trim();
+  if (!serverUrl.startsWith("https://")) {
+    return true;
+  }
+
+  if (config.tlsInsecure) {
+    client.setInsecure();  // Explicitly permitted for a local development server only.
+    return true;
+  }
+
+  if (config.tlsFingerprint[0] == '\0') {
+    return false;
+  }
+
+  client.setFingerprint(config.tlsFingerprint);
+  return true;
 }
 
 static void postToServer(const char *payload) {
@@ -650,20 +620,25 @@ static void postToServer(const char *payload) {
     return;
   }
 
-  if (!buildHmacHeaders(jsonPayload)) {
-    markCloudFailure("hmac_build_failed", 0);
-    Serial.println(F("http_status=0;error=hmac_build_failed"));
+  if (!ensureProvisioningToken()) {
+    markCloudFailure("token_save_failed", 0);
+    Serial.println(F("http_status=0;error=token_save_failed"));
     return;
   }
+  bool provisionMode = config.apiToken[0] == '\0';
 
   WiFiClientSecure client;
-  client.setInsecure();
+  if (!configureTlsClient(client)) {
+    markCloudFailure("tls_config_missing", 0);
+    Serial.println(F("http_status=0;error=tls_config_missing"));
+    return;
+  }
 
   HTTPClient http;
   http.setTimeout(15000);
   http.setFollowRedirects(HTTPC_DISABLE_FOLLOW_REDIRECTS);
 
-  String reportUrl = buildServerUrl(REPORT_PATH);
+  String reportUrl = buildServerUrl(provisionMode ? PROVISION_PATH : REPORT_PATH);
   if (!http.begin(client, reportUrl)) {
     markCloudFailure("http_begin_failed", 0);
     Serial.println(F("http_status=0;error=http_begin_failed"));
@@ -674,10 +649,9 @@ static void postToServer(const char *payload) {
   http.addHeader(F("Content-Type"), F("application/json"));
   http.addHeader(F("Connection"), F("close"));
   http.addHeader(F("User-Agent"), F("AiDvor-ESP8266/1.0"));
-  http.addHeader(F("X-Proxy-Id"), config.proxyId);
-  http.addHeader(F("X-Timestamp"), timestampBuffer);
-  http.addHeader(F("X-Nonce"), nonceBuffer);
-  http.addHeader(F("X-Signature"), signatureHex);
+  String authorization = F("Bearer ");
+  authorization += provisionMode ? config.provisioningToken : config.apiToken;
+  http.addHeader(F("Authorization"), authorization);
 
   int statusCode = http.POST((uint8_t *) jsonPayload, strlen(jsonPayload));
   String body = http.getString();
@@ -704,7 +678,7 @@ static void postToServer(const char *payload) {
     return;
   }
 
-  saveControllerIdFromResponse(body);
+  saveProvisioningTokenFromResponse(body);
 
   if (jsonToUnoCsv(body, requestLine, sizeof(requestLine))) {
     updateStateFromCsv(requestLine);
@@ -858,8 +832,9 @@ static void sendConfigPage(const char *message = "") {
   addSecretInput(html, "wifi_password", "Пароль Wi-Fi", "Оставьте пустым, если не хотите менять текущий пароль.");
   addTextInput(html, "server_url", "Адрес сервера AiDvor", "Базовый адрес сервера без пути. Пример: http://192.168.0.201:3000 или https://home.aidvor.ru.", config.serverUrl);
   addTextInput(html, "controller_id", "ID контроллера", "Заполняется сервером после регистрации. Оставьте пустым перед первой регистрацией.", config.controllerId);
-  addTextInput(html, "proxy_id", "ID прокси", "Идентификатор ESP-прокси. Должен совпадать с настройками сервера.", config.proxyId);
-  addSecretInput(html, "proxy_secret", "Секрет прокси", "Используется для HMAC-подписи запросов. Оставьте пустым, если не хотите менять.");
+  addSecretInput(html, "api_token", "Токен контроллера", "Автоматически выдается сервером после регистрации. Оставьте пустым, если не хотите менять.");
+  addTextInput(html, "tls_insecure", "Небезопасный HTTPS (dev)", "Значение 1 разрешает HTTPS без проверки сертификата только в локальной разработке; для production укажите 0.", config.tlsInsecure ? "1" : "0");
+  addTextInput(html, "tls_fingerprint", "TLS fingerprint", "SHA-1 fingerprint сертификата для проверки HTTPS при tls_insecure=0.", config.tlsFingerprint);
   addTextInput(html, "local_login", "Логин локальной админки", "Логин для входа на страницы ESP: /local, /status, /config.", config.localLogin);
   addSecretInput(html, "local_password", "Пароль локальной админки", "Оставьте пустым, если не хотите менять текущий пароль.");
   char grace[16];
@@ -880,14 +855,15 @@ static void handleConfigPost() {
   if (webServer.hasArg("wifi_ssid")) copyConfigValue(nextConfig.wifiSsid, sizeof(nextConfig.wifiSsid), webServer.arg("wifi_ssid"));
   if (webServer.hasArg("server_url")) copyConfigValue(nextConfig.serverUrl, sizeof(nextConfig.serverUrl), webServer.arg("server_url"));
   if (webServer.hasArg("controller_id")) copyConfigValue(nextConfig.controllerId, sizeof(nextConfig.controllerId), webServer.arg("controller_id"));
-  if (webServer.hasArg("proxy_id")) copyConfigValue(nextConfig.proxyId, sizeof(nextConfig.proxyId), webServer.arg("proxy_id"));
+  if (webServer.hasArg("tls_insecure")) nextConfig.tlsInsecure = webServer.arg("tls_insecure") == "1";
+  if (webServer.hasArg("tls_fingerprint")) copyConfigValue(nextConfig.tlsFingerprint, sizeof(nextConfig.tlsFingerprint), webServer.arg("tls_fingerprint"));
   if (webServer.hasArg("local_login")) copyConfigValue(nextConfig.localLogin, sizeof(nextConfig.localLogin), webServer.arg("local_login"));
 
   if (webServer.hasArg("wifi_password") && webServer.arg("wifi_password").length() > 0) {
     copyConfigValue(nextConfig.wifiPassword, sizeof(nextConfig.wifiPassword), webServer.arg("wifi_password"));
   }
-  if (webServer.hasArg("proxy_secret") && webServer.arg("proxy_secret").length() > 0) {
-    copyConfigValue(nextConfig.proxySecret, sizeof(nextConfig.proxySecret), webServer.arg("proxy_secret"));
+  if (webServer.hasArg("api_token") && webServer.arg("api_token").length() > 0) {
+    copyConfigValue(nextConfig.apiToken, sizeof(nextConfig.apiToken), webServer.arg("api_token"));
   }
   if (webServer.hasArg("local_password") && webServer.arg("local_password").length() > 0) {
     copyConfigValue(nextConfig.localPassword, sizeof(nextConfig.localPassword), webServer.arg("local_password"));

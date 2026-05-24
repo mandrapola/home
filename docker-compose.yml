@@ -15,12 +15,6 @@ services:
       - DB_NAME=smarthome
       - DB_USER=smarthome
       - DB_PASSWORD=smarthome
-      - PROXY_HMAC_REQUIRED=${PROXY_HMAC_REQUIRED:-false}
-      - PROXY_HMAC_KEYS=${PROXY_HMAC_KEYS:-}
-      - PROXY_HMAC_PROXY_ID=${PROXY_HMAC_PROXY_ID:-}
-      - PROXY_HMAC_SECRET=${PROXY_HMAC_SECRET:-}
-      - PROXY_HMAC_MAX_SKEW_SECONDS=${PROXY_HMAC_MAX_SKEW_SECONDS:-60}
-      - PROXY_HMAC_NONCE_TTL_SECONDS=${PROXY_HMAC_NONCE_TTL_SECONDS:-300}
     volumes:
       - ./php-app:/var/www/html
     command: >

@@ -57,13 +57,20 @@ curl -X POST http://localhost:3000/api/controller/report \
     "relay_3": 0,
     "relay_4": 1
   },
-  "pairing_code": "4821",
-  "pairing_code_expires_at": "2026-04-05T10:30:00+00:00"
+  "monitor": "4821",
+  "controller_id": "019d5529-ceee-7748-b9a8-a2e3ce1e8b8f"
 }
 ```
 
-`pairing_code` передается только когда пользователь запустил привязку контроллера.
+`monitor` содержит код привязки в процессе регистрации контроллера.
 `digital_outputs` содержит целевые значения `relay_*` для контроллера.
+
+Аутентификация ESP:
+- до завершения регистрации ESP обращается к `/api/controller/provision` с автоматически созданным временным provisioning bearer token;
+- после подтверждения кода сервер возвращает ESP `controller_id` и индивидуальный `api_token`;
+- ESP сохраняет токен в `config.txt` и отправляет дальнейшие запросы с `Authorization: Bearer <api_token>`;
+- сервер постоянно хранит только SHA-256 hash токена; зашифрованная копия хранится до первого успешного bearer-запроса ESP.
+- для локальной разработки ESP может использовать `tls_insecure=1`; в production требуется `tls_insecure=0` и `tls_fingerprint`.
 
 ### 2) Controller -> ESP — CSV
 
@@ -76,19 +83,19 @@ controller_id=<uuid>;relay_1=0;relay_2=1;...;air_temperature=23.4;air_humidity=4
 ESP конвертирует эту строку в JSON для cloud-сервера и конвертирует JSON-ответ cloud обратно в CSV для контроллера.
 
 Коды ошибок API сервера:
-- `401 proxy_auth_failed` — отсутствует/неверна HMAC подпись proxy.
+- `401 controller_auth_failed` — отсутствует/неверен bearer token контроллера.
+- `401 provision_auth_failed` — отсутствует/неверен временный provisioning token.
 - `403 forbidden` — контроллер не зарегистрирован и не в режиме привязки.
 - `400 bad_request` — некорректный JSON payload.
 - `400 empty_readings` — отсутствуют валидные числовые readings.
 
 ## Привязка контроллера к пользователю
 
-1. Пользователь входит в веб-интерфейс (`/dashboard`) и выбирает контроллер.
-2. Нажимает `Запросить 4-значный код`.
-3. Сервер сохраняет pending-сессию привязки на 5 минут.
-4. Контроллер получает `pairing_code` в ответе `/api/controller/report` и отображает его на TM1637.
-5. Пользователь вводит код в форме и нажимает `Привязать контроллер`.
-6. Сервер подтверждает код и создает связь `controller_user` с ролью `owner`.
+1. Незарегистрированный ESP создает временный provisioning token, передает `device_uid` на `/api/controller/provision` и получает первый 4-значный код в `monitor`.
+2. Пользователь вводит первый код в форме добавления контроллера.
+3. Сервер отправляет второй код на дисплей контроллера для подтверждения физического доступа.
+4. После ввода второго кода сервер создает `controller`, указывает владельца в `controller.user_id` и выпускает индивидуальный bearer token.
+5. В следующем provision-ответе ESP получает и сохраняет `controller_id`, `api_token`, затем переходит на `/api/controller/report`.
 
 ## Страницы UI (PHP)
 

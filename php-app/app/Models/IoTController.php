@@ -25,6 +25,10 @@ class IoTController extends Model
     protected $fillable = [
         'id',
         'user_id',
+        'api_token_hash',
+        'pending_api_token',
+        'api_token_generated_at',
+        'api_token_rotated_at',
         'name',
         'discription',
         'send_interval_seconds',
@@ -37,6 +41,9 @@ class IoTController extends Model
         'last_seen_at' => 'datetime',
         'claimed_at' => 'datetime',
         'user_id' => 'integer',
+        'pending_api_token' => 'encrypted',
+        'api_token_generated_at' => 'datetime',
+        'api_token_rotated_at' => 'datetime',
     ];
 
     public function owner(): BelongsTo
