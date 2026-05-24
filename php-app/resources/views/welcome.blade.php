@@ -196,43 +196,56 @@
           <h2>Начните бесплатно и переходите на платный тариф, когда проект вырастет</h2>
           <p class="section-desc">Бесплатный тариф нужен для запуска первого устройства. Платные тарифы добавляют больше устройств, историю, уведомления и удобство.</p>
         </div>
+        @php
+          $landingPlans = $plans ?? collect();
+          if ($landingPlans->isEmpty()) {
+              $landingPlans = \App\Models\Plan::query()
+                  ->where('is_active', true)
+                  ->orderBy('daily_price_units')
+                  ->limit(3)
+                  ->get();
+          }
+        @endphp
         <div class="pricing">
-          <article class="price-card">
-            <h3>Free</h3>
-            <div class="price">0 €</div>
-            <p>Для первого устройства и знакомства с платформой.</p>
-            <ul>
-              <li>1 контроллер</li>
-              <li>Базовое управление</li>
-              <li>Короткая история</li>
-              <li>Реклама в интерфейсе</li>
-            </ul>
-            <a class="btn btn-secondary" href="{{ route('register') }}">Начать бесплатно</a>
-          </article>
-          <article class="price-card highlight">
-            <h3>Hobby</h3>
-            <div class="price">4.90 € <small>/ месяц</small></div>
-            <p>Для дачи, теплицы и нескольких домашних устройств.</p>
-            <ul>
-              <li>До 5 контроллеров</li>
-              <li>История до 30 дней</li>
-              <li>Без рекламы</li>
-              <li>Уведомления и сценарии</li>
-            </ul>
-            <a class="btn btn-primary" href="{{ route('register') }}">Выбрать Hobby</a>
-          </article>
-          <article class="price-card">
-            <h3>Pro</h3>
-            <div class="price">12.90 € <small>/ месяц</small></div>
-            <p>Для нескольких объектов, мастерской или малого хозяйства.</p>
-            <ul>
-              <li>До 20 контроллеров</li>
-              <li>Длинная история</li>
-              <li>Расширенные сценарии</li>
-              <li>API, роли и экспорт</li>
-            </ul>
-            <a class="btn btn-secondary" href="{{ route('register') }}">Выбрать Pro</a>
-          </article>
+          @forelse ($landingPlans as $plan)
+            @php($monthlyPriceUnits = (int) ($plan->daily_price_units ?? 0) * 31)
+            <article class="price-card {{ $loop->iteration === 2 ? 'highlight' : '' }}">
+              <div class="price-card-title">
+                <h3>{{ $plan->name }}</h3>
+              </div>
+              <div class="price-card-price">
+                <div class="price">{{ number_format($monthlyPriceUnits, 0, '.', ' ') }} <small>{{ __('units/month') }}</small></div>
+              </div>
+              <p class="price-card-description">
+                @if ($plan->description)
+                  {{ $plan->description }}
+                @else
+                  &nbsp;
+                @endif
+              </p>
+              <ul class="price-card-limits">
+                <li>{{ __('Minimum report interval') }}: {{ max(\App\Models\IoTController::MIN_INTERVAL_SECONDS, (int) ($plan->min_report_interval_seconds ?? 0)) }} {{ __('sec') }}</li>
+                <li>{{ __('pin_data limit') }}: {{ (int) ($plan->max_pin_data_rows ?? 0) > 0 ? number_format((int) $plan->max_pin_data_rows, 0, '.', ' ') : __('No limit') }}</li>
+                <li>{{ __('Scenarios') }}: {{ (int) ($plan->max_scenarios ?? 0) > 0 ? number_format((int) $plan->max_scenarios, 0, '.', ' ') : __('No limit') }}</li>
+                <li>{{ __('Scenario Conditions') }}: {{ (int) ($plan->max_scenario_conditions ?? 0) > 0 ? number_format((int) $plan->max_scenario_conditions, 0, '.', ' ') : __('No limit') }}</li>
+              </ul>
+              <div class="price-card-action">
+                <a class="btn {{ $loop->iteration === 2 ? 'btn-primary' : 'btn-secondary' }}" href="{{ auth()->check() ? route('user.plans.index') : route('register') }}">
+                  {{ auth()->check() ? __('Open plans') : __('Choose Plan') }}
+                </a>
+              </div>
+            </article>
+          @empty
+            <article class="price-card">
+              <div class="price-card-title">
+                <h3>{{ __('No active plans available.') }}</h3>
+              </div>
+              <div class="price-card-price"></div>
+              <p class="price-card-description">{{ __('Please check back later.') }}</p>
+              <ul class="price-card-limits"></ul>
+              <div class="price-card-action"></div>
+            </article>
+          @endforelse
         </div>
       </div>
     </section>

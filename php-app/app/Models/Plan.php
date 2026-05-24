@@ -14,23 +14,23 @@ class Plan extends Model
         'code',
         'name',
         'description',
-        'price_amount',
         'daily_price_units',
+        'min_report_interval_seconds',
         'price_currency',
-        'max_controllers',
         'max_pin_data_rows',
-        'alice_enabled',
+        'max_scenarios',
+        'max_scenario_conditions',
         'is_active',
     ];
 
     protected function casts(): array
     {
         return [
-            'price_amount' => 'decimal:2',
             'daily_price_units' => 'integer',
-            'max_controllers' => 'integer',
+            'min_report_interval_seconds' => 'integer',
             'max_pin_data_rows' => 'integer',
-            'alice_enabled' => 'boolean',
+            'max_scenarios' => 'integer',
+            'max_scenario_conditions' => 'integer',
             'is_active' => 'boolean',
         ];
     }

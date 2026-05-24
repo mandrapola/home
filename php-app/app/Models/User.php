@@ -5,7 +5,6 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Backpack\CRUD\app\Models\Traits\CrudTrait;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -38,11 +37,9 @@ class User extends Authenticatable
         ];
     }
 
-    public function controllers(): BelongsToMany
+    public function ownedControllers(): HasMany
     {
-        return $this->belongsToMany(IoTController::class, 'controller_user', 'user_id', 'controller_id')
-            ->withPivot('role')
-            ->withTimestamps();
+        return $this->hasMany(IoTController::class, 'user_id');
     }
 
     public function planSubscriptions(): HasMany

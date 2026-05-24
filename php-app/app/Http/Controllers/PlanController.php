@@ -85,14 +85,18 @@ class PlanController extends Controller
                 'name' => $summary['effective_plan']->name,
             ] : null,
             'limits' => [
-                'controllers' => [
-                    'used' => $summary['controllers_used'],
-                    'max' => $summary['controllers_max'],
-                    'slots_left' => $summary['controller_slots_left'],
-                ],
+                'min_report_interval_seconds' => $summary['min_report_interval_seconds'],
                 'pin_data' => [
                     'used' => $summary['pin_data_used'],
                     'max' => $summary['pin_data_max'],
+                ],
+                'scenarios' => [
+                    'used' => $summary['scenarios_used'],
+                    'max' => $summary['scenarios_max'],
+                ],
+                'scenario_conditions' => [
+                    'used' => $summary['scenario_conditions_used'],
+                    'max' => $summary['scenario_conditions_max'],
                 ],
             ],
         ]);

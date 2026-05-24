@@ -49,16 +49,16 @@ class AliceStateNotificationService
             return;
         }
 
-        $userIds = DB::table('controller_user as cu')
-            ->join('users as u', 'u.id', '=', 'cu.user_id')
+        $userIds = DB::table('controller as c')
+            ->join('users as u', 'u.id', '=', 'c.user_id')
             ->join('alice_accounts as aa', function ($join): void {
-                $join->on('aa.user_id', '=', 'cu.user_id')
+                $join->on('aa.user_id', '=', 'c.user_id')
                     ->whereNull('aa.unlinked_at');
             })
-            ->where('cu.controller_id', $controllerId)
+            ->where('c.id', $controllerId)
             ->where('u.alice_enabled', 1)
             ->distinct()
-            ->pluck('cu.user_id')
+            ->pluck('c.user_id')
             ->all();
 
         if ($userIds === []) {
@@ -109,4 +109,3 @@ class AliceStateNotificationService
             && (bool) config('services.alice.alerts_enabled', false);
     }
 }
-

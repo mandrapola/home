@@ -83,13 +83,30 @@
             transform: translateY(-6px);
         }
 
-        .plan-card .card-body { padding: 24px; display:flex; flex-direction:column; height:100%; }
-        .plan-header { min-height: 128px; }
-        .plan-card .h5 { color: var(--text); margin-bottom: 8px; }
+        .plan-card .card-body {
+            padding: 24px;
+            display:grid;
+            grid-template-rows: 44px 64px 92px minmax(172px, 1fr) auto;
+            height:100%;
+            min-height: 466px;
+        }
+        .plan-title-zone,
+        .plan-price-zone,
+        .plan-description-zone,
+        .plan-limits-zone,
+        .plan-actions { min-width: 0; }
+        .plan-title-zone { display:flex; align-items:flex-start; }
+        .plan-price-zone { display:flex; align-items:center; }
+        .plan-description-zone {
+            overflow:hidden;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+        .plan-card .h5 { color: var(--text); margin-bottom: 0; }
         .plan-description { color: var(--muted); margin: 0; }
 
         .price-main {
-            margin: 10px 0 6px;
+            margin: 0;
             font-size: 42px;
             line-height: 1;
             font-weight: 950;
@@ -99,11 +116,12 @@
 
         .price-sub { margin: 0 0 18px; color: var(--muted); font-size: 14px; }
 
-        .plan-card ul { list-style:none; margin:0 0 20px; padding:0; }
+        .plan-card ul { list-style:none; margin:0; padding:0; }
         .plan-card li { color: var(--muted); margin-bottom: 8px; padding-left: 16px; position: relative; }
         .plan-card li::before { content: "✓"; color: var(--accent); position:absolute; left:0; }
 
-        .plan-actions { margin-top:auto; }
+        .plan-limits-zone { align-content:flex-start; }
+        .plan-actions { align-self:end; }
         .plan-card .btn { min-height: 44px; border-radius: 999px; font-weight: 800; }
         .plan-card .btn-primary {
             background: linear-gradient(135deg, var(--accent), var(--accent-2));
@@ -214,9 +232,9 @@
                 <div class="col-12 plans-note">
                     <div class="alert alert-secondary mb-0">
                         <strong>{{ __('Effective plan') }}:</strong> {{ $usageSummary['effective_plan']?->name ?? '—' }}
-                        · {{ __('Controllers') }}: {{ $usageSummary['controllers_used'] }}/{{ $usageSummary['controllers_max'] ?? '∞' }}
                         · {{ __('pin_data limit') }}: {{ $usageSummary['pin_data_used'] }}/{{ $usageSummary['pin_data_max'] ?? '∞' }}
-                        · {{ __('Slots left') }}: {{ $usageSummary['controller_slots_left'] ?? '∞' }}
+                        · {{ __('Scenarios') }}: {{ $usageSummary['scenarios_used'] }}/{{ $usageSummary['scenarios_max'] ?? '∞' }}
+                        · {{ __('Scenario Conditions') }}: {{ $usageSummary['scenario_conditions_used'] }}/{{ $usageSummary['scenario_conditions_max'] ?? '∞' }}
                     </div>
                 </div>
             @endif
@@ -227,18 +245,26 @@
                         @php($monthlyPriceUnits = (int) ($plan->daily_price_units ?? 0) * 31)
                         <article class="plan-card {{ (int) $selectedPlanId === (int) $plan->id ? 'is-selected' : '' }}">
                             <div class="card-body">
-                                <div class="plan-header">
+                                <div class="plan-title-zone">
                                     <h3 class="h5">{{ $plan->name }}</h3>
-                                    @if ($plan->description)
-                                        <p class="plan-description">{{ $plan->description }}</p>
-                                    @endif
                                 </div>
-                                <div class="price-main">{{ number_format($monthlyPriceUnits, 0, '.', ' ') }} {{ __('units/month') }}</div>
-                                <p class="price-sub">{{ number_format((int) ($plan->daily_price_units ?? 0), 0, '.', ' ') }} {{ __('units/day') }}</p>
-                                <ul>
-                                    <li>{{ __('Controllers limit') }}: {{ $plan->max_controllers ?? __('Unlimited') }}</li>
-                                    <li>{{ __('pin_data limit') }}: {{ $plan->max_pin_data_rows ?? __('Unlimited') }}</li>
-                                    <li>{{ __('Alice integration') }}: {{ $plan->alice_enabled ? __('Enabled') : __('Disabled') }}</li>
+                                <div class="plan-price-zone">
+                                    <div class="price-main">{{ number_format($monthlyPriceUnits, 0, '.', ' ') }} {{ __('units/month') }}</div>
+                                </div>
+                                <div class="plan-description-zone">
+                                    <p class="plan-description">
+                                        @if ($plan->description)
+                                            {{ $plan->description }}
+                                        @else
+                                            &nbsp;
+                                        @endif
+                                    </p>
+                                </div>
+                                <ul class="plan-limits-zone">
+                                    <li>{{ __('Minimum report interval') }}: {{ max(\App\Models\IoTController::MIN_INTERVAL_SECONDS, (int) ($plan->min_report_interval_seconds ?? 0)) }} {{ __('sec') }}</li>
+                                    <li>{{ __('pin_data limit') }}: {{ (int) ($plan->max_pin_data_rows ?? 0) > 0 ? number_format((int) $plan->max_pin_data_rows, 0, '.', ' ') : __('No limit') }}</li>
+                                    <li>{{ __('Scenarios') }}: {{ (int) ($plan->max_scenarios ?? 0) > 0 ? number_format((int) $plan->max_scenarios, 0, '.', ' ') : __('No limit') }}</li>
+                                    <li>{{ __('Scenario Conditions') }}: {{ (int) ($plan->max_scenario_conditions ?? 0) > 0 ? number_format((int) $plan->max_scenario_conditions, 0, '.', ' ') : __('No limit') }}</li>
                                 </ul>
                                 <div class="plan-actions d-grid gap-2">
                                     <form method="POST" action="{{ route('user.plans.select', $plan) }}">
@@ -273,15 +299,42 @@
                         <thead>
                         <tr>
                             <th>{{ __('Feature') }}</th>
-                            <th>Free</th>
-                            <th>Hobby</th>
-                            <th>Pro</th>
+                            @foreach ($plans as $plan)
+                                <th>{{ $plan->name }}</th>
+                            @endforeach
                         </tr>
                         </thead>
                         <tbody>
-                        <tr><td>{{ __('Controllers') }}</td><td>1</td><td>5</td><td>20</td></tr>
-                        <tr><td>{{ __('pin_data limit') }}</td><td>10 000</td><td>100 000</td><td>{{ __('Unlimited') }}</td></tr>
-                        <tr><td>{{ __('Alice integration') }}</td><td>{{ __('Disabled') }}</td><td>{{ __('Enabled') }}</td><td>{{ __('Enabled') }}</td></tr>
+                        <tr>
+                            <td>{{ __('Price') }}</td>
+                            @foreach ($plans as $plan)
+                                <td>{{ number_format((int) ($plan->daily_price_units ?? 0) * 31, 0, '.', ' ') }} {{ __('units/month') }}</td>
+                            @endforeach
+                        </tr>
+                        <tr>
+                            <td>{{ __('Minimum report interval') }}</td>
+                            @foreach ($plans as $plan)
+                                <td>{{ max(\App\Models\IoTController::MIN_INTERVAL_SECONDS, (int) ($plan->min_report_interval_seconds ?? 0)) }} {{ __('sec') }}</td>
+                            @endforeach
+                        </tr>
+                        <tr>
+                            <td>{{ __('pin_data limit') }}</td>
+                            @foreach ($plans as $plan)
+                                <td>{{ (int) ($plan->max_pin_data_rows ?? 0) > 0 ? number_format((int) $plan->max_pin_data_rows, 0, '.', ' ') : __('No limit') }}</td>
+                            @endforeach
+                        </tr>
+                        <tr>
+                            <td>{{ __('Scenarios') }}</td>
+                            @foreach ($plans as $plan)
+                                <td>{{ (int) ($plan->max_scenarios ?? 0) > 0 ? number_format((int) $plan->max_scenarios, 0, '.', ' ') : __('No limit') }}</td>
+                            @endforeach
+                        </tr>
+                        <tr>
+                            <td>{{ __('Scenario Conditions') }}</td>
+                            @foreach ($plans as $plan)
+                                <td>{{ (int) ($plan->max_scenario_conditions ?? 0) > 0 ? number_format((int) $plan->max_scenario_conditions, 0, '.', ' ') : __('No limit') }}</td>
+                            @endforeach
+                        </tr>
                         </tbody>
                     </table>
                 </div>

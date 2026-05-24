@@ -89,21 +89,13 @@ class PairingController extends Controller
 
         IoTController::query()->create([
             'id' => $controllerId,
+            'user_id' => (int) $user->id,
             'name' => $controllerName,
             'discription' => 'Registered from device_uid: ' . $deviceUid,
             'send_interval_seconds' => IoTController::MIN_INTERVAL_SECONDS,
             'status' => 'active',
             'last_seen_at' => $registrationAttempt->last_seen_at ?? $now,
             'claimed_at' => $now,
-        ]);
-
-        DB::table('controller_user')->insert([
-            'id' => (string) Str::uuid(),
-            'controller_id' => $controllerId,
-            'user_id' => (string) $user->id,
-            'role' => 'owner',
-            'created_at' => $now,
-            'updated_at' => $now,
         ]);
 
         $registrationAttempt->status = 'claimed';
@@ -147,14 +139,13 @@ class PairingController extends Controller
         $user = $request->user();
 
         $rows = DB::table('controller as c')
-            ->join('controller_user as cu', 'cu.controller_id', '=', 'c.id')
             ->leftJoin(
                 DB::raw('(SELECT controller_id, COUNT(*) AS pin_count FROM pin GROUP BY controller_id) p'),
                 'p.controller_id',
                 '=',
                 'c.id'
             )
-            ->where('cu.user_id', '=', (string) $user->id)
+            ->where('c.user_id', '=', (int) $user->id)
             ->where('c.id', '!=', self::SYSTEM_CONTROLLER_ID)
             ->select([
                 'c.id',
@@ -165,7 +156,7 @@ class PairingController extends Controller
                 'c.last_seen_at',
                 'c.claimed_at',
                 DB::raw('COALESCE(p.pin_count, 0) AS pin_count'),
-                'cu.role',
+                DB::raw("'owner' AS role"),
             ])
             ->orderBy('c.name')
             ->get();
@@ -181,9 +172,9 @@ class PairingController extends Controller
 
         $user = $request->user();
 
-        $isOwner = DB::table('controller_user')
-            ->where('controller_id', $controllerId)
-            ->where('user_id', (string) $user->id)
+        $isOwner = DB::table('controller')
+            ->where('id', $controllerId)
+            ->where('user_id', (int) $user->id)
             ->exists();
 
         if (! $isOwner) {
@@ -232,8 +223,8 @@ class PairingController extends Controller
         $user = $request->user();
 
         $pins = DB::table('pin as p')
-            ->join('controller_user as cu', 'cu.controller_id', '=', 'p.controller_id')
-            ->where('cu.user_id', (string) $user->id)
+            ->join('controller as c', 'c.id', '=', 'p.controller_id')
+            ->where('c.user_id', (int) $user->id)
             ->where('p.digital_style', 'power')
             ->where('p.controller_id', '!=', self::SYSTEM_CONTROLLER_ID)
             ->orderByDesc('p.show_on_report')
@@ -257,9 +248,9 @@ class PairingController extends Controller
 
         $user = $request->user();
 
-        $isOwner = DB::table('controller_user')
-            ->where('controller_id', $controllerId)
-            ->where('user_id', (string) $user->id)
+        $isOwner = DB::table('controller')
+            ->where('id', $controllerId)
+            ->where('user_id', (int) $user->id)
             ->exists();
 
         if (! $isOwner) {
@@ -618,9 +609,9 @@ class PairingController extends Controller
             ->where('p.controller_id', '!=', self::SYSTEM_CONTROLLER_ID)
             ->whereExists(function ($q) use ($user) {
                 $q->selectRaw('1')
-                    ->from('controller_user as cu')
-                    ->whereColumn('cu.controller_id', 'p.controller_id')
-                    ->where('cu.user_id', (string) $user->id);
+                    ->from('controller as c')
+                    ->whereColumn('c.id', 'p.controller_id')
+                    ->where('c.user_id', (int) $user->id);
             })
             ->first(['p.id', 'p.pin', 'p.label', 'p.controller_id']);
 
@@ -680,8 +671,8 @@ class PairingController extends Controller
         $sourcePinIds = array_values(array_unique($sourcePinIds));
         if (count($sourcePinIds) > 0) {
             $sourcePinIds = DB::table('pin as p')
-                ->join('controller_user as cu', 'cu.controller_id', '=', 'p.controller_id')
-                ->where('cu.user_id', (string) $user->id)
+                ->join('controller as c', 'c.id', '=', 'p.controller_id')
+                ->where('c.user_id', (int) $user->id)
                 ->whereIn('p.id', $sourcePinIds)
                 ->pluck('p.id')
                 ->map(fn ($id) => (string) $id)
@@ -924,9 +915,9 @@ class PairingController extends Controller
 
         $user = $request->user();
 
-        $isOwner = DB::table('controller_user')
-            ->where('controller_id', $controllerId)
-            ->where('user_id', (string) $user->id)
+        $isOwner = DB::table('controller')
+            ->where('id', $controllerId)
+            ->where('user_id', (int) $user->id)
             ->exists();
 
         if (! $isOwner) {
@@ -1002,9 +993,9 @@ class PairingController extends Controller
 
         $user = $request->user();
 
-        $isOwner = DB::table('controller_user')
-            ->where('controller_id', $controllerId)
-            ->where('user_id', (string) $user->id)
+        $isOwner = DB::table('controller')
+            ->where('id', $controllerId)
+            ->where('user_id', (int) $user->id)
             ->exists();
 
         if (! $isOwner) {
@@ -1133,9 +1124,9 @@ class PairingController extends Controller
 
         $user = $request->user();
 
-        $isOwner = DB::table('controller_user')
-            ->where('controller_id', $controllerId)
-            ->where('user_id', (string) $user->id)
+        $isOwner = DB::table('controller')
+            ->where('id', $controllerId)
+            ->where('user_id', (int) $user->id)
             ->exists();
 
         if (! $isOwner) {
@@ -1195,16 +1186,31 @@ class PairingController extends Controller
         }
 
         $user = $request->user();
+        $effectivePlan = $this->planLimitService->resolveEffectivePlanForUser($user);
+        $minimumSendIntervalSeconds = max(
+            IoTController::MIN_INTERVAL_SECONDS,
+            (int) ($effectivePlan?->min_report_interval_seconds ?? 0)
+        );
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'discription' => ['nullable', 'string', 'max:2000'],
-            'send_interval_seconds' => ['required', 'integer', 'min:1', 'max:86400'],
+            'send_interval_seconds' => [
+                'required',
+                'integer',
+                'min:' . $minimumSendIntervalSeconds,
+                'max:' . IoTController::MAX_INTERVAL_SECONDS,
+            ],
+        ], [
+            'send_interval_seconds.min' => __(
+                'Send interval is below the minimum allowed for your plan (:seconds sec).',
+                ['seconds' => $minimumSendIntervalSeconds]
+            ),
         ]);
 
-        $isOwner = DB::table('controller_user')
-            ->where('controller_id', $controllerId)
-            ->where('user_id', (string) $user->id)
+        $isOwner = DB::table('controller')
+            ->where('id', $controllerId)
+            ->where('user_id', (int) $user->id)
             ->exists();
 
         if (! $isOwner) {
@@ -1248,8 +1254,7 @@ class PairingController extends Controller
 
         $payload = DB::transaction(function () use ($user) {
             $controllers = DB::table('controller as c')
-                ->leftJoin('controller_user as cu', 'cu.controller_id', '=', 'c.id')
-                ->whereNull('cu.controller_id')
+                ->whereNull('c.user_id')
                 ->where('c.status', 'unclaimed')
                 ->orderByDesc('c.last_seen_at')
                 ->select('c.id')
@@ -1431,27 +1436,11 @@ class PairingController extends Controller
                 return ['status' => 404, 'data' => ['error' => 'not_found', 'message' => 'Controller not found']];
             }
 
-            $ownedByOther = DB::table('controller_user')
-                ->where('controller_id', (string) $pairing->controller_id)
-                ->where('user_id', '!=', (string) $user->id)
-                ->exists();
-
-            if ($ownedByOther) {
+            if ($controller->user_id !== null && (int) $controller->user_id !== (int) $user->id) {
                 return ['status' => 409, 'data' => ['error' => 'already_claimed', 'message' => 'Controller already has another owner']];
             }
 
-            DB::table('controller_user')->updateOrInsert(
-                [
-                    'controller_id' => (string) $pairing->controller_id,
-                    'user_id' => (string) $user->id,
-                ],
-                [
-                    'id' => (string) Str::uuid(),
-                    'role' => 'owner',
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]
-            );
+            $controller->user_id = (int) $user->id;
 
             $pairing->status = 'claimed';
             $pairing->claimed_at = now();
@@ -1507,11 +1496,7 @@ class PairingController extends Controller
                 return ['status' => 404, 'data' => ['error' => 'not_found', 'message' => 'Controller not found']];
             }
 
-            $owned = DB::table('controller_user')
-                ->where('controller_id', $controllerId)
-                ->exists();
-
-            if ($owned || $controller->status === 'active') {
+            if ($controller->user_id !== null || $controller->status === 'active') {
                 return ['status' => 409, 'data' => ['error' => 'already_claimed', 'message' => 'Controller already has an owner']];
             }
 
@@ -1598,18 +1583,7 @@ class PairingController extends Controller
                 return ['status' => 422, 'data' => ['error' => 'invalid_code', 'message' => 'Invalid pairing code']];
             }
 
-            DB::table('controller_user')->updateOrInsert(
-                [
-                    'controller_id' => $controllerId,
-                    'user_id' => (string) $user->id,
-                ],
-                [
-                    'id' => (string) Str::uuid(),
-                    'role' => 'owner',
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]
-            );
+            $controller->user_id = (int) $user->id;
 
             $pairing->status = 'claimed';
             $pairing->claimed_at = now();

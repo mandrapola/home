@@ -84,6 +84,7 @@ return new class extends Migration
 
         Schema::create('controller', function (Blueprint $table): void {
             $table->char('id', 36)->primary();
+            $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('name', 255);
             $table->text('discription')->nullable();
             $table->integer('send_interval_seconds')->default(30);
@@ -91,19 +92,6 @@ return new class extends Migration
             $table->timestamp('last_seen_at')->nullable();
             $table->timestamp('claimed_at')->nullable();
             $table->timestamps();
-        });
-
-        Schema::create('controller_user', function (Blueprint $table): void {
-            $table->char('id', 36)->primary();
-            $table->char('controller_id', 36);
-            $table->foreignId('user_id');
-            $table->string('role', 16)->default('owner');
-            $table->timestamps();
-
-            $table->unique(['controller_id', 'user_id'], 'uk_controller_user');
-            $table->index(['user_id', 'role'], 'idx_controller_user_role');
-            $table->foreign('controller_id')->references('id')->on('controller')->cascadeOnDelete();
-            $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
         });
 
         Schema::create('alice_accounts', function (Blueprint $table): void {
@@ -245,7 +233,6 @@ return new class extends Migration
         Schema::dropIfExists('pin');
         Schema::dropIfExists('controller_pairings');
         Schema::dropIfExists('alice_accounts');
-        Schema::dropIfExists('controller_user');
         Schema::dropIfExists('controller');
 
         Schema::dropIfExists('failed_jobs');

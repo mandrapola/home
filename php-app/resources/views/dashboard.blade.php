@@ -110,6 +110,10 @@
         $dashboardUser = auth()->user();
         $selectedPlan = $dashboardUser?->selectedPlan;
         $effectivePlan = $dashboardUser ? app(\App\Services\Billing\PlanLimitService::class)->resolveEffectivePlanForUser($dashboardUser) : null;
+        $minimumSendIntervalSeconds = max(
+            \App\Models\IoTController::MIN_INTERVAL_SECONDS,
+            (int) ($effectivePlan?->min_report_interval_seconds ?? 0)
+        );
         $activeSubRow = $dashboardUser ? \Illuminate\Support\Facades\DB::table('user_subscriptions')
             ->where('user_id', $dashboardUser->id)
             ->where('status', 'active')
@@ -130,8 +134,10 @@
                         <span class="db-chip"><b>{{ __('Status') }}:</b> {{ $activeSubRow->status }}</span>
                     @endif
                     @if ($effectivePlan)
-                        <span class="db-chip"><b>{{ __('Controllers limit') }}:</b> {{ $effectivePlan->max_controllers ?? __('Unlimited') }}</span>
-                        <span class="db-chip"><b>{{ __('pin_data limit') }}:</b> {{ $effectivePlan->max_pin_data_rows ?? __('Unlimited') }}</span>
+                        <span class="db-chip"><b>{{ __('Minimum report interval') }}:</b> {{ max(\App\Models\IoTController::MIN_INTERVAL_SECONDS, (int) ($effectivePlan->min_report_interval_seconds ?? 0)) }} {{ __('sec') }}</span>
+                        <span class="db-chip"><b>{{ __('pin_data limit') }}:</b> {{ (int) ($effectivePlan->max_pin_data_rows ?? 0) > 0 ? number_format((int) $effectivePlan->max_pin_data_rows, 0, '.', ' ') : __('No limit') }}</span>
+                        <span class="db-chip"><b>{{ __('Scenarios') }}:</b> {{ (int) ($effectivePlan->max_scenarios ?? 0) > 0 ? number_format((int) $effectivePlan->max_scenarios, 0, '.', ' ') : __('No limit') }}</span>
+                        <span class="db-chip"><b>{{ __('Scenario Conditions') }}:</b> {{ (int) ($effectivePlan->max_scenario_conditions ?? 0) > 0 ? number_format((int) $effectivePlan->max_scenario_conditions, 0, '.', ' ') : __('No limit') }}</span>
                     @endif
                 </div>
             </div>
@@ -193,7 +199,8 @@
 
             <label>
                 {{ __('Send Interval, sec') }}<br>
-                <input name="send_interval_seconds" type="number" min="5" step="1" class="form-full form-control">
+                <input name="send_interval_seconds" type="number" min="{{ $minimumSendIntervalSeconds }}" max="{{ \App\Models\IoTController::MAX_INTERVAL_SECONDS }}" step="1" class="form-full form-control">
+                <span class="text-muted small">{{ __('Minimum send interval: :seconds sec.', ['seconds' => $minimumSendIntervalSeconds]) }}</span>
             </label>
 
             <p id="controllerSettingsError" class="error modal-error"></p>
@@ -221,7 +228,8 @@
 
             <label>
                 {{ __('Send Interval, sec') }}<br>
-                <input name="send_interval_seconds" type="number" min="5" step="1" class="form-full form-control">
+                <input name="send_interval_seconds" type="number" min="{{ $minimumSendIntervalSeconds }}" max="{{ \App\Models\IoTController::MAX_INTERVAL_SECONDS }}" step="1" class="form-full form-control">
+                <span class="text-muted small">{{ __('Minimum send interval: :seconds sec.', ['seconds' => $minimumSendIntervalSeconds]) }}</span>
             </label>
 
             <p id="controllerSettingsError" class="error modal-error"></p>

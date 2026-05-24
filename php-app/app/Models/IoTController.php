@@ -6,7 +6,7 @@ namespace App\Models;
 
 use Backpack\CRUD\app\Models\Traits\CrudTrait;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class IoTController extends Model
@@ -24,6 +24,7 @@ class IoTController extends Model
 
     protected $fillable = [
         'id',
+        'user_id',
         'name',
         'discription',
         'send_interval_seconds',
@@ -35,13 +36,12 @@ class IoTController extends Model
     protected $casts = [
         'last_seen_at' => 'datetime',
         'claimed_at' => 'datetime',
+        'user_id' => 'integer',
     ];
 
-    public function users(): BelongsToMany
+    public function owner(): BelongsTo
     {
-        return $this->belongsToMany(User::class, 'controller_user', 'controller_id', 'user_id')
-            ->withPivot('role')
-            ->withTimestamps();
+        return $this->belongsTo(User::class, 'user_id');
     }
 
     public function pairings(): HasMany

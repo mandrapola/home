@@ -13,8 +13,9 @@ class CleanupControllerPairingsOnPaired
     {
         DB::table('controller_pairings')
             ->whereIn('controller_id', function ($query) {
-                $query->select('controller_id')
-                    ->from('controller_user')
+                $query->select('id')
+                    ->from('controller')
+                    ->whereNotNull('user_id')
                     ->distinct();
             })
             ->orWhere('status', 'claimed')

@@ -501,6 +501,9 @@
       border-radius: 26px;
       padding: 26px;
       position: relative;
+      display: grid;
+      grid-template-rows: 44px 62px 88px minmax(178px, 1fr) 44px;
+      min-height: 456px;
       transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
       animation: riseIn .45s ease both;
     }
@@ -516,11 +519,33 @@
       transform: translateY(-8px);
     }
 
+    .price-card-title,
+    .price-card-price,
+    .price-card-description,
+    .price-card-limits,
+    .price-card-action {
+      min-width: 0;
+    }
+
+    .price-card-title {
+      display: flex;
+      align-items: flex-start;
+    }
+
+    .price-card-title h3 {
+      margin: 0;
+    }
+
+    .price-card-price {
+      display: flex;
+      align-items: center;
+    }
+
     .price {
       font-size: 38px;
       font-weight: 900;
       letter-spacing: -0.05em;
-      margin: 12px 0;
+      margin: 0;
     }
 
     .price small {
@@ -529,19 +554,38 @@
       font-weight: 600;
     }
 
-    .price-card ul {
+    .price-card-description {
+      color: var(--muted);
+      line-height: 1.5;
+      margin: 0;
+      overflow: hidden;
+    }
+
+    .price-card ul,
+    .price-card-limits {
       padding: 0;
       list-style: none;
       display: grid;
+      align-content: flex-start;
       gap: 10px;
       color: var(--muted);
-      margin: 20px 0 24px;
+      margin: 0;
     }
 
     .price-card li::before {
       content: "✓ ";
       color: var(--accent);
       font-weight: 900;
+    }
+
+    .price-card-action {
+      display: flex;
+      align-items: flex-end;
+    }
+
+    .price-card-action .btn {
+      width: 100%;
+      justify-content: center;
     }
 
     .shop-banner {

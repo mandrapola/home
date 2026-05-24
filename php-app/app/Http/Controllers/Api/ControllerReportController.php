@@ -10,6 +10,9 @@ use App\Http\Controllers\Controller;
 use App\Models\ControllerPairing;
 use App\Models\ControllerRegistrationAttempt;
 use App\Models\IoTController;
+use App\Models\User;
+use App\Services\Billing\PlanLimitService;
+use App\Services\Billing\ReportRateLimitService;
 use App\Services\Report\ControllerMonitorPayloadService;
 use App\Services\Report\ScenarioDesiredValueService;
 use App\Support\ControllerReportResponseBuilder;
@@ -25,6 +28,8 @@ class ControllerReportController extends Controller
     public function __construct(
         private readonly ScenarioDesiredValueService $scenarioDesiredValueService,
         private readonly ControllerMonitorPayloadService $controllerMonitorPayloadService,
+        private readonly ReportRateLimitService $reportRateLimitService,
+        private readonly PlanLimitService $planLimitService,
     ) {
     }
 
@@ -43,6 +48,10 @@ class ControllerReportController extends Controller
 
     private function buildDigitalOutputs(string $controllerId): array
     {
+        if (! $this->planLimitService->scenarioExecutionAllowedForController($controllerId)) {
+            return [];
+        }
+
         $targetRows = $this->scenarioDesiredValueService->findTargetRows($controllerId);
         $digitalOutputs = [];
 
@@ -99,6 +108,24 @@ class ControllerReportController extends Controller
         return DB::table('controller')
             ->where('id', $controllerId)
             ->exists();
+    }
+
+    private function minimumSendIntervalSecondsForController(string $controllerId): int
+    {
+        $ownerId = (int) (DB::table('controller')->where('id', $controllerId)->value('user_id') ?? 0);
+
+        $minimumSeconds = IoTController::MIN_INTERVAL_SECONDS;
+        if ($ownerId <= 0) {
+            return $minimumSeconds;
+        }
+
+        $user = User::query()->find($ownerId);
+        if ($user) {
+            $effectivePlan = $this->planLimitService->resolveEffectivePlanForUser($user);
+            $minimumSeconds = max($minimumSeconds, (int) ($effectivePlan?->min_report_interval_seconds ?? 0));
+        }
+
+        return min(IoTController::MAX_INTERVAL_SECONDS, $minimumSeconds);
     }
 
     private function registrationCodeResponse(string $deviceUid): JsonResponse
@@ -183,6 +210,17 @@ class ControllerReportController extends Controller
             }
         }
 
+        $rateLimit = $this->reportRateLimitService->checkAndRecordAccepted($controllerId);
+        if (! $rateLimit['allowed']) {
+            return response()->json([
+                'error' => 'rate_limit',
+                'message' => __('For your plan, data can be sent no more than once every :minutes minutes.', [
+                    'minutes' => max(1, (int) ceil(((int) $rateLimit['interval_seconds']) / 60)),
+                ]),
+                'retry_after_seconds' => (int) $rateLimit['retry_after_seconds'],
+            ], 429);
+        }
+
         event(new ControllerReportReceived($controllerId, $ip));
 
         $result = DB::transaction(function () use ($controllerId, $readings): array {
@@ -204,7 +242,7 @@ class ControllerReportController extends Controller
                 'send_interval_seconds' => min(
                     IoTController::MAX_INTERVAL_SECONDS,
                     max(
-                        IoTController::MIN_INTERVAL_SECONDS,
+                        $this->minimumSendIntervalSecondsForController($controllerId),
                         (int) (($controller->send_interval_seconds ?? IoTController::MIN_INTERVAL_SECONDS))
                     )
                 ),

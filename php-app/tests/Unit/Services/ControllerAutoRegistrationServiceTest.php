@@ -18,12 +18,12 @@ class ControllerAutoRegistrationServiceTest extends TestCase
 
         Schema::disableForeignKeyConstraints();
         Schema::dropIfExists('controller_pairings');
-        Schema::dropIfExists('controller_user');
         Schema::dropIfExists('pin');
         Schema::dropIfExists('controller');
         Schema::enableForeignKeyConstraints();
         Schema::create('controller', function (Blueprint $table): void {
             $table->char('id', 36)->primary();
+            $table->unsignedBigInteger('user_id')->nullable();
             $table->string('name', 255);
             $table->text('discription')->nullable();
             $table->integer('send_interval_seconds')->default(30);
@@ -38,7 +38,6 @@ class ControllerAutoRegistrationServiceTest extends TestCase
     {
         Schema::disableForeignKeyConstraints();
         Schema::dropIfExists('controller_pairings');
-        Schema::dropIfExists('controller_user');
         Schema::dropIfExists('pin');
         Schema::dropIfExists('controller');
         Schema::enableForeignKeyConstraints();

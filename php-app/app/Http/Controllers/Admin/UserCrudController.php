@@ -114,7 +114,7 @@ class UserCrudController extends CrudController
     public function editPlan(int $id)
     {
         $targetUser = User::query()->findOrFail($id);
-        $plans = Plan::query()->where('is_active', true)->orderBy('price_amount')->get(['id', 'name']);
+        $plans = Plan::query()->where('is_active', true)->orderBy('daily_price_units')->get(['id', 'name']);
         $subscription = $targetUser->planSubscriptions()->latest('id')->first();
 
         return view('admin.backpack.user-plan-edit', compact('targetUser', 'plans', 'subscription'));

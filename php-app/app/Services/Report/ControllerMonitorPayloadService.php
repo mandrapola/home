@@ -86,10 +86,9 @@ class ControllerMonitorPayloadService
 
     private function resolveUserTimeZone(string $controllerId): string
     {
-        $timeZone = DB::table('controller_user as cu')
-            ->join('users as u', 'u.id', '=', 'cu.user_id')
-            ->where('cu.controller_id', $controllerId)
-            ->orderByRaw("CASE WHEN cu.role = 'owner' THEN 0 ELSE 1 END")
+        $timeZone = DB::table('controller as c')
+            ->join('users as u', 'u.id', '=', 'c.user_id')
+            ->where('c.id', $controllerId)
             ->limit(1)
             ->value('u.time_zone');
 

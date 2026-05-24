@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Services\Billing\PlanLimitService;
 use App\Services\Report\PinValueTransformer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,6 +19,7 @@ class ScenesController extends Controller
 
     public function __construct(
         private readonly PinValueTransformer $pinValueTransformer,
+        private readonly PlanLimitService $planLimitService,
     ) {
     }
 
@@ -72,9 +74,9 @@ class ScenesController extends Controller
         }
 
         return DB::table('pin as p')
-            ->join('controller_user as cu', 'cu.controller_id', '=', 'p.controller_id')
+            ->join('controller as c', 'c.id', '=', 'p.controller_id')
             ->where('p.id', $pinId)
-            ->where('cu.user_id', (string) $userId)
+            ->where('c.user_id', (int) $userId)
             ->exists();
     }
 
@@ -185,9 +187,9 @@ class ScenesController extends Controller
 
     private function userOwnsController(string|int $userId, string $controllerId): bool
     {
-        return DB::table('controller_user')
-            ->where('user_id', (string) $userId)
-            ->where('controller_id', $controllerId)
+        return DB::table('controller')
+            ->where('user_id', (int) $userId)
+            ->where('id', $controllerId)
             ->exists();
     }
 
@@ -206,8 +208,7 @@ class ScenesController extends Controller
 
         $targets = DB::table('pin as p')
             ->join('controller as c', 'c.id', '=', 'p.controller_id')
-            ->join('controller_user as cu', 'cu.controller_id', '=', 'c.id')
-            ->where('cu.user_id', (string) $user->id)
+            ->where('c.user_id', (int) $user->id)
             ->where('p.digital_style', 'power')
             ->select([
                 'p.id',
@@ -223,8 +224,7 @@ class ScenesController extends Controller
 
         $pins = DB::table('pin as p')
             ->join('controller as c', 'c.id', '=', 'p.controller_id')
-            ->join('controller_user as cu', 'cu.controller_id', '=', 'c.id')
-            ->where('cu.user_id', (string) $user->id)
+            ->where('c.user_id', (int) $user->id)
             ->select($this->pinSelectColumnsForTransformWithAliases([
                 'p.id',
                 'p.pin',
@@ -276,8 +276,7 @@ class ScenesController extends Controller
         $definitions = DB::table('scenario as s')
             ->join('pin as p_target', 'p_target.id', '=', 's.pin_id')
             ->join('controller as c', 'c.id', '=', 'p_target.controller_id')
-            ->join('controller_user as cu', 'cu.controller_id', '=', 'c.id')
-            ->where('cu.user_id', (string) $user->id)
+            ->where('c.user_id', (int) $user->id)
             ->select([
                 's.id',
                 's.name',
@@ -299,9 +298,8 @@ class ScenesController extends Controller
             ->join('scenario as s', 's.id', '=', 'sc.scenario_id')
             ->join('pin as p_target', 'p_target.id', '=', 's.pin_id')
             ->join('controller as c', 'c.id', '=', 'p_target.controller_id')
-            ->join('controller_user as cu', 'cu.controller_id', '=', 'c.id')
             ->join('pin as p_source', 'p_source.id', '=', 'sc.pin_id')
-            ->where('cu.user_id', (string) $user->id)
+            ->where('c.user_id', (int) $user->id)
             ->select($this->pinSelectColumnsForConditions([
                 'sc.id',
                 'sc.scenario_id',
@@ -437,6 +435,16 @@ class ScenesController extends Controller
             return response()->json(['error' => 'validation_error', 'message' => 'Scenario with this name already exists for pin'], 422);
         }
 
+        $allowance = $this->planLimitService->scenarioCreateAllowance($user);
+        if (! $allowance['allowed']) {
+            return response()->json([
+                'error' => 'plan_limit_exceeded',
+                'message' => __('Scenario limit reached for effective plan.'),
+                'used' => $allowance['used'],
+                'max' => $allowance['max'],
+            ], 409);
+        }
+
         $id = (string) \Ramsey\Uuid\Uuid::uuid7();
         DB::table('scenario')->insert([
             'id' => $id,
@@ -565,6 +573,16 @@ class ScenesController extends Controller
         }
         if (! $this->sourcePinAvailableForUser((string) $user->id, (string) $sourcePin->id)) {
             return response()->json(['error' => 'forbidden', 'message' => 'Source pin is not available'], 403);
+        }
+
+        $allowance = $this->planLimitService->scenarioConditionCreateAllowance($user);
+        if (! $allowance['allowed']) {
+            return response()->json([
+                'error' => 'plan_limit_exceeded',
+                'message' => __('Scenario condition limit reached for effective plan.'),
+                'used' => $allowance['used'],
+                'max' => $allowance['max'],
+            ], 409);
         }
 
         $id = (string) \Ramsey\Uuid\Uuid::uuid7();

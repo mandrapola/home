@@ -6,12 +6,19 @@ use App\Http\Controllers\ScenesController;
 use App\Http\Controllers\AliceLinkController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\OAuth\AliceOAuthProviderController;
+use App\Models\Plan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('welcome');
+    return view('welcome', [
+        'plans' => Plan::query()
+            ->where('is_active', true)
+            ->orderBy('daily_price_units')
+            ->limit(3)
+            ->get(),
+    ]);
 });
 
 Route::get('/home-arduino', function () {
@@ -59,8 +66,8 @@ Route::get('/report', function (Request $request) {
     $user = $request->user();
     if ($user) {
         $firstPinId = DB::table('pin as p')
-            ->join('controller_user as cu', 'cu.controller_id', '=', 'p.controller_id')
-            ->where('cu.user_id', (string) $user->id)
+            ->join('controller as c', 'c.id', '=', 'p.controller_id')
+            ->where('c.user_id', (int) $user->id)
             ->where('p.digital_style', 'power')
             ->where('p.controller_id', '!=', $systemControllerId)
             ->orderByDesc('p.show_on_report')

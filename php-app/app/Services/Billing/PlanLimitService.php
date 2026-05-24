@@ -72,17 +72,66 @@ class PlanLimitService
         return Plan::query()->find((int) $user->selected_plan_id);
     }
 
+    public function isAliceAllowedForUser(User $user): bool
+    {
+        return true;
+    }
+
     /**
+     * Kept for old pairing endpoints. Controller count is no longer tariff-limited.
+     *
      * @return array{allowed: bool, used: int, max: int|null, effective_plan: ?Plan}
      */
     public function controllerAttachAllowance(User $user): array
     {
-        $plan = $this->resolveEffectivePlanForUser($user);
-        $used = (int) DB::table('controller_user')
+        $used = (int) DB::table('controller')
             ->where('user_id', (string) $user->id)
-            ->distinct('controller_id')
-            ->count('controller_id');
-        $max = $plan?->max_controllers;
+            ->count('id');
+
+        return [
+            'allowed' => true,
+            'used' => $used,
+            'max' => null,
+            'effective_plan' => $this->resolveEffectivePlanForUser($user),
+        ];
+    }
+
+    public function canInsertPinDataForController(string $controllerId): bool
+    {
+        $ownerId = (int) (DB::table('controller')->where('id', $controllerId)->value('user_id') ?? 0);
+
+        if ($ownerId <= 0) {
+            return true;
+        }
+
+        $user = User::query()->find($ownerId);
+        if (! $user) {
+            return true;
+        }
+
+        $plan = $this->resolveEffectivePlanForUser($user);
+        $maxRows = $this->normalizeLimit($plan?->max_pin_data_rows);
+        if ($maxRows === null) {
+            return true;
+        }
+
+        $usedRows = (int) DB::table('pin_data as pd')
+            ->join('pin as p', 'p.id', '=', 'pd.pin_id')
+            ->join('controller as c', 'c.id', '=', 'p.controller_id')
+            ->where('c.user_id', $ownerId)
+            ->count('pd.id');
+
+        return $usedRows < $maxRows;
+    }
+
+    /**
+     * @return array{allowed: bool, used: int, max: int|null, effective_plan: ?Plan}
+     */
+    public function scenarioCreateAllowance(User $user): array
+    {
+        $plan = $this->resolveEffectivePlanForUser($user);
+        $used = $this->countUserScenarios($user);
+        $max = $this->normalizeLimit($plan?->max_scenarios);
 
         return [
             'allowed' => $max === null || $used < $max,
@@ -92,63 +141,88 @@ class PlanLimitService
         ];
     }
 
-    public function isAliceAllowedForUser(User $user): bool
+    /**
+     * @return array{allowed: bool, used: int, max: int|null, effective_plan: ?Plan}
+     */
+    public function scenarioConditionCreateAllowance(User $user): array
     {
         $plan = $this->resolveEffectivePlanForUser($user);
-        if (! $plan) {
-            return false;
-        }
+        $used = $this->countUserScenarioConditions($user);
+        $max = $this->normalizeLimit($plan?->max_scenario_conditions);
 
-        return (bool) $plan->alice_enabled;
+        return [
+            'allowed' => $max === null || $used < $max,
+            'used' => $used,
+            'max' => $max,
+            'effective_plan' => $plan,
+        ];
     }
 
-    public function canInsertPinDataForController(string $controllerId): bool
+    public function scenarioExecutionAllowedForController(string $controllerId): bool
     {
-        $ownerIds = DB::table('controller_user')
-            ->where('controller_id', $controllerId)
-            ->pluck('user_id')
-            ->map(static fn ($id) => (int) $id)
-            ->all();
+        $ownerId = (int) (DB::table('controller')->where('id', $controllerId)->value('user_id') ?? 0);
 
-        if (count($ownerIds) === 0) {
+        if ($ownerId <= 0) {
             return true;
         }
 
-        foreach ($ownerIds as $ownerId) {
-            $user = User::query()->find($ownerId);
-            if (! $user) {
-                continue;
-            }
+        $user = User::query()->find($ownerId);
+        if (! $user) {
+            return true;
+        }
 
-            $plan = $this->resolveEffectivePlanForUser($user);
-            $maxRows = $plan?->max_pin_data_rows;
-            if ($maxRows === null) {
-                continue;
-            }
+        $plan = $this->resolveEffectivePlanForUser($user);
+        $scenarioMax = $this->normalizeLimit($plan?->max_scenarios);
+        $conditionMax = $this->normalizeLimit($plan?->max_scenario_conditions);
 
-            $usedRows = (int) DB::table('pin_data as pd')
-                ->join('pin as p', 'p.id', '=', 'pd.pin_id')
-                ->join('controller_user as cu', 'cu.controller_id', '=', 'p.controller_id')
-                ->where('cu.user_id', (string) $ownerId)
-                ->count('pd.id');
+        if ($scenarioMax !== null && $this->countUserScenarios($user) > $scenarioMax) {
+            return false;
+        }
 
-            if ($usedRows >= $maxRows) {
-                return false;
-            }
+        if ($conditionMax !== null && $this->countUserScenarioConditions($user) > $conditionMax) {
+            return false;
         }
 
         return true;
+    }
+
+    private function countUserScenarios(User $user): int
+    {
+        return (int) DB::table('scenario as s')
+            ->join('pin as p', 'p.id', '=', 's.pin_id')
+            ->join('controller as c', 'c.id', '=', 'p.controller_id')
+            ->where('c.user_id', (string) $user->id)
+            ->count('s.id');
+    }
+
+    private function countUserScenarioConditions(User $user): int
+    {
+        return (int) DB::table('scenario_condition as sc')
+            ->join('scenario as s', 's.id', '=', 'sc.scenario_id')
+            ->join('pin as p', 'p.id', '=', 's.pin_id')
+            ->join('controller as c', 'c.id', '=', 'p.controller_id')
+            ->where('c.user_id', (string) $user->id)
+            ->count('sc.id');
+    }
+
+    private function normalizeLimit(null|int|string $value): ?int
+    {
+        $limit = (int) ($value ?? 0);
+
+        return $limit > 0 ? $limit : null;
     }
 
     /**
      * @return array{
      *   selected_plan: ?Plan,
      *   effective_plan: ?Plan,
-     *   controllers_used: int,
-     *   controllers_max: int|null,
      *   pin_data_used: int,
      *   pin_data_max: int|null,
-     *   controller_slots_left: int|null,
+     *   scenarios_used: int,
+     *   scenarios_max: int|null,
+     *   scenario_conditions_used: int,
+     *   scenario_conditions_max: int|null,
+     *   min_report_interval_seconds: int,
      *   balance_units: int,
      *   billing_blocked: bool
      * }
@@ -158,19 +232,15 @@ class PlanLimitService
         $selectedPlan = $this->resolveSelectedPlanForUser($user);
         $effectivePlan = $this->resolveEffectivePlanForUser($user);
 
-        $controllersUsed = (int) DB::table('controller_user')
-            ->where('user_id', (string) $user->id)
-            ->distinct('controller_id')
-            ->count('controller_id');
-
         $pinDataUsed = (int) DB::table('pin_data as pd')
             ->join('pin as p', 'p.id', '=', 'pd.pin_id')
-            ->join('controller_user as cu', 'cu.controller_id', '=', 'p.controller_id')
-            ->where('cu.user_id', (string) $user->id)
+            ->join('controller as c', 'c.id', '=', 'p.controller_id')
+            ->where('c.user_id', (string) $user->id)
             ->count('pd.id');
 
-        $controllersMax = $effectivePlan?->max_controllers;
-        $pinDataMax = $effectivePlan?->max_pin_data_rows;
+        $pinDataMax = $this->normalizeLimit($effectivePlan?->max_pin_data_rows);
+        $scenariosUsed = $this->countUserScenarios($user);
+        $scenarioConditionsUsed = $this->countUserScenarioConditions($user);
         $balance = DB::table('user_balances')->where('user_id', $user->id)->first([
             'balance_units',
             'billing_blocked_at',
@@ -179,11 +249,13 @@ class PlanLimitService
         return [
             'selected_plan' => $selectedPlan,
             'effective_plan' => $effectivePlan,
-            'controllers_used' => $controllersUsed,
-            'controllers_max' => $controllersMax,
             'pin_data_used' => $pinDataUsed,
             'pin_data_max' => $pinDataMax,
-            'controller_slots_left' => $controllersMax === null ? null : max(0, $controllersMax - $controllersUsed),
+            'scenarios_used' => $scenariosUsed,
+            'scenarios_max' => $this->normalizeLimit($effectivePlan?->max_scenarios),
+            'scenario_conditions_used' => $scenarioConditionsUsed,
+            'scenario_conditions_max' => $this->normalizeLimit($effectivePlan?->max_scenario_conditions),
+            'min_report_interval_seconds' => (int) ($effectivePlan?->min_report_interval_seconds ?? 0),
             'balance_units' => (int) ($balance->balance_units ?? 0),
             'billing_blocked' => $balance !== null && $balance->billing_blocked_at !== null,
         ];

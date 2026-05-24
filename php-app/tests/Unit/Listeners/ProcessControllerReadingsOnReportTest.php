@@ -26,13 +26,13 @@ class ProcessControllerReadingsOnReportTest extends TestCase
         Schema::dropIfExists('pin');
         Schema::dropIfExists('controller_pairings');
         Schema::dropIfExists('alice_accounts');
-        Schema::dropIfExists('controller_user');
         Schema::dropIfExists('users');
         Schema::dropIfExists('controller');
         Schema::enableForeignKeyConstraints();
 
         Schema::create('controller', function (Blueprint $table): void {
             $table->char('id', 36)->primary();
+            $table->unsignedBigInteger('user_id')->nullable();
             $table->string('name');
             $table->text('discription')->nullable();
             $table->integer('send_interval_seconds')->default(5);
@@ -45,14 +45,6 @@ class ProcessControllerReadingsOnReportTest extends TestCase
         Schema::create('users', function (Blueprint $table): void {
             $table->id();
             $table->string('time_zone', 64)->default('Europe/Moscow');
-            $table->timestamps();
-        });
-
-        Schema::create('controller_user', function (Blueprint $table): void {
-            $table->char('id', 36)->primary();
-            $table->char('controller_id', 36);
-            $table->unsignedBigInteger('user_id');
-            $table->string('role', 16)->default('owner');
             $table->timestamps();
         });
 
@@ -111,7 +103,6 @@ class ProcessControllerReadingsOnReportTest extends TestCase
         Schema::dropIfExists('pin');
         Schema::dropIfExists('controller_pairings');
         Schema::dropIfExists('alice_accounts');
-        Schema::dropIfExists('controller_user');
         Schema::dropIfExists('users');
         Schema::dropIfExists('controller');
         Schema::enableForeignKeyConstraints();
@@ -124,6 +115,7 @@ class ProcessControllerReadingsOnReportTest extends TestCase
         $controllerId = '019d5529-ceee-7748-b9a8-a2e3ce1e8b8f';
         DB::table('controller')->insert([
             'id' => $controllerId,
+            'user_id' => null,
             'name' => 'test-controller',
             'send_interval_seconds' => 5,
             'status' => 'unclaimed',

@@ -189,9 +189,8 @@ class AliceSmartHomeService
     private function ownedPins(User $user): Collection
     {
         $query = DB::table('pin as p')
-            ->join('controller_user as cu', 'cu.controller_id', '=', 'p.controller_id')
             ->join('controller as c', 'c.id', '=', 'p.controller_id')
-            ->where('cu.user_id', $user->id)
+            ->where('c.user_id', $user->id)
             ->where(function ($q): void {
                 $q->where('p.digital_style', 'power')
                     ->orWhere('p.digital_style', 'like', 'sensor%');

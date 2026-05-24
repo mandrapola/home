@@ -30,10 +30,11 @@ class PlanCrudController extends CrudController
         CRUD::column('id')->label('ID');
         CRUD::column('name')->label(__('Name'));
         CRUD::column('daily_price_units')->label(__('Daily price'));
+        CRUD::column('min_report_interval_seconds')->label(__('Minimum report interval, sec'));
         CRUD::column('price_currency')->label(__('Currency'));
-        CRUD::column('max_controllers')->label(__('Max Controllers'));
         CRUD::column('max_pin_data_rows')->label(__('Max Pin Data Rows'));
-        CRUD::column('alice_enabled')->type('boolean')->label(__('Alice Enabled'));
+        CRUD::column('max_scenarios')->label(__('Max Scenarios'));
+        CRUD::column('max_scenario_conditions')->label(__('Max Scenario Conditions'));
         CRUD::column('is_active')->type('boolean')->label(__('Active'));
     }
 
@@ -42,8 +43,14 @@ class PlanCrudController extends CrudController
         CRUD::setValidation([
             'code' => ['required', 'string', 'max:64', 'unique:plans,code'],
             'name' => ['required', 'string', 'max:128'],
+            'description' => ['required', 'string'],
             'daily_price_units' => ['required', 'integer', 'min:0'],
+            'min_report_interval_seconds' => ['required', 'integer', 'min:5'],
+            'max_pin_data_rows' => ['required', 'integer', 'min:0'],
+            'max_scenarios' => ['required', 'integer', 'min:0'],
+            'max_scenario_conditions' => ['required', 'integer', 'min:0'],
             'price_currency' => ['required', 'string', 'size:3'],
+            'is_active' => ['required', 'boolean'],
         ]);
 
         $this->setupPlanFields();
@@ -55,6 +62,7 @@ class PlanCrudController extends CrudController
         CRUD::field('name')->label(__('Name'));
         CRUD::field('description')->type('textarea')->label(__('Description'));
         CRUD::field('daily_price_units')->type('number')->attributes(['step' => '1', 'min' => '0'])->label(__('Daily price'));
+        CRUD::field('min_report_interval_seconds')->type('number')->attributes(['step' => '1', 'min' => '5'])->label(__('Minimum report interval, sec'))->hint(__('Minimum value is 5 seconds'));
         CRUD::addField([
             'name' => 'code',
             'type' => 'text',
@@ -76,15 +84,9 @@ class PlanCrudController extends CrudController
             'allows_null' => false,
             'default' => 'RUB',
         ]);
-        CRUD::field('max_controllers')->type('number')->label(__('Max Controllers'));
-        CRUD::field('max_pin_data_rows')->type('number')->label(__('Max Pin Data Rows'));
-        CRUD::addField([
-            'name' => 'alice_enabled',
-            'type' => 'radio',
-            'label' => __('Alice Enabled'),
-            'options' => [1 => __('Yes'), 0 => __('No')],
-            'inline' => true,
-        ]);
+        CRUD::field('max_pin_data_rows')->type('number')->attributes(['step' => '1', 'min' => '0'])->label(__('Max Pin Data Rows'))->hint(__('0 means no limit'));
+        CRUD::field('max_scenarios')->type('number')->attributes(['step' => '1', 'min' => '0'])->label(__('Max Scenarios'))->hint(__('0 means no limit'));
+        CRUD::field('max_scenario_conditions')->type('number')->attributes(['step' => '1', 'min' => '0'])->label(__('Max Scenario Conditions'))->hint(__('0 means no limit'));
         CRUD::addField([
             'name' => 'is_active',
             'type' => 'radio',
@@ -100,8 +102,14 @@ class PlanCrudController extends CrudController
         CRUD::setValidation([
             'code' => ['required', 'string', 'max:64', Rule::unique('plans', 'code')->ignore($id)],
             'name' => ['required', 'string', 'max:128'],
+            'description' => ['required', 'string'],
             'daily_price_units' => ['required', 'integer', 'min:0'],
+            'min_report_interval_seconds' => ['required', 'integer', 'min:5'],
+            'max_pin_data_rows' => ['required', 'integer', 'min:0'],
+            'max_scenarios' => ['required', 'integer', 'min:0'],
+            'max_scenario_conditions' => ['required', 'integer', 'min:0'],
             'price_currency' => ['required', 'string', 'size:3'],
+            'is_active' => ['required', 'boolean'],
         ]);
 
         $this->setupPlanFields();

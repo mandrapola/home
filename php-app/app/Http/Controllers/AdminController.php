@@ -63,7 +63,7 @@ class AdminController extends Controller
 
     public function editUserPlan(User $user): View
     {
-        $plans = Plan::query()->where('is_active', true)->orderBy('price_amount')->get(['id', 'name']);
+        $plans = Plan::query()->where('is_active', true)->orderBy('daily_price_units')->get(['id', 'name']);
         $subscription = UserPlanSubscription::query()
             ->where('user_id', $user->id)
             ->latest('id')
