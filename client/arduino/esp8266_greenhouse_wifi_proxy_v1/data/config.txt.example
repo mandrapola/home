@@ -14,4 +14,7 @@ tls_insecure=0
 tls_fingerprint=YOUR_SERVER_CERTIFICATE_SHA1_FINGERPRINT
 local_login=admin
 local_password=CHANGE_ME_LOCAL_ADMIN_PASSWORD
+# Used by the fallback setup AP AiDvor-ESP-<chipId>; minimum 8 characters.
+# If omitted, local_password is used for backward compatibility.
+setup_ap_password=CHANGE_ME_SETUP_AP_PASSWORD
 cloud_grace_seconds=300

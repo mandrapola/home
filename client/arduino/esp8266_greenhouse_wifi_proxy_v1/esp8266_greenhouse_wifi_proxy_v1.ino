@@ -21,7 +21,8 @@
 #include <ESP8266HTTPClient.h>
 #include <LittleFS.h>
 
-const unsigned long WIFI_CONNECT_TIMEOUT_MS = 20000UL;
+const unsigned long WIFI_CONNECT_TIMEOUT_MS = 30000UL;
+const size_t SETUP_AP_MIN_PASSWORD_LENGTH = 8;
 const size_t REQUEST_MAX = 260;
 const size_t JSON_MAX = 620;
 const size_t RESPONSE_MAX = 220;
@@ -39,6 +40,7 @@ struct ProxyConfig {
   char tlsFingerprint[60];
   char localLogin[33];
   char localPassword[49];
+  char setupApPassword[65];
   char controllerId[37];  // UUID or empty
   unsigned long cloudGraceSeconds;
   bool tlsInsecure;
@@ -47,6 +49,7 @@ struct ProxyConfig {
 ProxyConfig config;
 ESP8266WebServer webServer(80);
 bool configLoaded = false;
+bool fallbackApActive = false;
 bool cloudOnline = false;
 bool safeOffActive = false;
 bool restartPending = false;
@@ -64,6 +67,7 @@ char soilMoistureRaw[16] = "";
 char lightLevelRaw[16] = "";
 char airHumidity[16] = "";
 char airTemperature[16] = "";
+char fallbackApSsid[33] = "";
 
 static bool appendFmt(char *dst, size_t dstSize, size_t *used, const char *fmt, ...) {
   if (*used >= dstSize) return false;
@@ -107,6 +111,8 @@ static void setConfigValue(const String &key, const String &value) {
     copyConfigValue(config.localLogin, sizeof(config.localLogin), value);
   } else if (key == "local_password") {
     copyConfigValue(config.localPassword, sizeof(config.localPassword), value);
+  } else if (key == "setup_ap_password") {
+    copyConfigValue(config.setupApPassword, sizeof(config.setupApPassword), value);
   } else if (key == "controller_id") {
     copyConfigValue(config.controllerId, sizeof(config.controllerId), value);
   } else if (key == "cloud_grace_seconds") {
@@ -118,6 +124,11 @@ static void setConfigValue(const String &key, const String &value) {
 static bool validateConfigValues(ProxyConfig &candidate) {
   if (candidate.cloudGraceSeconds == 0) {
     candidate.cloudGraceSeconds = 300UL;
+  }
+
+  if (candidate.setupApPassword[0] != '\0'
+      && strlen(candidate.setupApPassword) < SETUP_AP_MIN_PASSWORD_LENGTH) {
+    return false;
   }
 
   return candidate.wifiSsid[0] != '\0'
@@ -194,6 +205,8 @@ static bool writeConfigFile(const ProxyConfig &nextConfig) {
   file.println(nextConfig.localLogin);
   file.print(F("local_password="));
   file.println(nextConfig.localPassword);
+  file.print(F("setup_ap_password="));
+  file.println(nextConfig.setupApPassword);
   file.print(F("controller_id="));
   file.println(nextConfig.controllerId);
   file.print(F("cloud_grace_seconds="));
@@ -549,7 +562,48 @@ static bool jsonToUnoCsv(const String &json, char *out, size_t outSize) {
   return hasValue;
 }
 
+static const char *fallbackApPassword() {
+  if (strlen(config.setupApPassword) >= SETUP_AP_MIN_PASSWORD_LENGTH) {
+    return config.setupApPassword;
+  }
+
+  if (strlen(config.localPassword) >= SETUP_AP_MIN_PASSWORD_LENGTH) {
+    return config.localPassword;
+  }
+
+  return NULL;
+}
+
+static bool startFallbackAp() {
+  const char *password = fallbackApPassword();
+  if (password == NULL) {
+    setLastError("setup_ap_password_missing");
+    Serial.println(F("fallback_ap=failed;error=setup_ap_password_missing"));
+    return false;
+  }
+
+  snprintf(fallbackApSsid, sizeof(fallbackApSsid), "AiDvor-ESP-%06X", ESP.getChipId());
+  WiFi.disconnect();
+  WiFi.mode(WIFI_AP);
+  if (!WiFi.softAP(fallbackApSsid, password)) {
+    setLastError("fallback_ap_failed");
+    Serial.println(F("fallback_ap=failed;error=softap_start_failed"));
+    return false;
+  }
+
+  fallbackApActive = true;
+  Serial.print(F("fallback_ap=active;ssid="));
+  Serial.print(fallbackApSsid);
+  Serial.print(F(";ip="));
+  Serial.println(WiFi.softAPIP());
+  return true;
+}
+
 static bool ensureWifi() {
+  if (fallbackApActive) {
+    return false;
+  }
+
   if (WiFi.status() == WL_CONNECTED) {
     return true;
   }
@@ -562,7 +616,12 @@ static bool ensureWifi() {
     delay(250);
   }
 
-  return WiFi.status() == WL_CONNECTED;
+  if (WiFi.status() == WL_CONNECTED) {
+    return true;
+  }
+
+  startFallbackAp();
+  return false;
 }
 
 static String buildServerUrl(const char *path) {
@@ -687,8 +746,8 @@ static void postToServer(const char *payload) {
 }
 
 static bool requireLocalAuth() {
-  if (!configLoaded) {
-    webServer.send(503, F("text/plain"), F("ESP config is missing"));
+  if (config.localLogin[0] == '\0' || config.localPassword[0] == '\0') {
+    webServer.send(503, F("text/plain"), F("Local access credentials are missing"));
     return false;
   }
 
@@ -702,7 +761,7 @@ static bool requireLocalAuth() {
 
 static String buildStatusJson() {
   String json;
-  json.reserve(520);
+  json.reserve(620);
   json += F("{\"device\":\"esp8266_proxy\"");
   json += F(",\"config_loaded\":");
   json += configLoaded ? F("true") : F("false");
@@ -710,8 +769,14 @@ static String buildStatusJson() {
   json += cloudOnline ? F("true") : F("false");
   json += F(",\"safe_off_active\":");
   json += safeOffActive ? F("true") : F("false");
+  json += F(",\"wifi_mode\":\"");
+  json += fallbackApActive ? F("fallback_ap") : F("station");
   json += F(",\"ip\":\"");
-  json += WiFi.localIP().toString();
+  json += fallbackApActive ? WiFi.softAPIP().toString() : WiFi.localIP().toString();
+  json += F("\",\"fallback_ap_ssid\":\"");
+  if (fallbackApActive) {
+    json += fallbackApSsid;
+  }
   json += F("\",\"controller_id\":\"");
   json += config.controllerId;
   json += F("\",\"last_http_status\":");
@@ -772,7 +837,7 @@ static void sendLocalPage() {
   html += F("async function api(p,o){const r=await fetch(p,o);return r.json()}");
   html += F("async function relay(pin,value){await api('/relay',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'pin='+pin+'&value='+value});load()}");
   html += F("async function load(){const s=await api('/status');");
-  html += F("document.getElementById('summary').innerHTML='Cloud: <b class=\"'+(s.cloud_online?'ok':'bad')+'\">'+(s.cloud_online?'online':'offline')+'</b><br>IP: '+s.ip+'<br>HTTP: '+s.last_http_status+' / '+s.last_error+'<br>Safe off: '+s.safe_off_active+'<br>Offline seconds: '+s.cloud_offline_seconds+' / '+s.cloud_grace_seconds;");
+  html += F("document.getElementById('summary').innerHTML='Cloud: <b class=\"'+(s.cloud_online?'ok':'bad')+'\">'+(s.cloud_online?'online':'offline')+'</b><br>Wi-Fi mode: '+s.wifi_mode+'<br>IP: '+s.ip+(s.fallback_ap_ssid?'<br>Setup AP: '+s.fallback_ap_ssid:'')+'<br>HTTP: '+s.last_http_status+' / '+s.last_error+'<br>Safe off: '+s.safe_off_active+'<br>Offline seconds: '+s.cloud_offline_seconds+' / '+s.cloud_grace_seconds;");
   html += F("const labels={soil_moisture_raw:'Влажность почвы',light_level_raw:'Освещенность',air_humidity:'Влажность воздуха',air_temperature:'Температура воздуха'};");
   html += F("let rh='';for(const k in s.readings){rh+='<div class=item><b>'+(labels[k]||k)+'</b><br>'+s.readings[k]+'</div>'}document.getElementById('readings').innerHTML=rh;");
   html += F("document.getElementById('control-note').textContent=s.cloud_online?'Управление выполняется сервером. Локальные кнопки доступны при потере связи.':'Сервер недоступен. Локальное управление активно.';");
@@ -837,6 +902,7 @@ static void sendConfigPage(const char *message = "") {
   addTextInput(html, "tls_fingerprint", "TLS fingerprint", "SHA-1 fingerprint сертификата для проверки HTTPS при tls_insecure=0.", config.tlsFingerprint);
   addTextInput(html, "local_login", "Логин локальной админки", "Логин для входа на страницы ESP: /local, /status, /config.", config.localLogin);
   addSecretInput(html, "local_password", "Пароль локальной админки", "Оставьте пустым, если не хотите менять текущий пароль.");
+  addSecretInput(html, "setup_ap_password", "Пароль точки восстановления", "Пароль Wi-Fi точки AiDvor-ESP, которая включается, если домашняя сеть недоступна. Минимум 8 символов. Если не задан, используется пароль локальной админки.");
   char grace[16];
   snprintf(grace, sizeof(grace), "%lu", config.cloudGraceSeconds);
   addTextInput(html, "cloud_grace_seconds", "Задержка отключения реле, секунд", "Сколько секунд ESP сохраняет состояние реле после потери связи с сервером. После истечения времени все реле выключаются.", grace);
@@ -867,6 +933,9 @@ static void handleConfigPost() {
   }
   if (webServer.hasArg("local_password") && webServer.arg("local_password").length() > 0) {
     copyConfigValue(nextConfig.localPassword, sizeof(nextConfig.localPassword), webServer.arg("local_password"));
+  }
+  if (webServer.hasArg("setup_ap_password") && webServer.arg("setup_ap_password").length() > 0) {
+    copyConfigValue(nextConfig.setupApPassword, sizeof(nextConfig.setupApPassword), webServer.arg("setup_ap_password"));
   }
   if (webServer.hasArg("cloud_grace_seconds")) {
     long seconds = webServer.arg("cloud_grace_seconds").toInt();

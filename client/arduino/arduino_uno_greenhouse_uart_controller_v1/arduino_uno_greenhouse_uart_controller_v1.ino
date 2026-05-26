@@ -52,7 +52,8 @@ const char *ANALOG_KEYS[] = { "soil_moisture_raw", "light_level_raw" };
 
 const size_t DIGITAL_COUNT = sizeof(DIGITAL_PINS) / sizeof(DIGITAL_PINS[0]);
 const size_t ANALOG_COUNT = sizeof(ANALOG_PINS) / sizeof(ANALOG_PINS[0]);
-const unsigned long RELAY_MAX_ON_MS = 300000UL;
+const unsigned long RELAY_MIN_WATCHDOG_MS = 300000UL;
+const unsigned long RELAY_RESPONSE_GRACE_MS = 30000UL;
 
 unsigned long lastSendMs = 0;
 unsigned long relayTurnedOnAtMs[DIGITAL_COUNT] = { 0, 0, 0, 0 };
@@ -98,6 +99,13 @@ static void setRelayLogical(size_t relayIndex, int logicalValue) {
   int logical = logicalValue > 0 ? 1 : 0;
   digitalWrite(DIGITAL_PINS[relayIndex], relayLogicalToWire(relayIndex, logical));
   relayTurnedOnAtMs[relayIndex] = logical > 0 ? millis() : 0;
+}
+
+static unsigned long relayWatchdogMs() {
+  unsigned long requiredResponseTimeMs = sendIntervalMs + RELAY_RESPONSE_GRACE_MS;
+  return requiredResponseTimeMs > RELAY_MIN_WATCHDOG_MS
+    ? requiredResponseTimeMs
+    : RELAY_MIN_WATCHDOG_MS;
 }
 
 static void showConnectionErrorOnDisplay() {
@@ -387,6 +395,7 @@ static void postMeasurements() {
 
 static void checkRelayWatchdogs() {
   unsigned long now = millis();
+  unsigned long watchdogMs = relayWatchdogMs();
 
   for (size_t i = 0; i < DIGITAL_COUNT; i++) {
     if (relayWireToLogical(i, digitalRead(DIGITAL_PINS[i])) <= 0) {
@@ -399,7 +408,7 @@ static void checkRelayWatchdogs() {
       continue;
     }
 
-    if ((now - relayTurnedOnAtMs[i]) >= RELAY_MAX_ON_MS) {
+    if ((now - relayTurnedOnAtMs[i]) >= watchdogMs) {
       setRelayLogical(i, 0);
       showConnectionErrorOnDisplay();
     }
