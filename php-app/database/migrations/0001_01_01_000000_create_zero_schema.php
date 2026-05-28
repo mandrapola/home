@@ -142,11 +142,14 @@ return new class extends Migration
             $table->boolean('show_on_report')->default(true);
             $table->boolean('is_monitored')->default(false);
             $table->boolean('external_enabled')->default(true);
+            $table->string('external_source', 32)->nullable();
+            $table->char('external_target_pin_id', 36)->nullable();
             $table->integer('chart_range_hours')->default(1);
             $table->boolean('enable_scenario')->default(true);
 
             $table->unique(['controller_id', 'pin'], 'uk_controller_pin');
             $table->index(['controller_id', 'pin'], 'idx_pin_config_controller_pin');
+            $table->index(['external_source', 'external_target_pin_id'], 'idx_pin_external_control_target');
             $table->foreign('controller_id')->references('id')->on('controller')->cascadeOnDelete();
         });
 
@@ -208,6 +211,8 @@ return new class extends Migration
                    p.show_on_report,
                    p.is_monitored,
                    p.external_enabled,
+                   p.external_source,
+                   p.external_target_pin_id,
                    p.chart_range_hours,
                    p.enable_scenario
             FROM pin p

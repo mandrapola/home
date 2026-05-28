@@ -12,6 +12,11 @@ use Illuminate\Support\Facades\Schema;
 
 class AliceSmartHomeService
 {
+    public function __construct(
+        private readonly AliceVirtualControllerService $aliceVirtualControllerService,
+    ) {
+    }
+
     private function alertsEnabled(): bool
     {
         return (bool) config('services.alice.enabled', false)
@@ -20,6 +25,8 @@ class AliceSmartHomeService
 
     public function buildDevicesPayload(User $user, ?string $requestId = null): array
     {
+        $this->aliceVirtualControllerService->ensureForUser($user);
+
         $devices = $this->ownedPins($user)->map(fn (object $pin) => $this->mapDevice($pin))->filter()->values()->all();
 
         return [
@@ -33,6 +40,8 @@ class AliceSmartHomeService
 
     public function buildQueryPayload(User $user, array $deviceIds, ?string $requestId = null): array
     {
+        $this->aliceVirtualControllerService->ensureForUser($user);
+
         $pins = $this->ownedPins($user)->keyBy(fn (object $row) => (string) $row->id);
         $devices = [];
 
@@ -60,6 +69,8 @@ class AliceSmartHomeService
 
     public function buildActionPayload(User $user, array $devicesInput, ?string $requestId = null): array
     {
+        $this->aliceVirtualControllerService->ensureForUser($user);
+
         $pins = $this->ownedPins($user)->keyBy(fn (object $row) => (string) $row->id);
         $devices = [];
 
@@ -141,14 +152,26 @@ class AliceSmartHomeService
                 continue;
             }
 
-            DB::table('pin')
-                ->where('id', $deviceId)
-                ->update([
-                    'desired_digital_value' => $on ? 1 : 0,
-                    'desired_digital_updated_at' => now(),
-                    'last_on_command_sent_at' => null,
-                    'enable_scenario' => 0,
-                ]);
+            if (! $this->aliceVirtualControllerService->updateCommandState($user, $deviceId, $on)) {
+                $devices[] = [
+                    'id' => $deviceId,
+                    'capabilities' => [[
+                        'type' => 'devices.capabilities.on_off',
+                        'state' => [
+                            'instance' => 'on',
+                            'action_result' => [
+                                'status' => 'ERROR',
+                                'error_code' => 'DEVICE_UNREACHABLE',
+                            ],
+                        ],
+                    ]],
+                    'action_result' => [
+                        'status' => 'ERROR',
+                        'error_code' => 'DEVICE_UNREACHABLE',
+                    ],
+                ];
+                continue;
+            }
 
             $devices[] = [
                 'id' => $deviceId,

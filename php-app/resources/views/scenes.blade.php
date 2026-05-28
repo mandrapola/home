@@ -215,7 +215,7 @@
 
             const opLabel = (op) => ({gt: '>', gte: '>=', lt: '<', lte: '<=', eq: '=', ne: '!='}[String(op || '').toLowerCase()] || '?');
             const pinKey = (controllerId, pin) => `${controllerId}|${String(pin || '').toUpperCase()}`;
-            const isDigitalPinName = (pinName) => /^D\d+$/i.test(String(pinName || '').trim()) || /^RELAY_\d+$/i.test(String(pinName || '').trim());
+            const isDigitalPinName = (pinName) => /^D\d+$/i.test(String(pinName || '').trim()) || /^RELAY_\d+$/i.test(String(pinName || '').trim()) || /^ALICE_/i.test(String(pinName || '').trim());
             const isCurrentTimePin = (pinName) => String(pinName || '').toUpperCase() === 'CURRENT_TIME';
 
             const findPin = (pinId) => latestData.pins.find((p) => String(p.id) === String(pinId));

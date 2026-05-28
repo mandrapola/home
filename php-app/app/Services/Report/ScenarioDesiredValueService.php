@@ -32,19 +32,28 @@ class ScenarioDesiredValueService
         $bucketStartUtc = \Illuminate\Support\Carbon::createFromTimestamp($bucketStartUnix, 'UTC');
         $bucketEndUtc = $bucketStartUtc->copy()->addSeconds($bucketSeconds);
 
-        $columns = ['id', 'digital_style', 'unit'];
+        $ownerId = (int) (DB::table('controller')->where('id', $controllerId)->value('user_id') ?? 0);
+
+        $columns = ['p.id', 'p.digital_style', 'p.unit', 'p.value'];
         if (Schema::hasColumn('pin', 'moisture_raw_dry')) {
-            $columns[] = 'moisture_raw_dry';
+            $columns[] = 'p.moisture_raw_dry';
         }
         if (Schema::hasColumn('pin', 'moisture_raw_wet')) {
-            $columns[] = 'moisture_raw_wet';
+            $columns[] = 'p.moisture_raw_wet';
         }
         if (Schema::hasColumn('pin', 'moisture_show_percent')) {
-            $columns[] = 'moisture_show_percent';
+            $columns[] = 'p.moisture_show_percent';
         }
 
-        $sourcePinRows = DB::table('pin')
-            ->where('controller_id', $controllerId)
+        $sourcePinRows = DB::table('pin as p')
+            ->join('controller as c', 'c.id', '=', 'p.controller_id')
+            ->where(function ($query) use ($controllerId, $ownerId): void {
+                $query->where('p.controller_id', $controllerId);
+
+                if ($ownerId > 0) {
+                    $query->orWhere('c.user_id', $ownerId);
+                }
+            })
             ->select($columns)
             ->get();
 
@@ -100,6 +109,21 @@ class ScenarioDesiredValueService
                 $avg = is_numeric($avgRow->avg_value) ? (float) $avgRow->avg_value : null;
                 $sourceValueByPinId[$pinId] = $this->pinValueTransformer->transform($pinById[$pinId] ?? [], $avg);
             }
+        }
+
+        foreach ($sourceValueByPinId as $pinId => $value) {
+            if ($value !== null) {
+                continue;
+            }
+
+            $pin = $pinById[$pinId] ?? null;
+            if (! $pin || (string) ($pin->digital_style ?? '') !== 'external_control') {
+                continue;
+            }
+
+            $sourceValueByPinId[$pinId] = is_numeric($pin->value ?? null)
+                ? (float) $pin->value
+                : null;
         }
 
         return $sourceValueByPinId;

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Services\Billing\PlanLimitService;
+use App\Services\Alice\AliceVirtualControllerService;
 use App\Services\Report\PinValueTransformer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,6 +21,7 @@ class ScenesController extends Controller
     public function __construct(
         private readonly PinValueTransformer $pinValueTransformer,
         private readonly PlanLimitService $planLimitService,
+        private readonly AliceVirtualControllerService $aliceVirtualControllerService,
     ) {
     }
 
@@ -201,6 +203,7 @@ class ScenesController extends Controller
         }
 
         $this->ensureSystemCurrentTimeSource();
+        $this->aliceVirtualControllerService->ensureForUser($user);
 
         $timeZone = (string) ($user->time_zone ?: 'Europe/Moscow');
         $now = Carbon::now($timeZone);
