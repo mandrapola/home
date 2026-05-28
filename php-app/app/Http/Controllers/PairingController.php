@@ -625,17 +625,27 @@ class PairingController extends Controller
 
         $timelineLength = self::REPORT_TIMELINE_LENGTH;
         $timelineStepSeconds = self::REPORT_TIMELINE_STEP_SECONDS;
-        $factTimeline = array_fill(0, $timelineLength, 0);
+        $factTimeline = array_fill(0, $timelineLength, null);
         $planTimeline = array_fill(0, $timelineLength, 0);
 
         $pinId = (string) $selectedPin->id;
+        $previousFactValue = DB::table('pin_data')
+            ->where('pin_id', $pinId)
+            ->where('created_at', '<', $dayStartUtc)
+            ->whereIn('value', [0, 1])
+            ->orderByDesc('created_at')
+            ->value('value');
+        if (is_numeric($previousFactValue)) {
+            $factTimeline[0] = ((int) $previousFactValue) > 0 ? 1 : 0;
+        }
+
         $factRows = DB::table('pin_data')
             ->where('pin_id', $pinId)
             ->where('created_at', '>=', $dayStartUtc)
             ->where('created_at', '<', $dayEndUtcExclusive)
-            ->where('value', 1)
+            ->whereIn('value', [0, 1])
             ->orderBy('created_at')
-            ->get(['created_at']);
+            ->get(['created_at', 'value']);
 
         foreach ($factRows as $row) {
             $sec = $this->secondOffsetFromDayStart(
@@ -645,7 +655,7 @@ class PairingController extends Controller
                 $timelineStepSeconds
             );
             if ($sec !== null) {
-                $factTimeline[$sec] = 1;
+                $factTimeline[$sec] = ((int) $row->value) > 0 ? 1 : 0;
             }
         }
         $this->forwardFillTimeline($factTimeline);
@@ -686,6 +696,15 @@ class PairingController extends Controller
         $sourceTimelineByPin = [];
         foreach ($sourcePinIds as $sourcePinId) {
             $line = array_fill(0, $timelineLength, null);
+            $previousSourceValue = DB::table('pin_data')
+                ->where('pin_id', $sourcePinId)
+                ->where('created_at', '<', $dayStartUtc)
+                ->orderByDesc('created_at')
+                ->value('value');
+            if (is_numeric($previousSourceValue)) {
+                $line[0] = (float) $previousSourceValue;
+            }
+
             $rows = DB::table('pin_data')
                 ->where('pin_id', $sourcePinId)
                 ->where('created_at', '>=', $dayStartUtc)
