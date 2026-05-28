@@ -59,6 +59,7 @@ class ProcessControllerReadingsOnReportTest extends TestCase
             $table->timestamp('value_updated_at')->nullable();
             $table->tinyInteger('desired_digital_value')->nullable();
             $table->timestamp('desired_digital_updated_at')->nullable();
+            $table->timestamp('last_on_command_sent_at')->nullable();
             $table->boolean('show_on_chart')->default(false);
             $table->boolean('show_on_report')->default(true);
             $table->boolean('is_monitored')->default(false);

@@ -146,6 +146,7 @@ class AliceSmartHomeService
                 ->update([
                     'desired_digital_value' => $on ? 1 : 0,
                     'desired_digital_updated_at' => now(),
+                    'last_on_command_sent_at' => null,
                     'enable_scenario' => 0,
                 ]);
 

@@ -55,11 +55,31 @@ class ControllerReportController extends Controller
 
         $targetRows = $this->scenarioDesiredValueService->findTargetRows($controllerId);
         $digitalOutputs = [];
+        $manualOnPinIds = [];
 
         foreach ($targetRows as $row) {
             $desired = (((int) $row->desired_digital_value) > 0) ? 1 : 0;
             $pinKey = strtolower($this->normalizePin((string) $row->pin));
             $digitalOutputs[$pinKey] = $desired;
+
+            if (
+                $desired === 1
+                && ((int) ($row->enable_scenario ?? 0)) === 0
+                && trim((string) ($row->last_on_command_sent_at ?? '')) === ''
+            ) {
+                $manualOnPinIds[] = (string) $row->id;
+            }
+        }
+
+        if (count($manualOnPinIds) > 0) {
+            DB::table('pin')
+                ->whereIn('id', $manualOnPinIds)
+                ->where('controller_id', $controllerId)
+                ->where('digital_style', 'power')
+                ->where('desired_digital_value', 1)
+                ->where('enable_scenario', 0)
+                ->whereNull('last_on_command_sent_at')
+                ->update(['last_on_command_sent_at' => now()]);
         }
 
         return $digitalOutputs;

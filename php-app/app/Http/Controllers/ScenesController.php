@@ -703,6 +703,7 @@ class ScenesController extends Controller
             $desired = $this->recalculateScenarioDesiredValue((string) $pinId, $timeZone);
             $updates['desired_digital_value'] = $desired;
             $updates['desired_digital_updated_at'] = now();
+            $updates['last_on_command_sent_at'] = null;
         }
 
         DB::table('pin')
@@ -711,7 +712,7 @@ class ScenesController extends Controller
 
         $pin = DB::table('pin')
             ->where('id', $pinId)
-            ->first(['id', 'enable_scenario', 'desired_digital_value', 'desired_digital_updated_at']);
+            ->first(['id', 'enable_scenario', 'desired_digital_value', 'desired_digital_updated_at', 'last_on_command_sent_at']);
 
         return response()->json([
             'ok' => true,

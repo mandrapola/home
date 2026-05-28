@@ -137,6 +137,7 @@ return new class extends Migration
             $table->timestamp('value_updated_at')->nullable();
             $table->tinyInteger('desired_digital_value')->nullable();
             $table->timestamp('desired_digital_updated_at')->nullable();
+            $table->timestamp('last_on_command_sent_at')->nullable();
             $table->boolean('show_on_chart')->default(false);
             $table->boolean('show_on_report')->default(true);
             $table->boolean('is_monitored')->default(false);
@@ -202,6 +203,7 @@ return new class extends Migration
                    p.value_updated_at,
                    p.desired_digital_value,
                    p.desired_digital_updated_at,
+                   p.last_on_command_sent_at,
                    p.show_on_chart,
                    p.show_on_report,
                    p.is_monitored,

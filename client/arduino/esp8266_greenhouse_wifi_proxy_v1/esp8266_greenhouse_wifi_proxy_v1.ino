@@ -884,7 +884,7 @@ static void sendConfigPage(const char *message = "") {
   html += F("<style>body{margin:0;font-family:Arial,sans-serif;background:#071a13;color:#f4fff8}");
   html += F(".wrap{max-width:760px;margin:0 auto;padding:24px}.card{background:#10281d;border:1px solid #28543d;border-radius:18px;padding:18px;margin:14px 0}");
   html += F("label{display:block;margin:12px 0;color:#a8c8b8}input{box-sizing:border-box;width:100%;padding:10px;margin-top:5px;border-radius:10px;border:1px solid #28543d;background:#071a13;color:#f4fff8}");
-  html += F(".help{display:block;margin-top:4px;font-size:13px;line-height:1.4;color:#7fa794}button{border:0;border-radius:10px;padding:12px 16px;font-weight:700;background:#62dc91;cursor:pointer}.msg{color:#62dc91}a{color:#62dc91}</style></head><body><div class='wrap'>");
+  html += F(".help{display:block;margin-top:4px;font-size:13px;line-height:1.4;color:#7fa794}button{border:0;border-radius:10px;padding:12px 16px;font-weight:700;background:#62dc91;cursor:pointer}.danger{background:#ff8a8a;color:#250909}.msg{color:#62dc91}a{color:#62dc91}</style></head><body><div class='wrap'>");
   html += F("<h1>Настройки ESP</h1><p><a href='/local'>Назад</a></p>");
   html += F("<p class='help'>После сохранения ESP перезапустится автоматически. Новые настройки применятся после перезапуска.</p>");
   if (message[0] != '\0') {
@@ -907,6 +907,11 @@ static void sendConfigPage(const char *message = "") {
   snprintf(grace, sizeof(grace), "%lu", config.cloudGraceSeconds);
   addTextInput(html, "cloud_grace_seconds", "Задержка отключения реле, секунд", "Сколько секунд ESP сохраняет состояние реле после потери связи с сервером. После истечения времени все реле выключаются.", grace);
   html += F("<p><button type='submit'>Сохранить</button></p>");
+  html += F("</form>");
+  html += F("<form class='card' method='post' action='/register-controller'>");
+  html += F("<h2>Регистрация контроллера</h2>");
+  html += F("<p class='help'>Нажмите эту кнопку, если нужно заново привязать устройство к серверу. ESP очистит ID контроллера, api token и provisioning token, сохранит config.txt и перезапустится.</p>");
+  html += F("<p><button class='danger' type='submit'>Зарегистрировать контроллер</button></p>");
   html += F("</form></div></body></html>");
 
   webServer.send(200, F("text/html"), html);
@@ -954,6 +959,26 @@ static void handleConfigPost() {
   }
 
   webServer.send(200, F("text/html"), F("<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><meta http-equiv='refresh' content='4;url=/config'><title>AiDvor ESP</title></head><body><h1>Config saved</h1><p>ESP is restarting. The config page will reopen automatically.</p></body></html>"));
+  restartPending = true;
+  restartAtMs = millis() + 1000UL;
+}
+
+static void handleRegisterControllerPost() {
+  if (!requireLocalAuth()) {
+    return;
+  }
+
+  ProxyConfig nextConfig = config;
+  nextConfig.controllerId[0] = '\0';
+  nextConfig.apiToken[0] = '\0';
+  nextConfig.provisioningToken[0] = '\0';
+
+  if (!writeConfigFile(nextConfig)) {
+    sendConfigPage("Registration reset failed.");
+    return;
+  }
+
+  webServer.send(200, F("text/html"), F("<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><meta http-equiv='refresh' content='4;url=/config'><title>AiDvor ESP</title></head><body><h1>Registration reset</h1><p>Controller ID and tokens were cleared. ESP is restarting and will request a new registration code.</p></body></html>"));
   restartPending = true;
   restartAtMs = millis() + 1000UL;
 }
@@ -1016,6 +1041,7 @@ static void setupWebServer() {
     sendConfigPage();
   });
   webServer.on("/config", HTTP_POST, handleConfigPost);
+  webServer.on("/register-controller", HTTP_POST, handleRegisterControllerPost);
   webServer.onNotFound([]() {
     webServer.send(404, F("text/plain"), F("Not found"));
   });

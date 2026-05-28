@@ -1160,6 +1160,7 @@ class PairingController extends Controller
             ->update([
                 'desired_digital_value' => (int) $validated['desired_digital_value'],
                 'desired_digital_updated_at' => now(),
+                'last_on_command_sent_at' => null,
                 'enable_scenario' => 0,
             ]);
 
@@ -1174,6 +1175,7 @@ class PairingController extends Controller
                 'digital_style',
                 'desired_digital_value',
                 'desired_digital_updated_at',
+                'last_on_command_sent_at',
                 'enable_scenario',
             ]);
 

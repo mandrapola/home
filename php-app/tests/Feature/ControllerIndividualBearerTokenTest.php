@@ -9,6 +9,7 @@ use App\Events\ControllerReportReceived;
 use App\Models\ControllerRegistrationAttempt;
 use App\Models\IoTController;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
@@ -205,6 +206,50 @@ class ControllerIndividualBearerTokenTest extends TestCase
         $response->assertOk()->assertJsonStructure(['api_token']);
         $controller->refresh();
         $this->assertSame(hash('sha256', (string) $response->json('api_token')), $controller->api_token_hash);
+    }
+
+    public function test_report_marks_first_manual_on_command_sent_at(): void
+    {
+        Event::fake([ControllerReportReceived::class, ControllerReadingsReceived::class]);
+
+        $controller = $this->createController('individual-token');
+        $pinId = (string) Uuid::uuid7();
+        DB::table('pin')->insert([
+            'id' => $pinId,
+            'controller_id' => $controller->id,
+            'pin' => 'RELAY_1',
+            'label' => 'Relay 1',
+            'digital_style' => 'power',
+            'desired_digital_value' => 1,
+            'desired_digital_updated_at' => now(),
+            'last_on_command_sent_at' => null,
+            'enable_scenario' => 0,
+        ]);
+
+        $payload = [
+            'controller_id' => $controller->id,
+            'readings' => [['pin' => 'soil_moisture_raw', 'value' => 400]],
+        ];
+
+        $this->postBearerReport($payload, 'individual-token')
+            ->assertOk()
+            ->assertJsonPath('digital_outputs.relay_1', 1);
+
+        $firstSentAt = DB::table('pin')->where('id', $pinId)->value('last_on_command_sent_at');
+        $this->assertNotNull($firstSentAt);
+
+        try {
+            Carbon::setTestNow(now()->addSeconds(10));
+
+            $this->postBearerReport($payload, 'individual-token')->assertOk();
+
+            $this->assertSame(
+                (string) $firstSentAt,
+                (string) DB::table('pin')->where('id', $pinId)->value('last_on_command_sent_at')
+            );
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     private function createController(string $apiToken): IoTController

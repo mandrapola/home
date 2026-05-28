@@ -27,6 +27,7 @@ class Pin extends Model
         'value_updated_at',
         'desired_digital_value',
         'desired_digital_updated_at',
+        'last_on_command_sent_at',
         'show_on_chart',
         'show_on_report',
         'is_monitored',
@@ -45,6 +46,7 @@ class Pin extends Model
             'value_updated_at' => 'datetime',
             'desired_digital_value' => 'integer',
             'desired_digital_updated_at' => 'datetime',
+            'last_on_command_sent_at' => 'datetime',
             'show_on_chart' => 'boolean',
             'show_on_report' => 'boolean',
             'is_monitored' => 'boolean',
@@ -62,4 +64,3 @@ class Pin extends Model
         return $this->belongsTo(IoTController::class, 'controller_id', 'id');
     }
 }
-

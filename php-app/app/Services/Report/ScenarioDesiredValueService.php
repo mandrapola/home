@@ -146,15 +146,17 @@ class ScenarioDesiredValueService
             ->where('controller_id', $controllerId)
             ->where('digital_style', 'power')
             ->where('enable_scenario', 0)
-            ->whereNotNull('desired_digital_updated_at')
-            ->where('desired_digital_updated_at', '<=', $cutoff)
+            ->where('desired_digital_value', 1)
+            ->whereNotNull('last_on_command_sent_at')
+            ->where('last_on_command_sent_at', '<=', $cutoff)
             ->update([
                 'enable_scenario' => 1,
+                'last_on_command_sent_at' => null,
             ]);
     }
 
     /**
-     * @return Collection<int, object{id:string,controller_id:string,pin:string,desired_digital_value:int|null,enable_scenario:int}>
+     * @return Collection<int, object{id:string,controller_id:string,pin:string,desired_digital_value:int|null,enable_scenario:int,last_on_command_sent_at:string|null}>
      */
     public function findTargetRows(string $controllerId): Collection
     {
@@ -162,7 +164,7 @@ class ScenarioDesiredValueService
             ->where('controller_id', $controllerId)
             ->where('digital_style', 'power')
             ->whereNotNull('desired_digital_value')
-            ->select(['id', 'controller_id', 'pin', 'desired_digital_value', 'enable_scenario'])
+            ->select(['id', 'controller_id', 'pin', 'desired_digital_value', 'enable_scenario', 'last_on_command_sent_at'])
             ->get();
     }
 
@@ -243,6 +245,7 @@ class ScenarioDesiredValueService
                     ->update([
                         'desired_digital_value' => 0,
                         'desired_digital_updated_at' => now(),
+                        'last_on_command_sent_at' => null,
                     ]);
                 continue;
             }
@@ -281,6 +284,7 @@ class ScenarioDesiredValueService
                 ->update([
                     'desired_digital_value' => $pinScenarioResult ? 1 : 0,
                     'desired_digital_updated_at' => now(),
+                    'last_on_command_sent_at' => null,
                 ]);
         }
     }
