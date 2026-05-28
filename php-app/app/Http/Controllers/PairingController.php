@@ -659,6 +659,14 @@ class PairingController extends Controller
             }
         }
         $this->forwardFillTimeline($factTimeline);
+        $nowLocal = Carbon::now($timeZone);
+        $currentTimelineIndex = (int) floor(
+            max(0, $dayStartLocal->diffInSeconds($nowLocal, false)) / max(1, $timelineStepSeconds)
+        );
+        $currentTimelineIndex = min($timelineLength - 1, max(0, $currentTimelineIndex));
+        for ($i = $currentTimelineIndex + 1; $i < $timelineLength; $i++) {
+            $factTimeline[$i] = null;
+        }
 
         $scenarioRows = DB::table('scenario')
             ->where('pin_id', $pinId)
@@ -777,18 +785,20 @@ class PairingController extends Controller
         }
         $this->forwardFillTimeline($planTimeline);
 
+        $factIntervals = $this->clipIntervalsAtNow($this->timelineToIntervals(
+            $factTimeline,
+            $dayStartLocal,
+            $timeZone,
+            $timelineStepSeconds,
+            fn (int $v) => $v === 1,
+            static fn () => null
+        ), $nowLocal, $timeZone);
+
         $rowsPayload = [[
             'pin_id' => $pinId,
             'pin' => (string) $selectedPin->pin,
             'label' => (string) ($selectedPin->label ?? $selectedPin->pin),
-            'fact' => $this->timelineToIntervals(
-                $factTimeline,
-                $dayStartLocal,
-                $timeZone,
-                $timelineStepSeconds,
-                fn (int $v) => $v === 1,
-                static fn () => null
-            ),
+            'fact' => $factIntervals,
             'plan' => $this->timelineToIntervals(
                 $planTimeline,
                 $dayStartLocal,
@@ -867,6 +877,31 @@ class PairingController extends Controller
             'ne' => abs($sourceValue - $threshold) >= 0.000001,
             default => false,
         };
+    }
+
+    /**
+     * @param array<int, array{start:string,end:string,state?:string}> $intervals
+     * @return array<int, array{start:string,end:string,state?:string}>
+     */
+    private function clipIntervalsAtNow(array $intervals, Carbon $nowLocal, string $timeZone): array
+    {
+        $result = [];
+        foreach ($intervals as $interval) {
+            $start = Carbon::parse((string) $interval['start'])->setTimezone($timeZone);
+            $end = Carbon::parse((string) $interval['end'])->setTimezone($timeZone);
+
+            if ($start->greaterThanOrEqualTo($nowLocal)) {
+                continue;
+            }
+
+            if ($end->greaterThan($nowLocal)) {
+                $interval['end'] = $nowLocal->copy()->setTimezone($timeZone)->toIso8601String();
+            }
+
+            $result[] = $interval;
+        }
+
+        return $result;
     }
 
     /**
