@@ -24,8 +24,8 @@ class ControllerAutoRegistrationService
             'discription' => 'Auto-registered from ' . $ip,
             'send_interval_seconds' => 5,
             'status' => 'unclaimed',
+            'is_service' => 0,
             'last_seen_at' => now(),
         ]);
     }
 }
-

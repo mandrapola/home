@@ -50,7 +50,7 @@ class AliceVirtualControllerService
     {
         $existingId = DB::table('controller')
             ->where('user_id', (int) $user->id)
-            ->where('status', self::CONTROLLER_STATUS)
+            ->where('is_service', 1)
             ->where('discription', $this->controllerDescription($user))
             ->value('id');
 
@@ -66,6 +66,7 @@ class AliceVirtualControllerService
             'discription' => $this->controllerDescription($user),
             'send_interval_seconds' => 60,
             'status' => self::CONTROLLER_STATUS,
+            'is_service' => 1,
             'last_seen_at' => now(),
             'claimed_at' => now(),
             'created_at' => now(),
@@ -158,7 +159,7 @@ class AliceVirtualControllerService
         return DB::table('pin as p')
             ->join('controller as c', 'c.id', '=', 'p.controller_id')
             ->where('c.user_id', (int) $user->id)
-            ->where('c.status', '!=', self::CONTROLLER_STATUS)
+            ->where('c.is_service', 0)
             ->where('p.digital_style', 'power')
             ->where('p.external_enabled', 1)
             ->select(['p.id', 'p.pin', 'p.label'])

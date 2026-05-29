@@ -14,7 +14,7 @@ Route::get('/ping', function () {
 });
 
 Route::post('/controller/provision', [ControllerReportController::class, 'provision'])->middleware('throttle:controller-provision');
-Route::post('/controller/report', ControllerReportController::class)->middleware('controller.token');
+Route::post('/controller/report', ControllerReportController::class)->middleware(['controller.token', 'throttle:controller-report']);
 Route::post('/oauth/token', [AliceOAuthProviderController::class, 'token'])->middleware('throttle:alice-oauth-token');
 Route::post('/payments/yookassa/webhook', YooKassaWebhookController::class);
 

@@ -22,9 +22,15 @@ class IoTController extends Model
 
     protected $keyType = 'string';
 
+    protected $hidden = [
+        'api_token_hash',
+        'pending_api_token',
+    ];
+
     protected $fillable = [
         'id',
         'user_id',
+        'device_uid',
         'api_token_hash',
         'pending_api_token',
         'api_token_generated_at',
@@ -33,6 +39,7 @@ class IoTController extends Model
         'discription',
         'send_interval_seconds',
         'status',
+        'is_service',
         'last_seen_at',
         'claimed_at',
     ];
@@ -41,6 +48,7 @@ class IoTController extends Model
         'last_seen_at' => 'datetime',
         'claimed_at' => 'datetime',
         'user_id' => 'integer',
+        'is_service' => 'boolean',
         'pending_api_token' => 'encrypted',
         'api_token_generated_at' => 'datetime',
         'api_token_rotated_at' => 'datetime',

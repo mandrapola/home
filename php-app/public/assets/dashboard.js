@@ -24,6 +24,7 @@
             const controllerSettingsError = document.getElementById('controllerSettingsError');
             const controllerSettingsCancelBtn = document.getElementById('controllerSettingsCancelBtn');
             const controllerSettingsSaveBtn = document.getElementById('controllerSettingsSaveBtn');
+            const controllerSettingsDeleteBtn = document.getElementById('controllerSettingsDeleteBtn');
             const pinSettingsDialog = document.getElementById('pinSettingsDialog');
             const pinSettingsForm = document.getElementById('pinSettingsForm');
             const pinSettingsFieldsEl = document.getElementById('pinSettingsFields');
@@ -961,6 +962,43 @@
                 } finally {
                     controllerSettingsSaveBtn.disabled = false;
                     controllerSettingsSaveBtn.textContent = t('save', 'Save');
+                }
+            });
+
+            controllerSettingsDeleteBtn?.addEventListener('click', async () => {
+                if (!editingControllerId) return;
+                if (!window.confirm(t('delete_controller_confirm', 'Deleting the controller will delete all telemetry history and related scenarios. Continue?'))) {
+                    return;
+                }
+
+                controllerSettingsDeleteBtn.disabled = true;
+                setControllerSettingsError('');
+
+                try {
+                    const response = await fetch('/api/pairing/my-controllers/' + encodeURIComponent(editingControllerId), {
+                        method: 'DELETE',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': csrf,
+                        },
+                    });
+                    const data = await response.json();
+                    if (!response.ok) {
+                        setControllerSettingsError(data.message || t('failed_delete_controller', 'Failed to delete controller.'));
+                        return;
+                    }
+
+                    selectedControllerId = null;
+                    closeControllerSettings();
+                    currentPins = [];
+                    pinsListEl.innerHTML = '';
+                    await loadControllers();
+                    await loadPins();
+                    schedulePinsAutoRefresh();
+                } catch (_) {
+                    setControllerSettingsError(t('failed_delete_controller', 'Failed to delete controller.'));
+                } finally {
+                    controllerSettingsDeleteBtn.disabled = false;
                 }
             });
             pinSettingsForm.addEventListener('submit', async (event) => {

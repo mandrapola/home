@@ -85,6 +85,7 @@ return new class extends Migration
         Schema::create('controller', function (Blueprint $table): void {
             $table->char('id', 36)->primary();
             $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->string('device_uid', 64)->nullable()->unique();
             $table->char('api_token_hash', 64)->nullable()->unique();
             $table->text('pending_api_token')->nullable();
             $table->timestamp('api_token_generated_at')->nullable();
@@ -93,9 +94,11 @@ return new class extends Migration
             $table->text('discription')->nullable();
             $table->integer('send_interval_seconds')->default(30);
             $table->string('status', 16)->default('unclaimed');
+            $table->boolean('is_service')->default(false);
             $table->timestamp('last_seen_at')->nullable();
             $table->timestamp('claimed_at')->nullable();
             $table->timestamps();
+            $table->index('is_service', 'idx_controller_is_service');
         });
 
         Schema::create('alice_accounts', function (Blueprint $table): void {

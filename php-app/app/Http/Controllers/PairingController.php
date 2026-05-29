@@ -82,15 +82,66 @@ class PairingController extends Controller
 
     private function createControllerFromRegistrationAttempt(ControllerRegistrationAttempt $registrationAttempt, mixed $user): array
     {
-        $controllerId = (string) Str::uuid();
         $now = now();
         $deviceUid = (string) $registrationAttempt->device_uid;
-        $controllerName = 'ESP ' . strtoupper(substr($deviceUid, -6));
         $apiToken = Str::random(64);
+
+        $existingController = IoTController::query()
+            ->where('device_uid', $deviceUid)
+            ->lockForUpdate()
+            ->first();
+
+        if ($existingController instanceof IoTController) {
+            if ((int) $existingController->is_service === 1) {
+                return ['status' => 409, 'data' => ['error' => 'service_controller_conflict', 'message' => 'Device UID belongs to a service controller']];
+            }
+
+            if ($existingController->user_id !== null && (int) $existingController->user_id !== (int) $user->id) {
+                return ['status' => 409, 'data' => ['error' => 'already_claimed', 'message' => 'Controller already has another owner']];
+            }
+
+            $existingController->user_id = (int) $user->id;
+            $existingController->api_token_hash = hash('sha256', $apiToken);
+            $existingController->pending_api_token = $apiToken;
+            $existingController->api_token_generated_at = $now;
+            $existingController->status = 'active';
+            $existingController->is_service = 0;
+            $existingController->last_seen_at = $registrationAttempt->last_seen_at ?? $now;
+            $existingController->claimed_at = $existingController->claimed_at ?? $now;
+            $existingController->save();
+
+            $controllerId = (string) $existingController->id;
+            $registrationAttempt->status = 'claimed';
+            $registrationAttempt->registered_controller_id = $controllerId;
+            $registrationAttempt->claimed_at = $now;
+            $registrationAttempt->save();
+
+            ControllerRegistrationAttempt::query()
+                ->where('device_uid', $deviceUid)
+                ->whereIn('status', ['pending', 'challenge_pending'])
+                ->where('id', '!=', (string) $registrationAttempt->id)
+                ->update(['status' => 'expired']);
+
+            event(new ControllerPaired($controllerId, (string) $user->id));
+
+            return [
+                'status' => 200,
+                'data' => [
+                    'ok' => true,
+                    'controller_id' => $controllerId,
+                    'owner_user_id' => (string) $user->id,
+                    'claimed_at' => optional($registrationAttempt->claimed_at)->toIso8601String(),
+                ],
+            ];
+        }
+
+        $controllerId = (string) Str::uuid();
+        $controllerName = 'ESP ' . strtoupper(substr($deviceUid, -6));
 
         IoTController::query()->create([
             'id' => $controllerId,
             'user_id' => (int) $user->id,
+            'device_uid' => $deviceUid,
             'api_token_hash' => hash('sha256', $apiToken),
             'pending_api_token' => $apiToken,
             'api_token_generated_at' => $now,
@@ -98,6 +149,7 @@ class PairingController extends Controller
             'discription' => 'Registered from device_uid: ' . $deviceUid,
             'send_interval_seconds' => IoTController::MIN_INTERVAL_SECONDS,
             'status' => 'active',
+            'is_service' => 0,
             'last_seen_at' => $registrationAttempt->last_seen_at ?? $now,
             'claimed_at' => $now,
         ]);
@@ -150,7 +202,7 @@ class PairingController extends Controller
                 'c.id'
             )
             ->where('c.user_id', '=', (int) $user->id)
-            ->where('c.id', '!=', self::SYSTEM_CONTROLLER_ID)
+            ->where('c.is_service', 0)
             ->select([
                 'c.id',
                 'c.name',
@@ -229,8 +281,8 @@ class PairingController extends Controller
         $pins = DB::table('pin as p')
             ->join('controller as c', 'c.id', '=', 'p.controller_id')
             ->where('c.user_id', (int) $user->id)
+            ->where('c.is_service', 0)
             ->where('p.digital_style', 'power')
-            ->where('p.controller_id', '!=', self::SYSTEM_CONTROLLER_ID)
             ->orderByDesc('p.show_on_report')
             ->orderBy('p.pin')
             ->get(['p.id', 'p.pin', 'p.label']);
@@ -608,15 +660,11 @@ class PairingController extends Controller
         }
 
         $selectedPin = DB::table('pin as p')
+            ->join('controller as c', 'c.id', '=', 'p.controller_id')
             ->where('p.id', $selectedPinId)
             ->where('p.digital_style', 'power')
-            ->where('p.controller_id', '!=', self::SYSTEM_CONTROLLER_ID)
-            ->whereExists(function ($q) use ($user) {
-                $q->selectRaw('1')
-                    ->from('controller as c')
-                    ->whereColumn('c.id', 'p.controller_id')
-                    ->where('c.user_id', (int) $user->id);
-            })
+            ->where('c.user_id', (int) $user->id)
+            ->where('c.is_service', 0)
             ->first(['p.id', 'p.pin', 'p.label', 'p.controller_id']);
 
         if (! $selectedPin) {
@@ -1298,6 +1346,82 @@ class PairingController extends Controller
         ]);
     }
 
+    public function deleteMyController(Request $request, string $controllerId): JsonResponse
+    {
+        if (! Str::isUuid($controllerId)) {
+            return response()->json(['error' => 'validation_error', 'message' => 'controller_id must be UUID'], 422);
+        }
+
+        $user = $request->user();
+
+        $payload = DB::transaction(function () use ($controllerId, $user): array {
+            $controller = DB::table('controller')
+                ->where('id', $controllerId)
+                ->lockForUpdate()
+                ->first(['id', 'user_id', 'device_uid', 'is_service']);
+
+            if (! $controller) {
+                return ['status' => 404, 'data' => ['error' => 'not_found', 'message' => 'Controller not found']];
+            }
+
+            if ((int) ($controller->is_service ?? 0) === 1) {
+                return ['status' => 403, 'data' => ['error' => 'forbidden', 'message' => 'Service controller cannot be deleted from user dashboard']];
+            }
+
+            if ((int) ($controller->user_id ?? 0) !== (int) $user->id) {
+                return ['status' => 403, 'data' => ['error' => 'forbidden', 'message' => 'Controller is not linked to current user']];
+            }
+
+            $pinIds = DB::table('pin')
+                ->where('controller_id', $controllerId)
+                ->pluck('id')
+                ->map(static fn ($id) => (string) $id)
+                ->all();
+
+            $virtualPinIds = count($pinIds) > 0
+                ? DB::table('pin')
+                    ->whereIn('external_target_pin_id', $pinIds)
+                    ->pluck('id')
+                    ->map(static fn ($id) => (string) $id)
+                    ->all()
+                : [];
+
+            $allPinIds = array_values(array_unique(array_merge($pinIds, $virtualPinIds)));
+
+            if (count($allPinIds) > 0) {
+                $scenarioIds = DB::table('scenario')
+                    ->whereIn('pin_id', $allPinIds)
+                    ->pluck('id')
+                    ->map(static fn ($id) => (string) $id)
+                    ->all();
+
+                if (count($scenarioIds) > 0) {
+                    DB::table('scenario_condition')->whereIn('scenario_id', $scenarioIds)->delete();
+                    DB::table('scenario')->whereIn('id', $scenarioIds)->delete();
+                }
+
+                DB::table('scenario_condition')->whereIn('pin_id', $allPinIds)->delete();
+                DB::table('pin_data')->whereIn('pin_id', $allPinIds)->delete();
+                DB::table('pin')->whereIn('id', $virtualPinIds)->delete();
+                DB::table('pin')->whereIn('id', $pinIds)->delete();
+            }
+
+            DB::table('controller_pairings')->where('controller_id', $controllerId)->delete();
+            $attemptsQuery = DB::table('controller_registration_attempts')
+                ->where('registered_controller_id', $controllerId);
+            $deviceUid = trim((string) ($controller->device_uid ?? ''));
+            if ($deviceUid !== '') {
+                $attemptsQuery->orWhere('device_uid', $deviceUid);
+            }
+            $attemptsQuery->delete();
+            DB::table('controller')->where('id', $controllerId)->delete();
+
+            return ['status' => 200, 'data' => ['ok' => true]];
+        });
+
+        return response()->json($payload['data'], $payload['status']);
+    }
+
     public function startAll(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -1316,6 +1440,7 @@ class PairingController extends Controller
             $controllers = DB::table('controller as c')
                 ->whereNull('c.user_id')
                 ->where('c.status', 'unclaimed')
+                ->where('c.is_service', 0)
                 ->orderByDesc('c.last_seen_at')
                 ->select('c.id')
                 ->lockForUpdate()

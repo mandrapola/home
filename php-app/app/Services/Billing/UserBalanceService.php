@@ -67,7 +67,7 @@ class UserBalanceService
         });
     }
 
-    public function chargeDaily(User $user, Plan $plan, CarbonInterface $billingDate): void
+    public function chargeDaily(User $user, Plan $plan, CarbonInterface $billingDate, string $reason = 'daily'): void
     {
         $required = (int) ($plan->daily_price_units ?? 0);
         if ($required <= 0) {
@@ -75,18 +75,35 @@ class UserBalanceService
         }
 
         $date = $billingDate->toDateString();
+        $successType = $reason === 'plan_switch' ? 'plan_switch_charge' : 'daily_charge';
+        $failedType = $reason === 'plan_switch' ? 'plan_switch_charge_failed' : 'daily_charge_failed';
 
-        DB::transaction(function () use ($user, $plan, $required, $date): void {
-            $alreadyCharged = BalanceTransaction::query()
+        DB::transaction(function () use ($user, $plan, $required, $date, $successType, $failedType): void {
+            $chargeTypes = [
+                'daily_charge',
+                'daily_charge_failed',
+                'plan_switch_charge',
+                'plan_switch_charge_failed',
+            ];
+
+            $alreadyChargedUnits = abs((int) BalanceTransaction::query()
                 ->where('user_id', $user->id)
                 ->where('billing_date', $date)
-                ->whereIn('type', ['daily_charge', 'daily_charge_failed'])
+                ->whereIn('type', $chargeTypes)
+                ->where('amount_units', '<', 0)
                 ->lockForUpdate()
-                ->exists();
+                ->sum('amount_units'));
 
-            if ($alreadyCharged) {
+            $remainingRequired = $required - $alreadyChargedUnits;
+            if ($remainingRequired <= 0) {
                 return;
             }
+
+            $hasChargeAttemptToday = BalanceTransaction::query()
+                ->where('user_id', $user->id)
+                ->where('billing_date', $date)
+                ->whereIn('type', $chargeTypes)
+                ->exists();
 
             $balance = UserBalance::query()->where('user_id', $user->id)->lockForUpdate()->first();
             if (! $balance) {
@@ -97,17 +114,21 @@ class UserBalanceService
                 $balance = UserBalance::query()->where('user_id', $user->id)->lockForUpdate()->firstOrFail();
             }
 
-            $charged = min(max(0, (int) $balance->balance_units), $required);
+            $charged = min(max(0, (int) $balance->balance_units), $remainingRequired);
+            if ($charged <= 0 && $hasChargeAttemptToday) {
+                return;
+            }
+
             $balance->balance_units -= $charged;
 
-            $isPaid = $charged >= $required;
+            $isPaid = ($alreadyChargedUnits + $charged) >= $required;
             $balance->billing_blocked_at = $isPaid ? null : now();
             $balance->billing_block_reason = $isPaid ? null : 'insufficient_balance';
             $balance->save();
 
             BalanceTransaction::query()->create([
                 'user_id' => $user->id,
-                'type' => $isPaid ? 'daily_charge' : 'daily_charge_failed',
+                'type' => $isPaid ? $successType : $failedType,
                 'amount_units' => -$charged,
                 'required_amount_units' => $required,
                 'balance_after_units' => $balance->balance_units,

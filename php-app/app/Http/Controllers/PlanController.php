@@ -46,6 +46,13 @@ class PlanController extends Controller
             abort(401);
         }
 
+        $previousPlan = $user->selected_plan_id ? Plan::query()->find($user->selected_plan_id) : null;
+        $previousDailyPrice = $previousPlan instanceof Plan ? (int) ($previousPlan->daily_price_units ?? 0) : 0;
+        $newDailyPrice = (int) ($plan->daily_price_units ?? 0);
+        if ($previousPlan instanceof Plan && $newDailyPrice < $previousDailyPrice) {
+            $this->userBalanceService->chargeDaily($user, $previousPlan, now(), 'plan_switch');
+        }
+
         UserPlanSubscription::query()->create([
             'user_id' => $user->id,
             'plan_id' => $plan->id,

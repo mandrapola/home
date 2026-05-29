@@ -49,6 +49,12 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(30)->by('controller-provision:' . hash('sha256', $keySource));
         });
 
+        RateLimiter::for('controller-report', function (Request $request) {
+            $controllerId = trim((string) $request->attributes->get('authenticated_controller_id', ''));
+            $keySource = $controllerId !== '' ? $controllerId : (string) $request->ip();
+            return Limit::perMinute(60)->by('controller-report:' . hash('sha256', $keySource));
+        });
+
         Event::listen(ControllerPaired::class, CleanupControllerPairingsOnPaired::class);
         Event::listen(ControllerReportReceived::class, EnsureControllerExistsOnReport::class);
         Event::listen(ControllerReadingsReceived::class, ProcessControllerReadingsOnReport::class);

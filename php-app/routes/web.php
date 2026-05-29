@@ -57,7 +57,6 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::get('/report', function (Request $request) {
-    $systemControllerId = '0195f7e0-0000-7000-8000-000000000001';
     $pinId = trim((string) $request->query('pin_id', ''));
     if ($pinId !== '') {
         return view('report');
@@ -68,8 +67,8 @@ Route::get('/report', function (Request $request) {
         $firstPinId = DB::table('pin as p')
             ->join('controller as c', 'c.id', '=', 'p.controller_id')
             ->where('c.user_id', (int) $user->id)
+            ->where('c.is_service', 0)
             ->where('p.digital_style', 'power')
-            ->where('p.controller_id', '!=', $systemControllerId)
             ->orderByDesc('p.show_on_report')
             ->orderBy('p.pin')
             ->value('p.id');
@@ -123,6 +122,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/my-controllers/{controllerId}/pins/{pinId}/settings', [PairingController::class, 'updateMyControllerPinSettings']);
         Route::put('/my-controllers/{controllerId}/pins/{pinId}/desired-digital-value', [PairingController::class, 'updateMyControllerPinDesiredDigitalValue']);
         Route::put('/my-controllers/{controllerId}/settings', [PairingController::class, 'updateMyControllerSettings']);
+        Route::delete('/my-controllers/{controllerId}', [PairingController::class, 'deleteMyController']);
         Route::get('/unclaimed-controllers', [PairingController::class, 'unclaimed']);
         Route::post('/start-all', [PairingController::class, 'startAll']);
         Route::post('/confirm-by-code', [PairingController::class, 'confirmByCode']);

@@ -140,6 +140,74 @@
         }
         .btn-placeholder { visibility:hidden; pointer-events:none; }
 
+        .plan-confirm-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 1050;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background:
+                radial-gradient(circle at 50% 20%, rgba(66, 199, 121, 0.18), transparent 32%),
+                rgba(3, 8, 6, 0.72);
+            backdrop-filter: blur(10px);
+        }
+        .plan-confirm-backdrop.is-open { display: flex; }
+        .plan-confirm-dialog {
+            width: min(560px, 100%);
+            border: 1px solid rgba(154, 240, 177, 0.22);
+            border-radius: 28px;
+            background:
+                radial-gradient(circle at 12% 0%, rgba(66, 199, 121, 0.18), transparent 34%),
+                linear-gradient(180deg, rgba(16, 35, 26, 0.98), rgba(8, 20, 14, 0.98));
+            box-shadow: 0 28px 90px rgba(0, 0, 0, 0.46);
+            padding: 26px;
+        }
+        .plan-confirm-kicker {
+            color: var(--accent-2);
+            font-weight: 900;
+            font-size: 13px;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+        .plan-confirm-title {
+            margin: 0 0 12px;
+            color: var(--text);
+            font-size: 28px;
+            line-height: 1.12;
+            letter-spacing: -0.04em;
+        }
+        .plan-confirm-text {
+            margin: 0;
+            color: var(--muted);
+            font-size: 16px;
+            line-height: 1.55;
+        }
+        .plan-confirm-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+            margin-top: 22px;
+        }
+        .plan-confirm-actions .btn {
+            min-height: 44px;
+            border-radius: 999px;
+            font-weight: 850;
+            padding-inline: 18px;
+        }
+        .plan-confirm-actions .btn-primary {
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            color: #07110d;
+            border: 0;
+        }
+        .plan-confirm-actions .btn-outline-light {
+            border-color: var(--border);
+            color: var(--text);
+        }
+
         .section-title {
             margin: 0 0 14px;
             font-size: clamp(28px, 3vw, 44px);
@@ -267,7 +335,7 @@
                                     <li>{{ __('Scenario Conditions') }}: {{ (int) ($plan->max_scenario_conditions ?? 0) > 0 ? number_format((int) $plan->max_scenario_conditions, 0, '.', ' ') : __('No limit') }}</li>
                                 </ul>
                                 <div class="plan-actions d-grid gap-2">
-                                    <form method="POST" action="{{ route('user.plans.select', $plan) }}">
+                                    <form method="POST" action="{{ route('user.plans.select', $plan) }}" data-plan-select-form>
                                         @csrf
                                         <button type="submit" class="btn {{ (int) $selectedPlanId === (int) $plan->id ? 'btn-outline-primary' : 'btn-primary' }} w-100" @if ((int) $selectedPlanId === (int) $plan->id) disabled @endif>
                                             {{ (int) $selectedPlanId === (int) $plan->id ? __('Selected') : __('Choose Plan') }}
@@ -382,5 +450,69 @@
                 </section>
             </div>
         </div>
+
+        <div class="plan-confirm-backdrop" id="plan-change-confirm" role="dialog" aria-modal="true" aria-labelledby="plan-change-confirm-title" aria-hidden="true">
+            <div class="plan-confirm-dialog">
+                <div class="plan-confirm-kicker">{{ __('Plan change') }}</div>
+                <h2 class="plan-confirm-title" id="plan-change-confirm-title">{{ __('Plan change confirmation title') }}</h2>
+                <p class="plan-confirm-text">{{ __('Plan change billing confirmation') }}</p>
+                <div class="plan-confirm-actions">
+                    <button type="button" class="btn btn-outline-light" data-plan-confirm-cancel>{{ __('Cancel') }}</button>
+                    <button type="button" class="btn btn-primary" data-plan-confirm-submit>{{ __('Continue') }}</button>
+                </div>
+            </div>
+        </div>
     </div>
+
+    <script>
+        (() => {
+            const modal = document.getElementById('plan-change-confirm');
+            if (!modal) return;
+
+            let pendingForm = null;
+            const closeModal = () => {
+                modal.classList.remove('is-open');
+                modal.setAttribute('aria-hidden', 'true');
+                pendingForm = null;
+            };
+            const openModal = (form) => {
+                pendingForm = form;
+                modal.classList.add('is-open');
+                modal.setAttribute('aria-hidden', 'false');
+                modal.querySelector('[data-plan-confirm-submit]')?.focus();
+            };
+
+            document.querySelectorAll('[data-plan-select-form]').forEach((form) => {
+                form.addEventListener('submit', (event) => {
+                    if (form.dataset.confirmed === '1') {
+                        return;
+                    }
+
+                    event.preventDefault();
+                    openModal(form);
+                });
+            });
+
+            modal.querySelector('[data-plan-confirm-cancel]')?.addEventListener('click', closeModal);
+            modal.querySelector('[data-plan-confirm-submit]')?.addEventListener('click', () => {
+                if (!pendingForm) {
+                    closeModal();
+                    return;
+                }
+
+                pendingForm.dataset.confirmed = '1';
+                pendingForm.submit();
+            });
+            modal.addEventListener('click', (event) => {
+                if (event.target === modal) {
+                    closeModal();
+                }
+            });
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && modal.classList.contains('is-open')) {
+                    closeModal();
+                }
+            });
+        })();
+    </script>
 </x-app-layout>

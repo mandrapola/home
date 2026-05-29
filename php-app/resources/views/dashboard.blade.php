@@ -206,6 +206,7 @@
             <p id="controllerSettingsError" class="error modal-error"></p>
 
             <div class="modal-actions">
+                <button type="button" id="controllerSettingsDeleteBtn" class="switch btn btn-outline-danger me-auto">{{ __('Delete Controller') }}</button>
                 <button type="button" id="controllerSettingsCancelBtn" class="switch btn btn-outline-secondary">{{ __('Close') }}</button>
                 <button type="submit" id="controllerSettingsSaveBtn" class="switch btn btn-primary">{{ __('Save') }}</button>
             </div>
@@ -235,6 +236,7 @@
             <p id="controllerSettingsError" class="error modal-error"></p>
 
             <div class="modal-actions">
+                <button type="button" id="controllerSettingsDeleteBtn" class="switch btn btn-outline-danger me-auto">{{ __('Delete Controller') }}</button>
                 <button type="button" id="controllerSettingsCancelBtn" class="switch btn btn-outline-secondary">{{ __('Close') }}</button>
                 <button type="submit" id="controllerSettingsSaveBtn" class="switch btn btn-primary">{{ __('Save') }}</button>
             </div>
@@ -314,6 +316,9 @@
             'failed_change_pin_state' => __('Failed to change pin state.'),
             'failed_change_pin_scenarios' => __('Failed to change scenario state for pin.'),
             'failed_save_settings' => __('Failed to save settings.'),
+            'failed_delete_controller' => __('Failed to delete controller.'),
+            'delete_controller_confirm' => __('Deleting the controller will delete all telemetry history and related scenarios. Continue?'),
+            'controller_deleted' => __('Controller deleted.'),
             'failed_save_pin_settings' => __('Failed to save pin settings.'),
             'failed_load_pins' => __('Failed to load pins.'),
             'chart_open' => __('Open Chart'),
