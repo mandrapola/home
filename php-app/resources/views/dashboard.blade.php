@@ -213,36 +213,6 @@
         </form>
     </dialog>
 
-    <dialog id="controllerSettingsDialog" class="app-dialog app-dialog--sm">
-        <form method="dialog" id="controllerSettingsForm" class="modal-form modal-form--single">
-            <h3 class="modal-title" id="controllerSettingsTitle">{{ __('Controller Settings') }}</h3>
-
-            <label>
-                {{ __('Controller Name') }}<br>
-                <input name="name" required class="form-full form-control">
-            </label>
-
-            <label>
-                {{ __('Description') }}<br>
-                <input name="discription" class="form-full form-control">
-            </label>
-
-            <label>
-                {{ __('Send Interval, sec') }}<br>
-                <input name="send_interval_seconds" type="number" min="{{ $minimumSendIntervalSeconds }}" max="{{ \App\Models\IoTController::MAX_INTERVAL_SECONDS }}" step="1" class="form-full form-control">
-                <span class="text-muted small">{{ __('Minimum send interval: :seconds sec.', ['seconds' => $minimumSendIntervalSeconds]) }}</span>
-            </label>
-
-            <p id="controllerSettingsError" class="error modal-error"></p>
-
-            <div class="modal-actions">
-                <button type="button" id="controllerSettingsDeleteBtn" class="switch btn btn-outline-danger me-auto">{{ __('Delete Controller') }}</button>
-                <button type="button" id="controllerSettingsCancelBtn" class="switch btn btn-outline-secondary">{{ __('Close') }}</button>
-                <button type="submit" id="controllerSettingsSaveBtn" class="switch btn btn-primary">{{ __('Save') }}</button>
-            </div>
-        </form>
-    </dialog>
-
     <dialog id="pinSettingsDialog" class="app-dialog app-dialog--sm">
         <form method="dialog" id="pinSettingsForm" class="modal-form modal-form--single">
             <h3 class="modal-title" id="pinSettingsTitle">{{ __('Pin Settings') }}</h3>
@@ -253,6 +223,19 @@
             <div class="modal-actions">
                 <button type="button" id="pinSettingsCancelBtn" class="switch btn btn-outline-secondary">{{ __('Close') }}</button>
                 <button type="submit" id="pinSettingsSaveBtn" class="switch btn btn-primary">{{ __('Save') }}</button>
+            </div>
+        </form>
+    </dialog>
+
+    <dialog id="controllerDeleteDialog" class="app-dialog app-dialog--sm">
+        <form method="dialog" class="modal-form modal-form--single">
+            <h3 class="modal-title">{{ __('Delete Controller') }}</h3>
+            <p class="text-muted mb-0">{{ __('Deleting the controller will delete all telemetry history and related scenarios. Continue?') }}</p>
+            <p id="controllerDeleteError" class="error modal-error"></p>
+
+            <div class="modal-actions">
+                <button type="button" id="controllerDeleteCancelBtn" class="switch btn btn-outline-secondary">{{ __('Cancel') }}</button>
+                <button type="button" id="controllerDeleteConfirmBtn" class="switch btn btn-danger">{{ __('Delete') }}</button>
             </div>
         </form>
     </dialog>
@@ -313,6 +296,7 @@
             'pins_not_found' => __('No pins found for selected controller.'),
             'save' => __('Save'),
             'saving' => __('Saving...'),
+            'deleting' => __('Deleting...'),
             'failed_change_pin_state' => __('Failed to change pin state.'),
             'failed_change_pin_scenarios' => __('Failed to change scenario state for pin.'),
             'failed_save_settings' => __('Failed to save settings.'),
@@ -329,6 +313,7 @@
             'chart_failed' => __('Failed to load chart.'),
             'chart_no_data_range' => __('No chart data for selected range.'),
             'chart_no_valid_data' => __('No valid chart data.'),
+            'delete' => __('Delete'),
             'min' => __('min'),
             'max' => __('max'),
             'current' => __('current'),

@@ -771,7 +771,7 @@ static String buildStatusJson() {
   json += safeOffActive ? F("true") : F("false");
   json += F(",\"wifi_mode\":\"");
   json += fallbackApActive ? F("fallback_ap") : F("station");
-  json += F(",\"ip\":\"");
+  json += F("\",\"ip\":\"");
   json += fallbackApActive ? WiFi.softAPIP().toString() : WiFi.localIP().toString();
   json += F("\",\"fallback_ap_ssid\":\"");
   if (fallbackApActive) {

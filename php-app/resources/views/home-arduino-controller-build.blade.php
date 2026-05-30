@@ -91,7 +91,7 @@
             <ul class="parts-list">
                 <li>Arduino Uno</li>
                 <li>Wireless Shield ESP8266‑12E UART WIFI</li>
-                <li>Цифровой датчик DHT11</li>
+                <li>Цифровой датчик DHT22</li>
                 <li>Фоторезистор + резистор 10 кОм</li>
                 <li>Дисплей TM1637</li>
                 <li>SoilModule / Soil Moisture — датчик влажности почвы</li>
@@ -106,15 +106,17 @@
                 <tr><th>Пин</th><th>Назначение</th></tr>
                 </thead>
                 <tbody>
-                <tr><td><span class="pin-chip">D2</span></td><td>DHT11 DATA</td></tr>
+                <tr><td><span class="pin-chip">D2</span></td><td>DHT22 DATA</td></tr>
                 <tr><td><span class="pin-chip">D3</span></td><td>relay_1</td></tr>
-                <tr><td><span class="pin-chip">D5</span></td><td>relay_2</td></tr>
-                <tr><td><span class="pin-chip">D6</span></td><td>relay_3</td></tr>
-                <tr><td><span class="pin-chip">D9</span></td><td>relay_4</td></tr>
+                <tr><td><span class="pin-chip">D4</span></td><td>relay_2</td></tr>
+                <tr><td><span class="pin-chip">D5</span></td><td>relay_3</td></tr>
+                <tr><td><span class="pin-chip">D6</span></td><td>relay_4</td></tr>
                 <tr><td><span class="pin-chip">A0</span></td><td>soil_moisture_raw</td></tr>
                 <tr><td><span class="pin-chip">A1</span></td><td>light_level_raw</td></tr>
                 <tr><td><span class="pin-chip">D7</span></td><td>TM1637 DIO</td></tr>
                 <tr><td><span class="pin-chip">D8</span></td><td>TM1637 CLK</td></tr>
+                <tr><td><span class="pin-chip">D10</span></td><td>ESP TX → Arduino RX</td></tr>
+                <tr><td><span class="pin-chip">D11</span></td><td>ESP RX ← Arduino TX через делитель уровня</td></tr>
                 </tbody>
             </table>
             <div class="legend">
@@ -133,11 +135,12 @@
         <article class="step">
             <div>
                 <h3><span class="step-num">1</span>Устанавливаем Wi‑Fi Shield ESP8266‑12E</h3>
-                <p>Wi‑Fi Shield устанавливается сверху на Arduino Uno в стандартные разъёмы и обеспечивает связь контроллера с сервером Home AiDvor.</p>
+                <p>ESP8266 подключается к Arduino Uno по UART: ESP TX к D10, ESP RX к D11 через делитель уровня или level shifter.</p>
                 <ul>
                     <li>Совместите пины Shield с разъёмами Arduino Uno.</li>
                     <li>Установите Shield до полного посадочного положения.</li>
-                    <li>SSID, пароль Wi‑Fi и адрес сервера задаются в скетче.</li>
+                    <li>Убедитесь, что земля ESP8266 и Arduino Uno объединена.</li>
+                    <li>SSID, пароль Wi‑Fi и адрес сервера задаются в конфигурации ESP8266.</li>
                 </ul>
             </div>
             <div class="step-diagram">
@@ -158,7 +161,7 @@
 
         <article class="step">
             <div>
-                <h3><span class="step-num">2</span>Подключаем датчик DHT11</h3>
+                <h3><span class="step-num">2</span>Подключаем датчик DHT22</h3>
                 <ul>
                     <li>5V → VCC датчика</li>
                     <li>GND → GND датчика</li>
@@ -166,14 +169,14 @@
                 </ul>
             </div>
             <div class="step-diagram">
-                <strong>DHT11</strong><br>
+                <strong>DHT22</strong><br>
                 VCC → <code>5V</code><br>
                 DATA → <code>D2</code><br>
                 GND → <code>GND</code>
                 <svg viewBox="0 0 260 110" aria-hidden="true">
                     <rect class="d-mod" x="10" y="28" width="74" height="52" rx="8"></rect>
                     <rect class="d-board" x="126" y="18" width="124" height="74" rx="8"></rect>
-                    <text class="d-label" x="47" y="58" text-anchor="middle">DHT11</text>
+                    <text class="d-label" x="47" y="58" text-anchor="middle">DHT22</text>
                     <text class="d-label" x="188" y="48" text-anchor="middle">UNO</text>
                     <circle class="d-pin" cx="136" cy="30" r="5"></circle><text class="d-pin-text" x="136" y="32" text-anchor="middle">5V</text>
                     <circle class="d-pin" cx="162" cy="30" r="5"></circle><text class="d-pin-text" x="162" y="32" text-anchor="middle">G</text>
@@ -280,13 +283,13 @@
                 <ul>
                     <li>5V → VCC релейного модуля</li>
                     <li>GND → GND релейного модуля</li>
-                    <li>D3 → IN1, D5 → IN2</li>
-                    <li>D6 → IN3, D9 → IN4</li>
+                    <li>D3 → IN1, D4 → IN2</li>
+                    <li>D5 → IN3, D6 → IN4</li>
                 </ul>
             </div>
             <div class="step-diagram">
                 <strong>Relay 4CH</strong><br>
-                IN1..IN4 → <code>D3,D5,D6,D9</code><br>
+                IN1..IN4 → <code>D3,D4,D5,D6</code><br>
                 Питание модуля → <code>5V/GND</code>
                 <svg viewBox="0 0 260 110" aria-hidden="true">
                     <rect class="d-mod" x="10" y="22" width="92" height="64" rx="8"></rect>
@@ -296,9 +299,9 @@
                     <circle class="d-pin" cx="136" cy="30" r="5"></circle><text class="d-pin-text" x="136" y="32" text-anchor="middle">5V</text>
                     <circle class="d-pin" cx="162" cy="30" r="5"></circle><text class="d-pin-text" x="162" y="32" text-anchor="middle">G</text>
                     <circle class="d-pin" cx="182" cy="30" r="5"></circle><text class="d-pin-text" x="182" y="32" text-anchor="middle">D3</text>
-                    <circle class="d-pin" cx="200" cy="30" r="5"></circle><text class="d-pin-text" x="200" y="32" text-anchor="middle">D5</text>
-                    <circle class="d-pin" cx="218" cy="30" r="5"></circle><text class="d-pin-text" x="218" y="32" text-anchor="middle">D6</text>
-                    <circle class="d-pin" cx="236" cy="30" r="5"></circle><text class="d-pin-text" x="236" y="32" text-anchor="middle">D9</text>
+                    <circle class="d-pin" cx="200" cy="30" r="5"></circle><text class="d-pin-text" x="200" y="32" text-anchor="middle">D4</text>
+                    <circle class="d-pin" cx="218" cy="30" r="5"></circle><text class="d-pin-text" x="218" y="32" text-anchor="middle">D5</text>
+                    <circle class="d-pin" cx="236" cy="30" r="5"></circle><text class="d-pin-text" x="236" y="32" text-anchor="middle">D6</text>
                     <path class="d-wire-power" d="M102 36 L136 30"></path>
                     <path class="d-wire-gnd" d="M102 72 L162 30"></path>
                     <path class="d-wire-sig" d="M102 44 L182 30"></path>
@@ -314,7 +317,7 @@
         <h2>Проверка перед включением</h2>
         <ul class="parts-list">
             <li>Проверьте, что питание модулей соответствует схеме: <strong>5V</strong> и <strong>GND</strong> не перепутаны.</li>
-            <li>Убедитесь, что сигнальные линии подключены к правильным пинам: D2, D3, D5, D6, D7, D8, D9, A0, A1.</li>
+            <li>Убедитесь, что сигнальные линии подключены к правильным пинам: D2, D3, D4, D5, D6, D7, D8, D10, D11, A0, A1.</li>
             <li>Проверьте, что датчик влажности почвы подключен именно к <strong>AO/AOUT</strong>, а не к цифровому выходу.</li>
             <li>Проверьте делитель фоторезистора: резистор 10 кОм должен идти между A1 и GND.</li>
             <li>Убедитесь, что релейный модуль запитан отдельно от нагрузки и не коммутирует питание Arduino напрямую.</li>
@@ -328,7 +331,7 @@
         <p>Контроллер лучше размещать внутри теплицы в электрическом боксе. Это защищает электронику от влаги, случайных касаний и механических повреждений.</p>
         <ul class="parts-list">
             <li>Установите электрический бокс в сухом и доступном месте внутри теплицы.</li>
-            <li>Arduino Uno, Wi‑Fi Shield и модули крепите на DIN‑рейку.</li>
+            <li>Arduino Uno, ESP8266 и модули крепите на DIN‑рейку.</li>
             <li>Внутри бокса разместите блок питания на 12 В.</li>
             <li>12 В пригодятся для питания водопроводных клапанов.</li>
             <li>Arduino управляет реле, а нагрузка 12 В питается от отдельного источника.</li>

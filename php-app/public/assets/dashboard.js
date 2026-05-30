@@ -25,6 +25,10 @@
             const controllerSettingsCancelBtn = document.getElementById('controllerSettingsCancelBtn');
             const controllerSettingsSaveBtn = document.getElementById('controllerSettingsSaveBtn');
             const controllerSettingsDeleteBtn = document.getElementById('controllerSettingsDeleteBtn');
+            const controllerDeleteDialog = document.getElementById('controllerDeleteDialog');
+            const controllerDeleteError = document.getElementById('controllerDeleteError');
+            const controllerDeleteCancelBtn = document.getElementById('controllerDeleteCancelBtn');
+            const controllerDeleteConfirmBtn = document.getElementById('controllerDeleteConfirmBtn');
             const pinSettingsDialog = document.getElementById('pinSettingsDialog');
             const pinSettingsForm = document.getElementById('pinSettingsForm');
             const pinSettingsFieldsEl = document.getElementById('pinSettingsFields');
@@ -91,6 +95,65 @@
                 editingControllerId = null;
                 setControllerSettingsError('');
                 controllerSettingsDialog.close();
+            }
+
+            function setControllerDeleteError(message) {
+                if (controllerDeleteError) {
+                    controllerDeleteError.textContent = message || '';
+                }
+            }
+
+            function closeControllerDeleteDialog() {
+                setControllerDeleteError('');
+                controllerDeleteDialog?.close();
+            }
+
+            async function deleteEditingController() {
+                if (!editingControllerId) return;
+
+                controllerSettingsDeleteBtn.disabled = true;
+                if (controllerDeleteConfirmBtn) {
+                    controllerDeleteConfirmBtn.disabled = true;
+                    controllerDeleteConfirmBtn.textContent = t('deleting', 'Deleting...');
+                }
+                setControllerSettingsError('');
+                setControllerDeleteError('');
+
+                try {
+                    const response = await fetch('/api/pairing/my-controllers/' + encodeURIComponent(editingControllerId), {
+                        method: 'DELETE',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': csrf,
+                        },
+                    });
+                    const data = await response.json();
+                    if (!response.ok) {
+                        const message = data.message || t('failed_delete_controller', 'Failed to delete controller.');
+                        setControllerSettingsError(message);
+                        setControllerDeleteError(message);
+                        return;
+                    }
+
+                    selectedControllerId = null;
+                    closeControllerDeleteDialog();
+                    closeControllerSettings();
+                    currentPins = [];
+                    pinsListEl.innerHTML = '';
+                    await loadControllers();
+                    await loadPins();
+                    schedulePinsAutoRefresh();
+                } catch (_) {
+                    const message = t('failed_delete_controller', 'Failed to delete controller.');
+                    setControllerSettingsError(message);
+                    setControllerDeleteError(message);
+                } finally {
+                    controllerSettingsDeleteBtn.disabled = false;
+                    if (controllerDeleteConfirmBtn) {
+                        controllerDeleteConfirmBtn.disabled = false;
+                        controllerDeleteConfirmBtn.textContent = t('delete', 'Delete');
+                    }
+                }
             }
 
             function normalizeStyleKey(style) {
@@ -965,42 +1028,13 @@
                 }
             });
 
-            controllerSettingsDeleteBtn?.addEventListener('click', async () => {
+            controllerSettingsDeleteBtn?.addEventListener('click', () => {
                 if (!editingControllerId) return;
-                if (!window.confirm(t('delete_controller_confirm', 'Deleting the controller will delete all telemetry history and related scenarios. Continue?'))) {
-                    return;
-                }
-
-                controllerSettingsDeleteBtn.disabled = true;
-                setControllerSettingsError('');
-
-                try {
-                    const response = await fetch('/api/pairing/my-controllers/' + encodeURIComponent(editingControllerId), {
-                        method: 'DELETE',
-                        headers: {
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': csrf,
-                        },
-                    });
-                    const data = await response.json();
-                    if (!response.ok) {
-                        setControllerSettingsError(data.message || t('failed_delete_controller', 'Failed to delete controller.'));
-                        return;
-                    }
-
-                    selectedControllerId = null;
-                    closeControllerSettings();
-                    currentPins = [];
-                    pinsListEl.innerHTML = '';
-                    await loadControllers();
-                    await loadPins();
-                    schedulePinsAutoRefresh();
-                } catch (_) {
-                    setControllerSettingsError(t('failed_delete_controller', 'Failed to delete controller.'));
-                } finally {
-                    controllerSettingsDeleteBtn.disabled = false;
-                }
+                setControllerDeleteError('');
+                controllerDeleteDialog?.showModal();
             });
+            controllerDeleteCancelBtn?.addEventListener('click', closeControllerDeleteDialog);
+            controllerDeleteConfirmBtn?.addEventListener('click', deleteEditingController);
             pinSettingsForm.addEventListener('submit', async (event) => {
                 event.preventDefault();
                 if (!editingPin || !selectedControllerId) return;

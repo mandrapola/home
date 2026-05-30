@@ -43,7 +43,7 @@ const uint8_t TM1637_DIO_PIN = 7;
 const uint8_t TM1637_CLK_PIN = 8;
 TM1637Display pairingDisplay(TM1637_CLK_PIN, TM1637_DIO_PIN);
 
-const uint8_t DIGITAL_PINS[] = { 3, 9, 5, 6 };
+const uint8_t DIGITAL_PINS[] = { 3, 4, 5, 6 };
 const char *DIGITAL_KEYS[] = { "relay_1", "relay_2", "relay_3", "relay_4" };
 const bool RELAY_ACTIVE_LOW[] = { true, true, true, true };
 
