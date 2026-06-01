@@ -20,6 +20,7 @@
 #include <WiFiClientSecure.h>
 #include <ESP8266HTTPClient.h>
 #include <LittleFS.h>
+#include <time.h>
 
 const unsigned long WIFI_CONNECT_TIMEOUT_MS = 30000UL;
 const size_t SETUP_AP_MIN_PASSWORD_LENGTH = 8;
@@ -27,6 +28,7 @@ const size_t REQUEST_MAX = 260;
 const size_t JSON_MAX = 620;
 const size_t RESPONSE_MAX = 220;
 const char CONFIG_PATH[] = "/config.txt";
+const char CA_CERT_PATH[] = "/ca.pem";
 const char PROVISION_PATH[] = "/api/controller/provision";
 const char REPORT_PATH[] = "/api/controller/report";
 const char DASHBOARD_PATH[] = "/dashboard";
@@ -37,7 +39,6 @@ struct ProxyConfig {
   char serverUrl[128];
   char provisioningToken[96];
   char apiToken[96];
-  char tlsFingerprint[60];
   char localLogin[33];
   char localPassword[49];
   char setupApPassword[65];
@@ -68,6 +69,8 @@ char lightLevelRaw[16] = "";
 char airHumidity[16] = "";
 char airTemperature[16] = "";
 char fallbackApSsid[33] = "";
+String tlsCaPem;
+BearSSL::X509List *tlsTrustAnchor = NULL;
 
 static bool appendFmt(char *dst, size_t dstSize, size_t *used, const char *fmt, ...) {
   if (*used >= dstSize) return false;
@@ -103,8 +106,6 @@ static void setConfigValue(const String &key, const String &value) {
     copyConfigValue(config.provisioningToken, sizeof(config.provisioningToken), value);
   } else if (key == "api_token") {
     copyConfigValue(config.apiToken, sizeof(config.apiToken), value);
-  } else if (key == "tls_fingerprint") {
-    copyConfigValue(config.tlsFingerprint, sizeof(config.tlsFingerprint), value);
   } else if (key == "tls_insecure") {
     config.tlsInsecure = value == "1" || value.equalsIgnoreCase("true");
   } else if (key == "local_login") {
@@ -199,8 +200,6 @@ static bool writeConfigFile(const ProxyConfig &nextConfig) {
   file.println(nextConfig.apiToken);
   file.print(F("tls_insecure="));
   file.println(nextConfig.tlsInsecure ? F("1") : F("0"));
-  file.print(F("tls_fingerprint="));
-  file.println(nextConfig.tlsFingerprint);
   file.print(F("local_login="));
   file.println(nextConfig.localLogin);
   file.print(F("local_password="));
@@ -624,6 +623,53 @@ static bool ensureWifi() {
   return false;
 }
 
+static bool ensureClockSynced() {
+  time_t now = time(nullptr);
+  if (now > 1700000000) {
+    return true;
+  }
+
+  configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+
+  unsigned long startedAt = millis();
+  while ((millis() - startedAt) < 15000UL) {
+    now = time(nullptr);
+    if (now > 1700000000) {
+      return true;
+    }
+    delay(250);
+  }
+
+  return false;
+}
+
+static bool loadTlsCaPem() {
+  if (tlsTrustAnchor != NULL) {
+    return true;
+  }
+
+  if (!LittleFS.exists(CA_CERT_PATH)) {
+    return false;
+  }
+
+  File file = LittleFS.open(CA_CERT_PATH, "r");
+  if (!file) {
+    return false;
+  }
+
+  tlsCaPem = file.readString();
+  file.close();
+  tlsCaPem.trim();
+
+  if (!tlsCaPem.startsWith("-----BEGIN CERTIFICATE-----")) {
+    tlsCaPem = "";
+    return false;
+  }
+
+  tlsTrustAnchor = new BearSSL::X509List(tlsCaPem.c_str());
+  return tlsTrustAnchor != NULL;
+}
+
 static String buildServerUrl(const char *path) {
   String url = config.serverUrl;
   url.trim();
@@ -640,7 +686,9 @@ static String buildServerUrl(const char *path) {
   return url;
 }
 
-static bool configureTlsClient(WiFiClientSecure &client) {
+static bool configureTlsClient(WiFiClientSecure &client, const char **errorCode) {
+  *errorCode = "tls_config_missing";
+
   String serverUrl = config.serverUrl;
   serverUrl.trim();
   if (!serverUrl.startsWith("https://")) {
@@ -652,12 +700,18 @@ static bool configureTlsClient(WiFiClientSecure &client) {
     return true;
   }
 
-  if (config.tlsFingerprint[0] == '\0') {
-    return false;
+  if (loadTlsCaPem()) {
+    if (!ensureClockSynced()) {
+      *errorCode = "tls_time_failed";
+      return false;
+    }
+
+    client.setTrustAnchors(tlsTrustAnchor);
+    client.setX509Time(time(nullptr));
+    return true;
   }
 
-  client.setFingerprint(config.tlsFingerprint);
-  return true;
+  return false;
 }
 
 static void postToServer(const char *payload) {
@@ -687,9 +741,11 @@ static void postToServer(const char *payload) {
   bool provisionMode = config.apiToken[0] == '\0';
 
   WiFiClientSecure client;
-  if (!configureTlsClient(client)) {
-    markCloudFailure("tls_config_missing", 0);
-    Serial.println(F("http_status=0;error=tls_config_missing"));
+  const char *tlsError = "tls_config_missing";
+  if (!configureTlsClient(client, &tlsError)) {
+    markCloudFailure(tlsError, 0);
+    Serial.print(F("http_status=0;error="));
+    Serial.println(tlsError);
     return;
   }
 
@@ -899,7 +955,6 @@ static void sendConfigPage(const char *message = "") {
   addTextInput(html, "controller_id", "ID контроллера", "Заполняется сервером после регистрации. Оставьте пустым перед первой регистрацией.", config.controllerId);
   addSecretInput(html, "api_token", "Токен контроллера", "Автоматически выдается сервером после регистрации. Оставьте пустым, если не хотите менять.");
   addTextInput(html, "tls_insecure", "Небезопасный HTTPS (dev)", "Значение 1 разрешает HTTPS без проверки сертификата только в локальной разработке; для production укажите 0.", config.tlsInsecure ? "1" : "0");
-  addTextInput(html, "tls_fingerprint", "TLS fingerprint", "SHA-1 fingerprint сертификата для проверки HTTPS при tls_insecure=0.", config.tlsFingerprint);
   addTextInput(html, "local_login", "Логин локальной админки", "Логин для входа на страницы ESP: /local, /status, /config.", config.localLogin);
   addSecretInput(html, "local_password", "Пароль локальной админки", "Оставьте пустым, если не хотите менять текущий пароль.");
   addSecretInput(html, "setup_ap_password", "Пароль точки восстановления", "Пароль Wi-Fi точки AiDvor-ESP, которая включается, если домашняя сеть недоступна. Минимум 8 символов. Если не задан, используется пароль локальной админки.");
@@ -927,7 +982,6 @@ static void handleConfigPost() {
   if (webServer.hasArg("server_url")) copyConfigValue(nextConfig.serverUrl, sizeof(nextConfig.serverUrl), webServer.arg("server_url"));
   if (webServer.hasArg("controller_id")) copyConfigValue(nextConfig.controllerId, sizeof(nextConfig.controllerId), webServer.arg("controller_id"));
   if (webServer.hasArg("tls_insecure")) nextConfig.tlsInsecure = webServer.arg("tls_insecure") == "1";
-  if (webServer.hasArg("tls_fingerprint")) copyConfigValue(nextConfig.tlsFingerprint, sizeof(nextConfig.tlsFingerprint), webServer.arg("tls_fingerprint"));
   if (webServer.hasArg("local_login")) copyConfigValue(nextConfig.localLogin, sizeof(nextConfig.localLogin), webServer.arg("local_login"));
 
   if (webServer.hasArg("wifi_password") && webServer.arg("wifi_password").length() > 0) {

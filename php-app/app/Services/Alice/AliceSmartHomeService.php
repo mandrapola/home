@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Alice;
 
 use App\Models\User;
+use App\Services\Report\PinValueTransformer;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +15,7 @@ class AliceSmartHomeService
 {
     public function __construct(
         private readonly AliceVirtualControllerService $aliceVirtualControllerService,
+        private readonly PinValueTransformer $pinValueTransformer,
     ) {
     }
 
@@ -231,6 +233,14 @@ class AliceSmartHomeService
             ])
             ->distinct();
 
+        if ($this->hasMoistureColumns()) {
+            $query->addSelect([
+                'p.moisture_raw_dry',
+                'p.moisture_raw_wet',
+                'p.moisture_show_percent',
+            ]);
+        }
+
         if (Schema::hasColumn('pin', 'external_enabled')) {
             $query->where('p.external_enabled', 1);
         }
@@ -335,7 +345,26 @@ class AliceSmartHomeService
             ];
         }
 
-        $avg = $recent->avg(fn (object $r): float => (float) $r->value);
+        $values = $recent
+            ->map(fn (object $r): ?float => $this->pinValueTransformer->transform($pin, is_numeric($r->value) ? (float) $r->value : null))
+            ->filter(fn (?float $value): bool => $value !== null)
+            ->values();
+
+        if ($values->count() === 0) {
+            return [
+                'id' => (string) $pin->id,
+                'properties' => [[
+                    'type' => 'devices.properties.float',
+                    'state' => [
+                        'instance' => $definition['parameters']['instance'],
+                        'value' => null,
+                        'error_code' => 'DEVICE_UNREACHABLE',
+                    ],
+                ]],
+            ];
+        }
+
+        $avg = $values->avg();
         return [
             'id' => (string) $pin->id,
             'properties' => [[
@@ -365,7 +394,8 @@ class AliceSmartHomeService
             ];
         }
 
-        if ($style === 'sensor_humidity' && $unit === 'percent') {
+        $showMoisturePercent = (int) ($pin->moisture_show_percent ?? 0) === 1;
+        if ($style === 'sensor_humidity' && ($unit === 'percent' || $showMoisturePercent)) {
             return [
                 'type' => 'devices.properties.float',
                 'retrievable' => true,
@@ -402,6 +432,13 @@ class AliceSmartHomeService
         }
 
         return null;
+    }
+
+    private function hasMoistureColumns(): bool
+    {
+        return Schema::hasColumn('pin', 'moisture_raw_dry')
+            && Schema::hasColumn('pin', 'moisture_raw_wet')
+            && Schema::hasColumn('pin', 'moisture_show_percent');
     }
 
     private function extractPowerActionValue(array $deviceInput): ?bool

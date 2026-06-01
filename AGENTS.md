@@ -161,7 +161,7 @@ docker compose exec -T server npm run build
 
 ```bash
 arduino-cli compile \
-  --fqbn esp8266:esp8266:generic \
+  --fqbn esp8266:esp8266:generic:eesz=4M2M \
   --build-path /tmp/esp8266_bearer_build \
   client/arduino/esp8266_greenhouse_wifi_proxy_v1
 
@@ -176,7 +176,39 @@ python3 -m esptool \
   0x0 /tmp/esp8266_bearer_build/esp8266_greenhouse_wifi_proxy_v1.ino.bin
 ```
 
-После прошивки убрать перемычку `GPIO0` -> `GND` и перезапустить ESP. Заливка скетча не заменяет `config.txt` во flash.
+Для загрузки LittleFS data (`config.txt` и `ca.pem`) использовать тот же flash layout `4M2M`: LittleFS начинается с `0x200000`.
+
+```bash
+rm -rf /tmp/esp8266_fs_upload
+mkdir -p /tmp/esp8266_fs_upload/data /tmp/esp8266_fs_upload/out
+
+cp client/arduino/esp8266_greenhouse_wifi_proxy_v1/data/config.txt /tmp/esp8266_fs_upload/data/config.txt
+cp client/arduino/esp8266_greenhouse_wifi_proxy_v1/data/ca.pem /tmp/esp8266_fs_upload/data/ca.pem
+
+/home/km/.arduino15/packages/esp8266/tools/mklittlefs/3.1.0-gcc10.3-e5f9fec/mklittlefs \
+  -c /tmp/esp8266_fs_upload/data \
+  -p 256 \
+  -b 8192 \
+  -s 2072576 \
+  /tmp/esp8266_fs_upload/out/littlefs.bin
+
+python3 -m esptool \
+  --port /dev/ttyUSB0 \
+  --baud 115200 \
+  --no-stub \
+  write_flash \
+  --flash_mode dout \
+  --flash_freq 40m \
+  --flash_size 4MB \
+  0x200000 /tmp/esp8266_fs_upload/out/littlefs.bin
+```
+
+После прошивки убрать перемычку `GPIO0` -> `GND` и перезапустить ESP. Заливка скетча не заменяет `config.txt`/`ca.pem` во flash; их нужно загружать отдельным LittleFS image.
+
+Для production HTTPS:
+- `server_url=https://home.aidvor.ru`
+- `tls_insecure=0`
+- `data/ca.pem` должен быть загружен в LittleFS.
 
 Если ESP не может подключиться к сохраненной Wi-Fi сети, через 30 секунд запускается recovery-точка `AiDvor-ESP-<chipId>`. Пароль задается параметром `setup_ap_password`; для старых конфигов используется `local_password`, если он содержит не менее 8 символов. Страницы `/local`, `/status` и `/config` в этом режиме доступны по адресу `http://192.168.4.1`.
 
