@@ -1293,6 +1293,7 @@ class PairingController extends Controller
             return response()->json(['error' => 'validation_error', 'message' => 'controller_id must be UUID'], 422);
         }
 
+        $user = $request->user();
         $minimumSendIntervalSeconds = IoTController::MIN_INTERVAL_SECONDS;
 
         $validated = $request->validate([
