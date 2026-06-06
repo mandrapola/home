@@ -92,7 +92,8 @@ class PlanController extends Controller
                 'name' => $summary['effective_plan']->name,
             ] : null,
             'limits' => [
-                'min_report_interval_seconds' => $summary['min_report_interval_seconds'],
+                'report_epoch_seconds' => $summary['report_epoch_seconds'],
+                'report_max_requests_per_epoch' => $summary['report_max_requests_per_epoch'],
                 'pin_data' => [
                     'used' => $summary['pin_data_used'],
                     'max' => $summary['pin_data_max'],

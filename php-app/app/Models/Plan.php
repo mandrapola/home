@@ -15,7 +15,8 @@ class Plan extends Model
         'name',
         'description',
         'daily_price_units',
-        'min_report_interval_seconds',
+        'report_epoch_seconds',
+        'report_max_requests_per_epoch',
         'price_currency',
         'max_pin_data_rows',
         'max_scenarios',
@@ -27,7 +28,8 @@ class Plan extends Model
     {
         return [
             'daily_price_units' => 'integer',
-            'min_report_interval_seconds' => 'integer',
+            'report_epoch_seconds' => 'integer',
+            'report_max_requests_per_epoch' => 'integer',
             'max_pin_data_rows' => 'integer',
             'max_scenarios' => 'integer',
             'max_scenario_conditions' => 'integer',

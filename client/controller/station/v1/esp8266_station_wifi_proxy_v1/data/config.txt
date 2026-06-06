@@ -1,0 +1,16 @@
+# AiDvor station ESP8266 proxy runtime config.
+# Replace placeholders before uploading LittleFS to a real ESP8266.
+# Do not commit real passwords or secrets.
+
+wifi_ssid=wifi
+wifi_password=wifi_password
+server_url=https://home.aidvor.ru
+controller_id=
+# Generated automatically by ESP during unregistered provisioning.
+provisioning_token=
+api_token=
+tls_insecure=0
+local_login=admin
+local_password=admin
+setup_ap_password=password
+cloud_grace_seconds=300

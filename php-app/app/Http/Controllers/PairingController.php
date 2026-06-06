@@ -1293,12 +1293,7 @@ class PairingController extends Controller
             return response()->json(['error' => 'validation_error', 'message' => 'controller_id must be UUID'], 422);
         }
 
-        $user = $request->user();
-        $effectivePlan = $this->planLimitService->resolveEffectivePlanForUser($user);
-        $minimumSendIntervalSeconds = max(
-            IoTController::MIN_INTERVAL_SECONDS,
-            (int) ($effectivePlan?->min_report_interval_seconds ?? 0)
-        );
+        $minimumSendIntervalSeconds = IoTController::MIN_INTERVAL_SECONDS;
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -1311,7 +1306,7 @@ class PairingController extends Controller
             ],
         ], [
             'send_interval_seconds.min' => __(
-                'Send interval is below the minimum allowed for your plan (:seconds sec).',
+                'Send interval is below the minimum allowed (:seconds sec).',
                 ['seconds' => $minimumSendIntervalSeconds]
             ),
         ]);

@@ -222,7 +222,8 @@ class PlanLimitService
      *   scenarios_max: int|null,
      *   scenario_conditions_used: int,
      *   scenario_conditions_max: int|null,
-     *   min_report_interval_seconds: int,
+     *   report_epoch_seconds: int,
+     *   report_max_requests_per_epoch: int,
      *   balance_units: int,
      *   billing_blocked: bool
      * }
@@ -255,7 +256,8 @@ class PlanLimitService
             'scenarios_max' => $this->normalizeLimit($effectivePlan?->max_scenarios),
             'scenario_conditions_used' => $scenarioConditionsUsed,
             'scenario_conditions_max' => $this->normalizeLimit($effectivePlan?->max_scenario_conditions),
-            'min_report_interval_seconds' => (int) ($effectivePlan?->min_report_interval_seconds ?? 0),
+            'report_epoch_seconds' => (int) ($effectivePlan?->report_epoch_seconds ?? 300),
+            'report_max_requests_per_epoch' => (int) ($effectivePlan?->report_max_requests_per_epoch ?? 0),
             'balance_units' => (int) ($balance->balance_units ?? 0),
             'billing_blocked' => $balance !== null && $balance->billing_blocked_at !== null,
         ];

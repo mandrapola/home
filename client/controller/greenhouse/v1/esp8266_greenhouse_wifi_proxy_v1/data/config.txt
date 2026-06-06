@@ -1,0 +1,8 @@
+wifi_ssid=VPN_2G
+wifi_password=wifi-V3.14N
+server_url=https://home.aidvor.ru
+proxy_id=getaway
+proxy_secret=e6d85ea4ef7e4cc3a9ff6d20c05681a5b58f6f438c8049353f1457d07abf98ef
+local_login=admin
+local_password=admin
+cloud_grace_seconds=300

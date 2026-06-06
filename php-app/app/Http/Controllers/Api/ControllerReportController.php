@@ -10,7 +10,6 @@ use App\Http\Controllers\Controller;
 use App\Models\ControllerPairing;
 use App\Models\ControllerRegistrationAttempt;
 use App\Models\IoTController;
-use App\Models\User;
 use App\Services\Billing\PlanLimitService;
 use App\Services\Billing\ReportRateLimitService;
 use App\Services\Report\ControllerMonitorPayloadService;
@@ -121,20 +120,7 @@ class ControllerReportController extends Controller
 
     private function minimumSendIntervalSecondsForController(string $controllerId): int
     {
-        $ownerId = (int) (DB::table('controller')->where('id', $controllerId)->value('user_id') ?? 0);
-
-        $minimumSeconds = IoTController::MIN_INTERVAL_SECONDS;
-        if ($ownerId <= 0) {
-            return $minimumSeconds;
-        }
-
-        $user = User::query()->find($ownerId);
-        if ($user) {
-            $effectivePlan = $this->planLimitService->resolveEffectivePlanForUser($user);
-            $minimumSeconds = max($minimumSeconds, (int) ($effectivePlan?->min_report_interval_seconds ?? 0));
-        }
-
-        return min(IoTController::MAX_INTERVAL_SECONDS, $minimumSeconds);
+        return IoTController::MIN_INTERVAL_SECONDS;
     }
 
     private function pendingApiToken(IoTController $controller): ?string
@@ -301,9 +287,7 @@ class ControllerReportController extends Controller
         if (! $rateLimit['allowed']) {
             return response()->json([
                 'error' => 'rate_limit',
-                'message' => __('For your plan, data can be sent no more than once every :minutes minutes.', [
-                    'minutes' => max(1, (int) ceil(((int) $rateLimit['interval_seconds']) / 60)),
-                ]),
+                'message' => __('For your plan, the request limit for the current period has been exceeded.'),
                 'retry_after_seconds' => (int) $rateLimit['retry_after_seconds'],
             ], 429);
         }

@@ -329,7 +329,7 @@
                                     </p>
                                 </div>
                                 <ul class="plan-limits-zone">
-                                    <li>{{ __('Minimum report interval') }}: {{ max(\App\Models\IoTController::MIN_INTERVAL_SECONDS, (int) ($plan->min_report_interval_seconds ?? 0)) }} {{ __('sec') }}</li>
+                                    <li>{{ __('Report quota') }}: {{ (int) ($plan->report_max_requests_per_epoch ?? 0) > 0 ? number_format((int) $plan->report_max_requests_per_epoch, 0, '.', ' ') : __('Auto') }} / {{ (int) ($plan->report_epoch_seconds ?? 300) }} {{ __('sec') }}</li>
                                     <li>{{ __('pin_data limit') }}: {{ (int) ($plan->max_pin_data_rows ?? 0) > 0 ? number_format((int) $plan->max_pin_data_rows, 0, '.', ' ') : __('No limit') }}</li>
                                     <li>{{ __('Scenarios') }}: {{ (int) ($plan->max_scenarios ?? 0) > 0 ? number_format((int) $plan->max_scenarios, 0, '.', ' ') : __('No limit') }}</li>
                                     <li>{{ __('Scenario Conditions') }}: {{ (int) ($plan->max_scenario_conditions ?? 0) > 0 ? number_format((int) $plan->max_scenario_conditions, 0, '.', ' ') : __('No limit') }}</li>
@@ -380,9 +380,9 @@
                             @endforeach
                         </tr>
                         <tr>
-                            <td>{{ __('Minimum report interval') }}</td>
+                            <td>{{ __('Report quota') }}</td>
                             @foreach ($plans as $plan)
-                                <td>{{ max(\App\Models\IoTController::MIN_INTERVAL_SECONDS, (int) ($plan->min_report_interval_seconds ?? 0)) }} {{ __('sec') }}</td>
+                                <td>{{ (int) ($plan->report_max_requests_per_epoch ?? 0) > 0 ? number_format((int) $plan->report_max_requests_per_epoch, 0, '.', ' ') : __('Auto') }} / {{ (int) ($plan->report_epoch_seconds ?? 300) }} {{ __('sec') }}</td>
                             @endforeach
                         </tr>
                         <tr>

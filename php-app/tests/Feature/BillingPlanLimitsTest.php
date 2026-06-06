@@ -22,7 +22,7 @@ class BillingPlanLimitsTest extends TestCase
 {
     use DatabaseTransactions;
 
-    public function test_report_endpoint_returns_429_when_requests_are_sent_before_plan_interval(): void
+    public function test_report_endpoint_returns_429_when_epoch_request_quota_is_exceeded(): void
     {
         Event::fake([
             ControllerReportReceived::class,
@@ -31,11 +31,12 @@ class BillingPlanLimitsTest extends TestCase
         Carbon::setTestNow('2026-05-24 12:00:00');
 
         $plan = $this->createPlan([
-            'min_report_interval_seconds' => 10,
+            'report_epoch_seconds' => 60,
+            'report_max_requests_per_epoch' => 1,
         ]);
         $user = $this->createUser($plan);
         $controllerId = $this->createControllerForUser($user, [
-            'send_interval_seconds' => 10,
+            'send_interval_seconds' => 5,
         ]);
 
         $this->withoutMiddleware(VerifyControllerToken::class);
@@ -55,8 +56,11 @@ class BillingPlanLimitsTest extends TestCase
             ->assertStatus(429)
             ->assertJson([
                 'error' => 'rate_limit',
-                'retry_after_seconds' => 5,
+                'retry_after_seconds' => 55,
             ]);
+
+        Event::assertDispatched(ControllerReportReceived::class, 1);
+        Event::assertDispatched(ControllerReadingsReceived::class, 1);
 
         Carbon::setTestNow();
     }
@@ -303,7 +307,8 @@ class BillingPlanLimitsTest extends TestCase
             'name' => 'Test plan',
             'description' => 'Test plan',
             'daily_price_units' => 0,
-            'min_report_interval_seconds' => 5,
+            'report_epoch_seconds' => 300,
+            'report_max_requests_per_epoch' => 0,
             'price_currency' => 'RUB',
             'max_pin_data_rows' => 0,
             'max_scenarios' => 0,

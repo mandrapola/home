@@ -8,7 +8,7 @@ AiDvor — веб-платформа для удаленного управле�
 ## 2) Текущая архитектура
 Монорепо с несколькими частями:
 - `php-app/` — Laravel приложение (основной backend + web UI + admin).
-- `client/arduino/` — скетчи контроллеров.
+- `client/controller/` — скетчи контроллеров по типам и версиям.
 - `db/mysql/` — SQL/bootstrap для локальной БД.
 - `docker-compose.yml` — локальное окружение.
 
@@ -130,8 +130,8 @@ Laravel env (`php-app/.env`), ключевые группы:
   - `php-app/app/Http/Middleware/VerifyControllerToken.php`
   - `php-app/app/Listeners/ProcessControllerReadingsOnReport.php`
 - Arduino/ESP8266:
-  - `client/arduino/arduino_uno_greenhouse_uart_controller_v1/`
-  - `client/arduino/esp8266_greenhouse_wifi_proxy_v1/`
+  - `client/controller/greenhouse/v1/arduino_uno_greenhouse_uart_controller_v1/`
+  - `client/controller/greenhouse/v1/esp8266_greenhouse_wifi_proxy_v1/`
 - User pages/views:
   - `php-app/resources/views/*`
 
@@ -163,7 +163,7 @@ docker compose exec -T server npm run build
 arduino-cli compile \
   --fqbn esp8266:esp8266:generic:eesz=4M2M \
   --build-path /tmp/esp8266_bearer_build \
-  client/arduino/esp8266_greenhouse_wifi_proxy_v1
+  client/controller/greenhouse/v1/esp8266_greenhouse_wifi_proxy_v1
 
 python3 -m esptool \
   --port /dev/ttyUSB0 \
@@ -182,8 +182,8 @@ python3 -m esptool \
 rm -rf /tmp/esp8266_fs_upload
 mkdir -p /tmp/esp8266_fs_upload/data /tmp/esp8266_fs_upload/out
 
-cp client/arduino/esp8266_greenhouse_wifi_proxy_v1/data/config.txt /tmp/esp8266_fs_upload/data/config.txt
-cp client/arduino/esp8266_greenhouse_wifi_proxy_v1/data/ca.pem /tmp/esp8266_fs_upload/data/ca.pem
+cp client/controller/greenhouse/v1/esp8266_greenhouse_wifi_proxy_v1/data/config.txt /tmp/esp8266_fs_upload/data/config.txt
+cp client/controller/greenhouse/v1/esp8266_greenhouse_wifi_proxy_v1/data/ca.pem /tmp/esp8266_fs_upload/data/ca.pem
 
 /home/km/.arduino15/packages/esp8266/tools/mklittlefs/3.1.0-gcc10.3-e5f9fec/mklittlefs \
   -c /tmp/esp8266_fs_upload/data \
