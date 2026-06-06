@@ -364,7 +364,7 @@
   "For your plan, the request limit for the current period has been exceeded.": "Для вашего тарифа превышен лимит запросов за текущий период.",
   "Report epoch, sec": "Эпоха отчетов, сек",
   "Requests per epoch": "Запросов за эпоху",
-  "Report quota": "Квота отчетов",
+  "Report quota": "Квота запросов за эпоху",
   "Auto": "Авто",
   "Minimum value is 60 seconds": "Минимальное значение — 60 секунд",
   "0 means automatic limit: controllers × epoch / 5": "0 означает автоматический лимит: контроллеры × эпоха / 5",

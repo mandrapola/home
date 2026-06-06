@@ -110,6 +110,7 @@
         $dashboardUser = auth()->user();
         $selectedPlan = $dashboardUser?->selectedPlan;
         $effectivePlan = $dashboardUser ? app(\App\Services\Billing\PlanLimitService::class)->resolveEffectivePlanForUser($dashboardUser) : null;
+        $minimumSendIntervalSeconds = \App\Models\IoTController::MIN_INTERVAL_SECONDS;
         $activeSubRow = $dashboardUser ? \Illuminate\Support\Facades\DB::table('user_subscriptions')
             ->where('user_id', $dashboardUser->id)
             ->where('status', 'active')
