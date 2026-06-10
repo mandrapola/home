@@ -41,6 +41,58 @@ services:
       - caddy_data:/data
       - caddy_config:/config
 
+  market-server:
+    build:
+      context: ./market-app
+      dockerfile: Dockerfile
+    container_name: market-server
+    ports:
+      - "3100:80"
+    depends_on:
+      market-db:
+        condition: service_healthy
+    environment:
+      - APP_NAME=AiDvor Market
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - APP_URL=http://localhost:3100
+      - DB_CONNECTION=mysql
+      - DB_HOST=market-db
+      - DB_PORT=3306
+      - DB_DATABASE=aidvor_market
+      - DB_USERNAME=aidvor_market
+      - DB_PASSWORD=aidvor_market
+    volumes:
+      - ./market-app:/var/www/html
+    command: >
+      bash -lc "a2enmod rewrite &&
+      mkdir -p /var/www/html/storage/logs /var/www/html/storage/framework/cache /var/www/html/storage/framework/sessions /var/www/html/storage/framework/views /var/www/html/storage/app/public /var/www/html/bootstrap/cache &&
+      chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache &&
+      chmod -R ug+rwx /var/www/html/storage /var/www/html/bootstrap/cache &&
+      sed -ri -e 's!/var/www/html(/public)*!/var/www/html/public!g'
+      /etc/apache2/sites-available/*.conf
+      /etc/apache2/apache2.conf
+      /etc/apache2/conf-available/*.conf &&
+      apache2-foreground"
+
+  market-db:
+    image: mysql:8.0
+    container_name: market-db
+    environment:
+      - MYSQL_DATABASE=aidvor_market
+      - MYSQL_USER=aidvor_market
+      - MYSQL_PASSWORD=aidvor_market
+      - MYSQL_ROOT_PASSWORD=aidvor_market_root
+    ports:
+      - "3307:3306"
+    volumes:
+      - market_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -paidvor_market_root --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   db:
     image: mysql:8.0
     container_name: db
@@ -62,5 +114,6 @@ services:
 
 volumes:
   mysql_data:
+  market_mysql_data:
   caddy_data:
   caddy_config:

@@ -8,18 +8,18 @@
     - show monitor value on TM1637
 
   Wiring:
-    D2  -> DHT22 DATA
-    D3  -> relay_1
-    D4  -> relay_2
-    D5  -> relay_3
-    D6  -> relay_4
-    D7  -> relay_5
-    D8  -> relay_6
-    D9  -> relay_7
+    D2  -> relay_1
+    D3  -> relay_2
+    D4  -> relay_3
+    D5  -> relay_4
+    D6  -> relay_5
+    D7  -> relay_6
+    D8  -> relay_7
+    D9  -> relay_8
     D10 -> ESP TX (Arduino RX)
     D11 -> ESP RX (Arduino TX through 5V-to-3.3V divider)
-    D12 -> relay_8
-    D13 -> FS-IR02 tank level digital output
+    D12 -> FS-IR02 tank level digital output
+    D13 -> free / onboard LED
     A0  -> DS18B20 data
     A1  -> photoresistor analog output
     A2  -> TM1637 DIO
@@ -32,7 +32,6 @@
 */
 
 #include <SoftwareSerial.h>
-#include <DHT.h>
 #include <TM1637Display.h>
 #include <Wire.h>
 #include <Adafruit_BMP280.h>
@@ -48,13 +47,6 @@ const uint8_t ESP_TX_PIN = 11; // Arduino sends to ESP RX.
 const unsigned long ESP_BAUD = 9600;
 SoftwareSerial esp(ESP_RX_PIN, ESP_TX_PIN);
 
-const uint8_t DHT_PIN = 2;
-#define DHTTYPE DHT22
-DHT dht(DHT_PIN, DHTTYPE);
-bool hasLastDhtValues = false;
-float lastHumidity = NAN;
-float lastTemperature = NAN;
-
 const uint8_t DS18B20_PIN = A0;
 OneWire oneWire(DS18B20_PIN);
 DallasTemperature waterTemperatureSensor(&oneWire);
@@ -65,8 +57,10 @@ Adafruit_BMP280 bmp;
 bool bmpReady = false;
 bool hasLastAtmPressure = false;
 float lastAtmPressure = NAN;
+bool hasLastAirTemperature = false;
+float lastAirTemperature = NAN;
 
-const uint8_t TANK_LEVEL_PIN = 13;
+const uint8_t TANK_LEVEL_PIN = 12;
 const bool TANK_LEVEL_ACTIVE_LOW = true;
 const uint8_t LIGHT_LEVEL_PIN = A1;
 
@@ -74,7 +68,7 @@ const uint8_t TM1637_DIO_PIN = A2;
 const uint8_t TM1637_CLK_PIN = A3;
 TM1637Display pairingDisplay(TM1637_CLK_PIN, TM1637_DIO_PIN);
 
-const uint8_t DIGITAL_PINS[] = { 3, 4, 5, 6, 7, 8, 9, 12 };
+const uint8_t DIGITAL_PINS[] = { 2, 3, 4, 5, 6, 7, 8, 9 };
 const char *DIGITAL_KEYS[] = {
   "relay_1", "relay_2", "relay_3", "relay_4",
   "relay_5", "relay_6", "relay_7", "relay_8"
@@ -272,7 +266,7 @@ static bool appendFloatReading(char *out, size_t outSize, size_t *used, bool *fi
   return true;
 }
 
-static bool buildRequestPayload(char *out, size_t outSize, float humidity, float airTemperature, float atmPressure, float waterTemperature) {
+static bool buildRequestPayload(char *out, size_t outSize, float airTemperature, float atmPressure, float waterTemperature) {
   size_t used = 0;
   bool first = true;
 
@@ -288,7 +282,6 @@ static bool buildRequestPayload(char *out, size_t outSize, float humidity, float
   if (!appendFmt(out, outSize, &used, "%slight_level_raw=%d", first ? "" : ";", analogRead(LIGHT_LEVEL_PIN))) return false;
   first = false;
 
-  if (!appendFloatReading(out, outSize, &used, &first, "air_humidity", humidity, 1)) return false;
   if (!appendFloatReading(out, outSize, &used, &first, "air_temperature", airTemperature, 1)) return false;
   if (!appendFloatReading(out, outSize, &used, &first, "atm_pressure", atmPressure, 1)) return false;
   if (!appendFloatReading(out, outSize, &used, &first, "water_temperature", waterTemperature, 1)) return false;
@@ -296,33 +289,19 @@ static bool buildRequestPayload(char *out, size_t outSize, float humidity, float
   return true;
 }
 
-static bool readDhtStable(float *humidity, float *temperature) {
-  for (uint8_t attempt = 0; attempt < 3; attempt++) {
-    bool force = attempt > 0;
-    float h = dht.readHumidity(force);
-    float t = dht.readTemperature(force);
-
-    if (!isnan(h) && !isnan(t)) {
-      *humidity = h;
-      *temperature = t;
-      return true;
-    }
-
-    delay(1200);
-  }
-
-  return false;
-}
-
-static bool readBmpPressureStable(float *pressureHpa) {
+static bool readBmpStable(float *pressureHpa, float *temperature) {
   if (!bmpReady) return false;
 
   for (uint8_t attempt = 0; attempt < 3; attempt++) {
     float pressure = bmp.readPressure() / 100.0F;
-    if (!isnan(pressure) && pressure > 300.0F && pressure < 1200.0F) {
+    float t = bmp.readTemperature();
+
+    if (!isnan(pressure) && pressure > 300.0F && pressure < 1200.0F && !isnan(t) && t > -60.0F && t < 90.0F) {
       *pressureHpa = pressure;
+      *temperature = t;
       return true;
     }
+
     delay(150);
   }
 
@@ -429,33 +408,22 @@ static bool exchangeWithEsp(const char *request, char *response, size_t response
 }
 
 static void postMeasurements() {
-  float humidity = NAN;
   float airTemperature = NAN;
   float atmPressure = NAN;
   float waterTemperature = NAN;
 
-  if (!readDhtStable(&humidity, &airTemperature)) {
-    Serial.println(F("DHT22 read failed"));
-    if (hasLastDhtValues) {
-      humidity = lastHumidity;
-      airTemperature = lastTemperature;
-      Serial.println(F("Using last valid DHT22 values"));
-    }
-  } else {
-    hasLastDhtValues = true;
-    lastHumidity = humidity;
-    lastTemperature = airTemperature;
-  }
-
-  if (!readBmpPressureStable(&atmPressure)) {
+  if (!readBmpStable(&atmPressure, &airTemperature)) {
     Serial.println(F("BMP280 read failed"));
-    if (hasLastAtmPressure) {
+    if (hasLastAtmPressure && hasLastAirTemperature) {
       atmPressure = lastAtmPressure;
-      Serial.println(F("Using last valid BMP280 pressure"));
+      airTemperature = lastAirTemperature;
+      Serial.println(F("Using last valid BMP280 values"));
     }
   } else {
     hasLastAtmPressure = true;
     lastAtmPressure = atmPressure;
+    hasLastAirTemperature = true;
+    lastAirTemperature = airTemperature;
   }
 
   if (!readWaterTemperatureStable(&waterTemperature)) {
@@ -469,7 +437,7 @@ static void postMeasurements() {
     lastWaterTemperature = waterTemperature;
   }
 
-  if (!buildRequestPayload(requestPayload, sizeof(requestPayload), humidity, airTemperature, atmPressure, waterTemperature)) {
+  if (!buildRequestPayload(requestPayload, sizeof(requestPayload), airTemperature, atmPressure, waterTemperature)) {
     Serial.println(F("Payload build failed"));
     return;
   }
@@ -523,7 +491,6 @@ void setup() {
   pairingDisplay.setBrightness(0x0f, true);
   showConnectionErrorOnDisplay();
 
-  dht.begin();
   waterTemperatureSensor.begin();
   Wire.begin();
   bmpReady = bmp.begin(0x76) || bmp.begin(0x77);
