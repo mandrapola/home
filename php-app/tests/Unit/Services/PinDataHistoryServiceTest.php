@@ -60,7 +60,8 @@ class PinDataHistoryServiceTest extends TestCase
         $service = app(PinDataHistoryService::class);
         $service->storeReadings(
             [['pin' => 'air_temperature', 'value' => 14.0]],
-            ['AIR_TEMPERATURE' => $pinId]
+            ['AIR_TEMPERATURE' => $pinId],
+            ['AIR_TEMPERATURE' => 'sensor_temperature']
         );
 
         $this->assertSame(1, DB::table('pin_data')->count());
@@ -89,11 +90,53 @@ class PinDataHistoryServiceTest extends TestCase
         $service = app(PinDataHistoryService::class);
         $service->storeReadings(
             [['pin' => 'air_temperature', 'value' => 14.0]],
-            ['AIR_TEMPERATURE' => $pinId]
+            ['AIR_TEMPERATURE' => $pinId],
+            ['AIR_TEMPERATURE' => 'sensor_temperature']
         );
 
         $this->assertSame(2, DB::table('pin_data')->count());
 
         Carbon::setTestNow();
+    }
+
+    public function test_skips_invalid_power_values(): void
+    {
+        $pinId = Uuid::uuid7()->toString();
+        DB::table('pin')->insert([
+            'id' => $pinId,
+        ]);
+
+        $service = app(PinDataHistoryService::class);
+        $service->storeReadings(
+            [
+                ['pin' => 'relay_1', 'value' => 2],
+                ['pin' => 'relay_1', 'value' => 'on'],
+            ],
+            ['RELAY_1' => $pinId],
+            ['RELAY_1' => 'power']
+        );
+
+        $this->assertSame(0, DB::table('pin_data')->count());
+    }
+
+    public function test_skips_non_numeric_sensor_values(): void
+    {
+        $pinId = Uuid::uuid7()->toString();
+        DB::table('pin')->insert([
+            'id' => $pinId,
+        ]);
+
+        $service = app(PinDataHistoryService::class);
+        $service->storeReadings(
+            [
+                ['pin' => 'air_temperature', 'value' => '23.4'],
+                ['pin' => 'air_temperature', 'value' => '23,4'],
+            ],
+            ['AIR_TEMPERATURE' => $pinId],
+            ['AIR_TEMPERATURE' => 'sensor_temperature']
+        );
+
+        $this->assertSame(1, DB::table('pin_data')->count());
+        $this->assertSame(23.4, (float) DB::table('pin_data')->where('pin_id', $pinId)->value('value'));
     }
 }

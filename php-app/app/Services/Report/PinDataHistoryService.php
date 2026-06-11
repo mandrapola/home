@@ -15,8 +15,31 @@ class PinDataHistoryService
     ) {
     }
 
+    private function normalizeReadingValue(mixed $value, string $pinStyle): ?float
+    {
+        if (! is_int($value) && ! is_float($value) && ! is_string($value)) {
+            return null;
+        }
+
+        $value = is_string($value) ? trim($value) : $value;
+        if (! is_numeric($value)) {
+            return null;
+        }
+
+        $normalized = (float) $value;
+        if ($pinStyle === 'power' && ! in_array($normalized, [0.0, 1.0], true)) {
+            return null;
+        }
+
+        if ($pinStyle !== 'power' && $pinStyle !== 'sensor' && ! str_starts_with($pinStyle, 'sensor_')) {
+            return null;
+        }
+
+        return $normalized;
+    }
+
     /**
-     * @param array<int, array{pin:string, value:float|int}> $readings
+     * @param array<int, array{pin:string, value:mixed}> $readings
      * @param array<string,string> $pinIdByName
      * @param array<string,string> $pinStyleByName
      */
@@ -31,8 +54,12 @@ class PinDataHistoryService
                 continue;
             }
 
-            $incomingValue = (float) $reading['value'];
             $pinStyle = strtolower((string) ($pinStyleByName[$pinName] ?? ''));
+            $incomingValue = $this->normalizeReadingValue($reading['value'] ?? null, $pinStyle);
+            if ($incomingValue === null) {
+                continue;
+            }
+
             $isPowerPin = ($pinStyle === 'power');
 
             if ($isPowerPin) {

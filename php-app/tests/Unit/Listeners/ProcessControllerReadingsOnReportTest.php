@@ -171,4 +171,42 @@ class ProcessControllerReadingsOnReportTest extends TestCase
         $this->assertSame(1, (int) $relayPinAfter->desired_digital_value);
         $this->assertGreaterThanOrEqual(2, DB::table('pin_data')->count());
     }
+
+    public function test_listener_skips_unknown_pins_and_provisions_user_pins(): void
+    {
+        $controllerId = '019d5529-ceee-7748-b9a8-a2e3ce1e8b8f';
+        DB::table('controller')->insert([
+            'id' => $controllerId,
+            'user_id' => null,
+            'name' => 'test-controller',
+            'send_interval_seconds' => 5,
+            'status' => 'unclaimed',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $listener = app(ProcessControllerReadingsOnReport::class);
+
+        $listener->handle(new ControllerReadingsReceived($controllerId, [
+            ['pin' => '_temperature', 'value' => 23.4],
+            ['pin' => '.4;air_temperature', 'value' => 23.4],
+            ['pin' => 'analog_spare_1_raw', 'value' => 512],
+            ['pin' => 'user_power_1', 'value' => 1],
+            ['pin' => 'user_sensor_12', 'value' => 512],
+        ]));
+
+        $this->assertDatabaseMissing('pin', ['controller_id' => $controllerId, 'pin' => '_TEMPERATURE']);
+        $this->assertDatabaseMissing('pin', ['controller_id' => $controllerId, 'pin' => '.4;AIR_TEMPERATURE']);
+        $this->assertDatabaseMissing('pin', ['controller_id' => $controllerId, 'pin' => 'ANALOG_SPARE_1_RAW']);
+
+        $powerPin = DB::table('pin')->where('controller_id', $controllerId)->where('pin', 'USER_POWER_1')->first();
+        $sensorPin = DB::table('pin')->where('controller_id', $controllerId)->where('pin', 'USER_SENSOR_12')->first();
+
+        $this->assertNotNull($powerPin);
+        $this->assertNotNull($sensorPin);
+        $this->assertSame('power', $powerPin->digital_style);
+        $this->assertSame('sensor', $sensorPin->digital_style);
+        $this->assertSame('adc', $sensorPin->unit);
+        $this->assertSame(2, DB::table('pin_data')->count());
+    }
 }
