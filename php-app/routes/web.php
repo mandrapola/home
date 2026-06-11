@@ -14,7 +14,6 @@ Route::get('/', function () {
         'plans' => Plan::query()
             ->where('is_active', true)
             ->orderBy('daily_price_units')
-            ->limit(3)
             ->get(),
     ]);
 });
