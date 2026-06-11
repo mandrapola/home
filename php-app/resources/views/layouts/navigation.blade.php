@@ -39,9 +39,6 @@
                     <a class="nav-link {{ request()->routeIs('scenes') ? 'active' : '' }}" href="{{ route('scenes') }}">{{ __('Scenes') }}</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('report') ? 'active' : '' }}" href="{{ route('report') }}">{{ __('Report') }}</a>
-                </li>
-                <li class="nav-item">
                     <a class="nav-link {{ request()->routeIs('user.plans.*') ? 'active' : '' }}" href="{{ route('user.plans.index') }}">{{ __('Plans') }}</a>
                 </li>
             </ul>

@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Services\Report\PinDataHistoryService;
+use App\Services\Billing\PlanLimitService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Mockery;
 use Ramsey\Uuid\Uuid;
 use Tests\TestCase;
 
@@ -41,7 +43,7 @@ class PinDataHistoryServiceTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_updates_last_row_with_average_inside_interval_window(): void
+    public function test_creates_new_row_inside_interval_window(): void
     {
         Carbon::setTestNow('2026-04-18 12:00:00');
 
@@ -64,9 +66,12 @@ class PinDataHistoryServiceTest extends TestCase
             ['AIR_TEMPERATURE' => 'sensor_temperature']
         );
 
-        $this->assertSame(1, DB::table('pin_data')->count());
-        $value = (float) DB::table('pin_data')->where('pin_id', $pinId)->value('value');
-        $this->assertSame(12.0, $value);
+        $this->assertSame(2, DB::table('pin_data')->count());
+        $value = (float) DB::table('pin_data')
+            ->where('pin_id', $pinId)
+            ->orderByDesc('created_at')
+            ->value('value');
+        $this->assertSame(14.0, $value);
 
         Carbon::setTestNow();
     }
@@ -138,5 +143,34 @@ class PinDataHistoryServiceTest extends TestCase
 
         $this->assertSame(1, DB::table('pin_data')->count());
         $this->assertSame(23.4, (float) DB::table('pin_data')->where('pin_id', $pinId)->value('value'));
+    }
+
+    public function test_checks_controller_pin_data_limit_once_before_loop(): void
+    {
+        $controllerId = Uuid::uuid7()->toString();
+        $pinId = Uuid::uuid7()->toString();
+        DB::table('pin')->insert([
+            'id' => $pinId,
+        ]);
+
+        $planLimitService = Mockery::mock(PlanLimitService::class);
+        $planLimitService
+            ->shouldReceive('canInsertPinDataForController')
+            ->once()
+            ->with($controllerId)
+            ->andReturn(true);
+
+        $service = new PinDataHistoryService($planLimitService);
+        $service->storeReadings(
+            [
+                ['pin' => 'air_temperature', 'value' => 23.4],
+                ['pin' => 'air_temperature', 'value' => 23.5],
+            ],
+            ['AIR_TEMPERATURE' => $pinId],
+            ['AIR_TEMPERATURE' => 'sensor_temperature'],
+            $controllerId
+        );
+
+        $this->assertSame(2, DB::table('pin_data')->count());
     }
 }

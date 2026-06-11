@@ -7,8 +7,6 @@ use App\Http\Controllers\AliceLinkController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\OAuth\AliceOAuthProviderController;
 use App\Models\Plan;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -56,31 +54,6 @@ Route::get('/dashboard', function () {
     return view('dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
-Route::get('/report', function (Request $request) {
-    $pinId = trim((string) $request->query('pin_id', ''));
-    if ($pinId !== '') {
-        return view('report');
-    }
-
-    $user = $request->user();
-    if ($user) {
-        $firstPinId = DB::table('pin as p')
-            ->join('controller as c', 'c.id', '=', 'p.controller_id')
-            ->where('c.user_id', (int) $user->id)
-            ->where('c.is_service', 0)
-            ->where('p.digital_style', 'power')
-            ->orderByDesc('p.show_on_report')
-            ->orderBy('p.pin')
-            ->value('p.id');
-
-        if ($firstPinId) {
-            return redirect()->route('report', ['pin_id' => (string) $firstPinId]);
-        }
-    }
-
-    return view('report');
-})->middleware(['auth', 'verified'])->name('report');
-
 Route::get('/adding-a-new-controller', function () {
     return view('adding-a-new-controller');
 })->middleware(['auth', 'verified'])->name('adding-a-new-controller');
@@ -112,8 +85,6 @@ Route::middleware('auth')->group(function () {
     Route::put('/api/scenes/targets/{pinId}/enabled', [ScenesController::class, 'setTargetScenarioEnabled']);
 
     Route::prefix('api/pairing')->group(function () {
-        Route::get('/report-pins', [PairingController::class, 'myReportPins']);
-        Route::get('/report', [PairingController::class, 'myReport']);
         Route::get('/my-controllers', [PairingController::class, 'myControllers']);
         Route::get('/my-controllers/{controllerId}/pins', [PairingController::class, 'myControllerPins']);
         Route::get('/my-controllers/{controllerId}/power-events', [PairingController::class, 'myControllerPowerEvents']);

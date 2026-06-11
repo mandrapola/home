@@ -209,4 +209,69 @@ class ProcessControllerReadingsOnReportTest extends TestCase
         $this->assertSame('adc', $sensorPin->unit);
         $this->assertSame(2, DB::table('pin_data')->count());
     }
+
+    public function test_scenario_conditions_use_averaged_sensor_values(): void
+    {
+        $controllerId = '019d5529-ceee-7748-b9a8-a2e3ce1e8b8f';
+        DB::table('controller')->insert([
+            'id' => $controllerId,
+            'user_id' => null,
+            'name' => 'test-controller',
+            'send_interval_seconds' => 5,
+            'status' => 'unclaimed',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $relayPinId = Uuid::uuid7()->toString();
+        $lightPinId = Uuid::uuid7()->toString();
+        DB::table('pin')->insert([
+            [
+                'id' => $relayPinId,
+                'controller_id' => $controllerId,
+                'pin' => 'RELAY_1',
+                'label' => 'Relay 1',
+                'unit' => null,
+                'digital_style' => 'power',
+                'desired_digital_value' => 0,
+                'enable_scenario' => 1,
+            ],
+            [
+                'id' => $lightPinId,
+                'controller_id' => $controllerId,
+                'pin' => 'LIGHT_LEVEL_RAW',
+                'label' => 'Light',
+                'unit' => 'adc',
+                'digital_style' => 'sensor_light',
+                'desired_digital_value' => null,
+                'enable_scenario' => 1,
+            ],
+        ]);
+
+        $scenarioId = Uuid::uuid7()->toString();
+        DB::table('scenario')->insert([
+            'id' => $scenarioId,
+            'pin_id' => $relayPinId,
+            'name' => 'relay on when averaged light > 100',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('scenario_condition')->insert([
+            'id' => Uuid::uuid7()->toString(),
+            'scenario_id' => $scenarioId,
+            'pin_id' => $lightPinId,
+            'operator' => 'gt',
+            'threshold' => 100,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        app(ProcessControllerReadingsOnReport::class)->handle(new ControllerReadingsReceived($controllerId, [
+            ['pin' => 'light_level_raw', 'value' => 50],
+            ['pin' => 'light_level_raw', 'value' => 150],
+        ]));
+
+        $this->assertSame(0, (int) DB::table('pin')->where('id', $relayPinId)->value('desired_digital_value'));
+        $this->assertSame(2, DB::table('pin_data')->where('pin_id', $lightPinId)->count());
+    }
 }
