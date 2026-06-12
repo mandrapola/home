@@ -22,6 +22,13 @@ Default local administrator is created by `php artisan migrate --seed`:
 - password: `MARKET_ADMIN_PASSWORD`
 
 For production set `MARKET_ADMIN_PASSWORD` to a strong secret outside the repository.
+If the server uses cached config, refresh it before seeding:
+
+```bash
+php artisan config:clear
+php artisan config:cache
+php artisan db:seed --force
+```
 
 ## Assets
 

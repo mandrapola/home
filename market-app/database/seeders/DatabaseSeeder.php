@@ -27,7 +27,7 @@ class DatabaseSeeder extends Seeder
             'guard_name' => 'web',
         ]);
 
-        $adminPassword = (string) env('MARKET_ADMIN_PASSWORD', '');
+        $adminPassword = (string) config('market.admin_password', '');
 
         if ($adminPassword !== '') {
             $admin = User::query()->updateOrCreate(
