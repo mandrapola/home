@@ -188,6 +188,32 @@ class MarketFlowTest extends TestCase
             ->assertSee('https://t.me/AiDvorSupportBot?start=item_telegram-controller', false);
     }
 
+    public function test_telegram_request_link_is_hidden_when_disabled(): void
+    {
+        config(['telegram.enabled' => false, 'telegram.bot_username' => 'AiDvorSupportBot']);
+
+        $category = Category::query()->create([
+            'name' => 'Контроллеры',
+            'slug' => 'controllers',
+            'is_active' => true,
+        ]);
+
+        $item = MarketItem::query()->create([
+            'category_id' => $category->id,
+            'type' => 'product',
+            'name' => 'Hidden telegram controller',
+            'slug' => 'hidden-telegram-controller',
+            'summary' => 'No telegram CTA.',
+            'stock_quantity' => 1,
+            'is_active' => true,
+        ]);
+
+        $this->get(route('market.items.show', $item))
+            ->assertOk()
+            ->assertDontSee('Сделать заявку в Telegram')
+            ->assertDontSee('https://t.me/AiDvorSupportBot', false);
+    }
+
     public function test_telegram_webhook_creates_item_conversation_and_notifies_admin(): void
     {
         config([

@@ -12,7 +12,7 @@ class TelegramLinkService
 {
     public function enabled(): bool
     {
-        return (bool) config('telegram.enabled') && $this->botUsername() !== null;
+        return config('telegram.enabled') === true && $this->botUsername() !== null;
     }
 
     public function itemLink(MarketItem $item): ?string
@@ -22,6 +22,10 @@ class TelegramLinkService
 
     public function cartLink(Cart $cart): ?string
     {
+        if (! $this->enabled()) {
+            return null;
+        }
+
         $lines = $cart->lines();
 
         if ($lines->isEmpty()) {
@@ -55,6 +59,10 @@ class TelegramLinkService
 
     public function startLink(string $payload): ?string
     {
+        if (! $this->enabled()) {
+            return null;
+        }
+
         $username = $this->botUsername();
 
         if ($username === null) {
