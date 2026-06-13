@@ -364,6 +364,53 @@ class MarketFlowTest extends TestCase
             && $request['message'] === 'Здравствуйте. Товар есть в наличии.');
     }
 
+    public function test_vk_admin_conversation_displays_human_context(): void
+    {
+        Role::query()->create(['name' => 'administrator', 'guard_name' => 'web']);
+
+        $administrator = User::query()->create([
+            'name' => 'Admin',
+            'email' => 'admin@example.com',
+            'password' => Hash::make('password'),
+        ]);
+        $administrator->assignRole('administrator');
+
+        $category = Category::query()->create([
+            'name' => 'Контроллеры',
+            'slug' => 'controllers',
+            'is_active' => true,
+        ]);
+
+        $item = MarketItem::query()->create([
+            'category_id' => $category->id,
+            'type' => 'product',
+            'name' => 'Базовый набор датчиков',
+            'slug' => 'sensor-kit',
+            'summary' => 'Набор для старта.',
+            'price_rub' => 4900,
+            'stock_quantity' => 3,
+            'is_active' => true,
+        ]);
+
+        $conversation = VkConversation::query()->create([
+            'market_item_id' => $item->id,
+            'context_type' => 'item',
+            'context_token' => $item->slug,
+            'vk_user_id' => 777,
+            'intent' => 'availability',
+            'status' => 'open',
+            'context_payload' => ['item_name' => $item->name, 'item_slug' => $item->slug],
+        ]);
+
+        $this->actingAs($administrator)
+            ->get(route('admin.vk.show', $conversation))
+            ->assertOk()
+            ->assertSee('Заявка на товар')
+            ->assertSee('Базовый набор датчиков')
+            ->assertSee('4 900 ₽')
+            ->assertSee('Узнать наличие и доставку');
+    }
+
     public function test_telegram_webhook_creates_item_conversation_and_notifies_admin(): void
     {
         config([
