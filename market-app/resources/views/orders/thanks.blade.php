@@ -8,6 +8,9 @@
                 @if ($telegramLink)
                     <a class="inline-flex rounded border border-emerald-700 px-4 py-2 text-sm font-medium text-emerald-800" href="{{ $telegramLink }}" target="_blank" rel="noopener">Продолжить в Telegram</a>
                 @endif
+                @if ($vkLink)
+                    <a class="inline-flex rounded border border-blue-700 px-4 py-2 text-sm font-medium text-blue-800" href="{{ $vkLink }}" target="_blank" rel="noopener">Продолжить во VK</a>
+                @endif
                 <a class="inline-flex rounded bg-slate-950 px-4 py-2 text-sm font-medium text-white" href="{{ route('market.index') }}">Вернуться в каталог</a>
             </div>
         </div>

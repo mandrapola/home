@@ -8,6 +8,7 @@ use App\Models\MarketItem;
 use App\Models\Order;
 use App\Models\TelegramConversation;
 use App\Models\User;
+use App\Models\VkConversation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Hash;
@@ -214,6 +215,155 @@ class MarketFlowTest extends TestCase
             ->assertDontSee('https://t.me/AiDvorSupportBot', false);
     }
 
+    public function test_item_page_displays_vk_request_link_when_enabled(): void
+    {
+        config(['vk.enabled' => true, 'vk.group_screen_name' => 'aidvor_market']);
+
+        $category = Category::query()->create([
+            'name' => 'Контроллеры',
+            'slug' => 'controllers',
+            'is_active' => true,
+        ]);
+
+        $item = MarketItem::query()->create([
+            'category_id' => $category->id,
+            'type' => 'product',
+            'name' => 'VK controller',
+            'slug' => 'vk-controller',
+            'summary' => 'Ready to discuss in VK.',
+            'stock_quantity' => 1,
+            'is_active' => true,
+        ]);
+
+        $this->get(route('market.items.show', $item))
+            ->assertOk()
+            ->assertSee('Сделать заявку во VK')
+            ->assertSee('https://vk.me/aidvor_market?ref=item_vk-controller', false);
+    }
+
+    public function test_vk_callback_confirms_server(): void
+    {
+        config(['vk.confirmation_code' => 'confirm-code', 'vk.secret' => 'secret']);
+
+        $this->postJson('/api/vk/callback', [
+            'type' => 'confirmation',
+            'group_id' => 1,
+        ])->assertOk()->assertSee('confirm-code');
+    }
+
+    public function test_vk_callback_creates_item_conversation(): void
+    {
+        config(['vk.access_token' => 'token', 'vk.secret' => 'secret']);
+
+        Http::fake([
+            'api.vk.com/*' => Http::response(['response' => 1], 200),
+        ]);
+
+        $category = Category::query()->create([
+            'name' => 'Контроллеры',
+            'slug' => 'controllers',
+            'is_active' => true,
+        ]);
+
+        $item = MarketItem::query()->create([
+            'category_id' => $category->id,
+            'type' => 'product',
+            'name' => 'VK controller',
+            'slug' => 'vk-controller',
+            'summary' => 'Ready to discuss in VK.',
+            'stock_quantity' => 1,
+            'is_active' => true,
+        ]);
+
+        $this->postJson('/api/vk/callback', [
+            'type' => 'message_new',
+            'secret' => 'secret',
+            'object' => [
+                'message' => [
+                    'id' => 10,
+                    'peer_id' => 777,
+                    'from_id' => 777,
+                    'text' => '',
+                    'ref' => 'item_'.$item->slug,
+                ],
+            ],
+        ])->assertOk()->assertSee('ok');
+
+        $conversation = VkConversation::query()->firstOrFail();
+
+        $this->assertSame($item->id, $conversation->market_item_id);
+        $this->assertSame(777, $conversation->vk_user_id);
+
+        $this->postJson('/api/vk/callback', [
+            'type' => 'message_new',
+            'secret' => 'secret',
+            'object' => [
+                'message' => [
+                    'id' => 11,
+                    'peer_id' => 777,
+                    'from_id' => 777,
+                    'payload' => json_encode([
+                        'type' => 'intent',
+                        'conversation_id' => $conversation->id,
+                        'intent' => 'availability',
+                    ]),
+                ],
+            ],
+        ])->assertOk()->assertSee('ok');
+
+        $this->assertDatabaseHas('vk_conversations', [
+            'id' => $conversation->id,
+            'intent' => 'availability',
+        ]);
+
+        Http::assertSent(fn ($request): bool => str_contains($request->url(), 'messages.send')
+            && (string) $request['peer_id'] === '777');
+    }
+
+    public function test_administrator_can_reply_to_vk_conversation(): void
+    {
+        config(['vk.access_token' => 'token']);
+
+        Http::fake([
+            'api.vk.com/*' => Http::response(['response' => 123], 200),
+        ]);
+
+        Role::query()->create(['name' => 'administrator', 'guard_name' => 'web']);
+
+        $administrator = User::query()->create([
+            'name' => 'Admin',
+            'email' => 'admin@example.com',
+            'password' => Hash::make('password'),
+        ]);
+        $administrator->assignRole('administrator');
+
+        $conversation = VkConversation::query()->create([
+            'context_type' => 'item',
+            'context_token' => 'vk-controller',
+            'vk_user_id' => 777,
+            'status' => 'open',
+        ]);
+
+        $this->actingAs($administrator)
+            ->withSession(['_token' => 'test-token'])
+            ->post(route('admin.vk.reply', $conversation), [
+                '_token' => 'test-token',
+                'message' => 'Здравствуйте. Товар есть в наличии.',
+            ])
+            ->assertRedirect(route('admin.vk.show', $conversation));
+
+        $this->assertDatabaseHas('vk_messages', [
+            'vk_conversation_id' => $conversation->id,
+            'direction' => 'admin',
+            'body' => 'Здравствуйте. Товар есть в наличии.',
+            'vk_message_id' => 123,
+        ]);
+
+        Http::assertSent(fn ($request): bool => str_contains($request->url(), 'messages.send')
+            && (string) $request['peer_id'] === '777'
+            && $request['message'] === 'Здравствуйте. Товар есть в наличии.');
+    }
+
     public function test_telegram_webhook_creates_item_conversation_and_notifies_admin(): void
     {
         config([
@@ -343,6 +493,10 @@ class MarketFlowTest extends TestCase
 
         $this->actingAs($administrator)
             ->get('/admin/orders')
+            ->assertOk();
+
+        $this->actingAs($administrator)
+            ->get('/admin/vk')
             ->assertOk();
     }
 

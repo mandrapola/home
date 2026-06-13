@@ -45,6 +45,9 @@
                 @if ($telegramLink)
                     <a href="{{ $telegramLink }}" class="mt-4 flex w-full justify-center rounded border border-emerald-700 px-4 py-3 text-sm font-semibold text-emerald-800" target="_blank" rel="noopener">Сделать заявку в Telegram</a>
                 @endif
+                @if ($vkLink)
+                    <a href="{{ $vkLink }}" class="mt-4 flex w-full justify-center rounded border border-blue-700 px-4 py-3 text-sm font-semibold text-blue-800" target="_blank" rel="noopener">Сделать заявку во VK</a>
+                @endif
 
                 <form method="post" action="{{ route('market.inquiries.store', $item) }}" class="mt-6 space-y-4">
                     @csrf

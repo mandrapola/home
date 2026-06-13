@@ -55,6 +55,9 @@
                                 @if ($telegramLinks[$item->id] ?? null)
                                     <a href="{{ $telegramLinks[$item->id] }}" class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700" target="_blank" rel="noopener">Заявка в Telegram</a>
                                 @endif
+                                @if ($vkLinks[$item->id] ?? null)
+                                    <a href="{{ $vkLinks[$item->id] }}" class="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700" target="_blank" rel="noopener">Заявка во VK</a>
+                                @endif
                                 <a href="{{ route('market.items.show', $item) }}" class="rounded bg-slate-950 px-4 py-2 text-sm font-medium text-white">Подробнее</a>
                             </div>
                         </div>

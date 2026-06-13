@@ -6,13 +6,14 @@ use App\Models\Category;
 use App\Models\Inquiry;
 use App\Models\MarketItem;
 use App\Services\Telegram\TelegramLinkService;
+use App\Services\Vk\VkLinkService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class MarketController extends Controller
 {
-    public function index(Request $request, TelegramLinkService $telegramLinks): View
+    public function index(Request $request, TelegramLinkService $telegramLinks, VkLinkService $vkLinks): View
     {
         $category = null;
         $categorySlug = $request->string('category')->toString();
@@ -38,16 +39,18 @@ class MarketController extends Controller
             'currentCategory' => $category,
             'items' => $items,
             'telegramLinks' => $items->mapWithKeys(fn (MarketItem $item): array => [$item->id => $telegramLinks->itemLink($item)]),
+            'vkLinks' => $items->mapWithKeys(fn (MarketItem $item): array => [$item->id => $vkLinks->itemLink($item)]),
         ]);
     }
 
-    public function show(MarketItem $item, TelegramLinkService $telegramLinks): View
+    public function show(MarketItem $item, TelegramLinkService $telegramLinks, VkLinkService $vkLinks): View
     {
         abort_unless($item->is_active && $item->category?->is_active, 404);
 
         return view('market.show', [
             'item' => $item->load('category'),
             'telegramLink' => $telegramLinks->itemLink($item),
+            'vkLink' => $vkLinks->itemLink($item),
         ]);
     }
 

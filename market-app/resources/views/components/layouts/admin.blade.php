@@ -16,6 +16,7 @@
                 <a class="hover:text-slate-950" href="{{ route('admin.orders.index') }}">Заказы</a>
                 <a class="hover:text-slate-950" href="{{ route('admin.inquiries.index') }}">Заявки</a>
                 <a class="hover:text-slate-950" href="{{ route('admin.telegram.index') }}">Telegram</a>
+                <a class="hover:text-slate-950" href="{{ route('admin.vk.index') }}">VK</a>
                 <a class="hover:text-slate-950" href="{{ route('market.index') }}">Витрина</a>
                 <form method="post" action="{{ route('admin.logout') }}">
                     @csrf

@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\InquiryController;
 use App\Http\Controllers\Admin\MarketItemController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\TelegramConversationController;
+use App\Http\Controllers\Admin\VkConversationController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\MarketController;
 use App\Http\Controllers\OrderController;
@@ -47,5 +48,8 @@ Route::prefix('admin')
             Route::patch('orders/{order}', [AdminOrderController::class, 'update'])->name('orders.update');
             Route::get('telegram', [TelegramConversationController::class, 'index'])->name('telegram.index');
             Route::get('telegram/{conversation}', [TelegramConversationController::class, 'show'])->name('telegram.show');
+            Route::get('vk', [VkConversationController::class, 'index'])->name('vk.index');
+            Route::get('vk/{conversation}', [VkConversationController::class, 'show'])->name('vk.show');
+            Route::post('vk/{conversation}/reply', [VkConversationController::class, 'reply'])->name('vk.reply');
         });
     });

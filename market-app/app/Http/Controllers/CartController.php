@@ -5,18 +5,20 @@ namespace App\Http\Controllers;
 use App\Models\MarketItem;
 use App\Services\Cart;
 use App\Services\Telegram\TelegramLinkService;
+use App\Services\Vk\VkLinkService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class CartController extends Controller
 {
-    public function show(Cart $cart, TelegramLinkService $telegramLinks): View
+    public function show(Cart $cart, TelegramLinkService $telegramLinks, VkLinkService $vkLinks): View
     {
         return view('cart.show', [
             'lines' => $cart->lines(),
             'totalRub' => $cart->totalRub(),
             'telegramLink' => $telegramLinks->cartLink($cart),
+            'vkLink' => $vkLinks->cartLink($cart),
         ]);
     }
 

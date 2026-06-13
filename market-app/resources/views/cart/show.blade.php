@@ -62,6 +62,9 @@
                     @if ($telegramLink)
                         <a class="rounded border border-emerald-700 px-5 py-3 text-sm font-semibold text-emerald-800" href="{{ $telegramLink }}" target="_blank" rel="noopener">Обсудить корзину в Telegram</a>
                     @endif
+                    @if ($vkLink)
+                        <a class="rounded border border-blue-700 px-5 py-3 text-sm font-semibold text-blue-800" href="{{ $vkLink }}" target="_blank" rel="noopener">Обсудить корзину во VK</a>
+                    @endif
                     <a class="rounded bg-emerald-700 px-5 py-3 text-sm font-semibold text-white" href="{{ route('orders.checkout') }}">Оформить заказ</a>
                 </div>
             </div>

@@ -76,3 +76,37 @@ Cart links use short-lived context tokens:
 ```text
 https://t.me/<bot_username>?start=cart_<token>
 ```
+
+## VK Requests
+
+Set these values in the production environment:
+
+```env
+MARKET_VK_ENABLED=true
+MARKET_VK_GROUP_ID=
+MARKET_VK_GROUP_SCREEN_NAME=
+MARKET_VK_ACCESS_TOKEN=
+MARKET_VK_CONFIRMATION_CODE=
+MARKET_VK_SECRET=
+MARKET_VK_API_VERSION=5.199
+```
+
+Callback API URL for the VK community:
+
+```text
+https://market.aidvor.ru/api/vk/callback
+```
+
+Enable the `message_new` event in the community Callback API settings.
+
+Product links use:
+
+```text
+https://vk.me/<group_screen_name>?ref=item_<slug>
+```
+
+Cart links use short-lived context tokens:
+
+```text
+https://vk.me/<group_screen_name>?ref=cart_<token>
+```

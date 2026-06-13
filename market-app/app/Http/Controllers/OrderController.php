@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Order;
 use App\Services\Cart;
 use App\Services\Telegram\TelegramLinkService;
+use App\Services\Vk\VkLinkService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -67,11 +68,12 @@ class OrderController extends Controller
         return redirect()->route('orders.thanks', $order)->with('status', 'Заказ отправлен.');
     }
 
-    public function thanks(Order $order, TelegramLinkService $telegramLinks): View
+    public function thanks(Order $order, TelegramLinkService $telegramLinks, VkLinkService $vkLinks): View
     {
         return view('orders.thanks', [
             'order' => $order,
             'telegramLink' => $telegramLinks->orderLink($order),
+            'vkLink' => $vkLinks->orderLink($order),
         ]);
     }
 
