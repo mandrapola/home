@@ -29,6 +29,7 @@
                 <a class="link-secondary small" href="{{ route('password.request') }}">{{ __('Forgot your password?') }}</a>
             @endif
             <x-primary-button>{{ __('Log in') }}</x-primary-button>
+            <a class="btn btn-primary" href="{{ route('register') }}">{{ __('Register') }}</a>
         </div>
     </form>
 </x-guest-layout>

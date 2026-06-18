@@ -35,8 +35,8 @@
           <span class="theme-icon theme-icon-sun" aria-hidden="true">☀</span>
           <span class="theme-icon theme-icon-moon" aria-hidden="true">☾</span>
         </button>
-        <a class="btn btn-secondary" href="{{ route('login') }}">Войти</a>
-        <a class="btn btn-primary" href="{{ route('register') }}">Подключить бесплатно</a>
+        <a class="btn btn-secondary" href="{{ route('login') }}">{{ __('Log in') }}</a>
+        <a class="btn btn-primary" href="{{ route('register') }}">{{ __('Register') }}</a>
       </div>
     </div>
   </header>
@@ -256,7 +256,7 @@
             <div class="section-kicker" style="color:#bce8c7">Готовые решения</div>
             <h2>Не хотите собирать сами? Используйте готовые комплекты</h2>
             <p>Платформа может работать не только как облачный сервис, но и как магазин совместимых устройств: контроллеров, датчиков, реле, корпусов и комплектов для теплиц.</p>
-            <a class="btn btn-secondary" href="{{ route('register') }}">Оставить заявку на комплект</a>
+            <a class="btn btn-secondary" href="{{ config('services.market.url') }}">Перейти в магазин AiDvor</a>
           </div>
           <div class="kit-list">
             <div>Комплект автополива</div>
