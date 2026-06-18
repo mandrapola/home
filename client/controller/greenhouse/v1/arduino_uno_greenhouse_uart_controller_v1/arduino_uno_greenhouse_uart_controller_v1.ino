@@ -24,6 +24,7 @@
 #include <TM1637Display.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 unsigned long sendIntervalMs = 30000UL;
 
@@ -43,6 +44,12 @@ const uint8_t TM1637_DIO_PIN = 7;
 const uint8_t TM1637_CLK_PIN = 8;
 TM1637Display pairingDisplay(TM1637_CLK_PIN, TM1637_DIO_PIN);
 
+const uint8_t FACTORY_RESET_BUTTON_PIN = 9;
+const uint8_t SLEEP_BUTTON_PIN = 12;
+const unsigned long FACTORY_RESET_HOLD_MS = 7000UL;
+const unsigned long SLEEP_BUTTON_HOLD_MS = 2500UL;
+const unsigned long IP_PAGE_MS = 850UL;
+
 const uint8_t DIGITAL_PINS[] = { 3, 4, 5, 6 };
 const char *DIGITAL_KEYS[] = { "relay_1", "relay_2", "relay_3", "relay_4" };
 const bool RELAY_ACTIVE_LOW[] = { true, true, true, true };
@@ -60,6 +67,15 @@ unsigned long relayTurnedOnAtMs[DIGITAL_COUNT] = { 0, 0, 0, 0 };
 char requestPayload[190];
 char responseBody[160];
 char asyncEspLine[160];
+char lastEspCsv[160] = "";
+char currentIp[16] = "";
+
+bool factoryButtonPressed = false;
+bool factoryResetSent = false;
+unsigned long factoryButtonPressedAtMs = 0;
+bool sleepButtonPressed = false;
+bool sleepToggleSent = false;
+unsigned long sleepButtonPressedAtMs = 0;
 
 static bool appendFmt(char *dst, size_t dstSize, size_t *used, const char *fmt, ...) {
   if (*used >= dstSize) return false;
@@ -131,6 +147,45 @@ static void showHttpStatusErrorOnDisplay(int statusCode) {
   showConnectionErrorOnDisplay();
 }
 
+static uint8_t segmentForChar(char c) {
+  switch (toupper(c)) {
+    case '0': return pairingDisplay.encodeDigit(0);
+    case '1': return pairingDisplay.encodeDigit(1);
+    case '2': return pairingDisplay.encodeDigit(2);
+    case '3': return pairingDisplay.encodeDigit(3);
+    case '4': return pairingDisplay.encodeDigit(4);
+    case '5': return pairingDisplay.encodeDigit(5);
+    case '6': return pairingDisplay.encodeDigit(6);
+    case '7': return pairingDisplay.encodeDigit(7);
+    case '8': return pairingDisplay.encodeDigit(8);
+    case '9': return pairingDisplay.encodeDigit(9);
+    case 'A': return (uint8_t) (SEG_A | SEG_B | SEG_C | SEG_E | SEG_F | SEG_G);
+    case 'C': return (uint8_t) (SEG_A | SEG_D | SEG_E | SEG_F);
+    case 'E': return (uint8_t) (SEG_A | SEG_D | SEG_E | SEG_F | SEG_G);
+    case 'I': return (uint8_t) (SEG_B | SEG_C);
+    case 'L': return (uint8_t) (SEG_D | SEG_E | SEG_F);
+    case 'N': return (uint8_t) (SEG_C | SEG_E | SEG_G);
+    case 'O': return (uint8_t) (SEG_A | SEG_B | SEG_C | SEG_D | SEG_E | SEG_F);
+    case 'P': return (uint8_t) (SEG_A | SEG_B | SEG_E | SEG_F | SEG_G);
+    case 'R': return (uint8_t) (SEG_E | SEG_G);
+    case 'S': return (uint8_t) (SEG_A | SEG_C | SEG_D | SEG_F | SEG_G);
+    case 'T': return (uint8_t) (SEG_D | SEG_E | SEG_F | SEG_G);
+    case 'U': return (uint8_t) (SEG_B | SEG_C | SEG_D | SEG_E | SEG_F);
+    case '-': return SEG_G;
+    default: return 0x00;
+  }
+}
+
+static void showTextOnDisplay(const char *text) {
+  uint8_t segments[4] = { 0x00, 0x00, 0x00, 0x00 };
+
+  for (uint8_t i = 0; i < 4 && text[i] != '\0'; i++) {
+    segments[i] = segmentForChar(text[i]);
+  }
+
+  pairingDisplay.setSegments(segments);
+}
+
 static long findCsvLong(const char *csv, const char *key, long fallback) {
   const size_t keyLen = strlen(key);
   const char *p = csv;
@@ -189,6 +244,12 @@ static bool findCsvString(const char *csv, const char *key, char *out, size_t ou
   return false;
 }
 
+static void rememberValue(char *dst, size_t dstSize, const char *value) {
+  if (dstSize == 0) return;
+  strncpy(dst, value, dstSize - 1);
+  dst[dstSize - 1] = '\0';
+}
+
 static void applyDigitalOutputsFromCsv(const char *csv) {
   for (size_t i = 0; i < DIGITAL_COUNT; i++) {
     long v = findCsvLong(csv, DIGITAL_KEYS[i], -1);
@@ -207,6 +268,19 @@ static void updatePairingDisplayFromCsv(const char *csv) {
 
   if (monitorValue[0] == '\0' || strcasecmp(monitorValue, "null") == 0) {
     showConnectionErrorOnDisplay();
+    return;
+  }
+
+  if (strcasecmp(monitorValue, "SLP") == 0
+      || strcasecmp(monitorValue, "AP") == 0
+      || strcasecmp(monitorValue, "RUN") == 0
+      || strcasecmp(monitorValue, "NOIP") == 0) {
+    showTextOnDisplay(monitorValue);
+    return;
+  }
+
+  if (monitorValue[0] != '-' && (monitorValue[0] < '0' || monitorValue[0] > '9')) {
+    showTextOnDisplay(monitorValue);
     return;
   }
 
@@ -332,6 +406,13 @@ static bool readEspLineNonBlocking(char *out, size_t outSize) {
 }
 
 static void applyEspCsvCommand(const char *csv) {
+  rememberValue(lastEspCsv, sizeof(lastEspCsv), csv);
+
+  char ipValue[16];
+  if (findCsvString(csv, "ip", ipValue, sizeof(ipValue)) && ipValue[0] != '\0') {
+    rememberValue(currentIp, sizeof(currentIp), ipValue);
+  }
+
   long httpStatus = findCsvLong(csv, "http_status", 200);
   if (httpStatus >= 400) {
     showHttpStatusErrorOnDisplay((int) httpStatus);
@@ -360,6 +441,48 @@ static bool exchangeWithEsp(const char *request, char *response, size_t response
   Serial.println(F("ESP->UNO:"));
   Serial.println(response);
   return true;
+}
+
+static void restoreDisplayAfterTemporaryMessage() {
+  if (lastEspCsv[0] != '\0') {
+    updatePairingDisplayFromCsv(lastEspCsv);
+    return;
+  }
+
+  showConnectionErrorOnDisplay();
+}
+
+static void showCurrentIpOnDisplay() {
+  if (currentIp[0] == '\0' || strcmp(currentIp, "0.0.0.0") == 0) {
+    showTextOnDisplay("NOIP");
+    delay(IP_PAGE_MS);
+    restoreDisplayAfterTemporaryMessage();
+    return;
+  }
+
+  showTextOnDisplay("IP");
+  delay(IP_PAGE_MS);
+
+  const char *part = currentIp;
+  for (uint8_t shown = 0; shown < 4 && *part != '\0'; shown++) {
+    int octet = atoi(part);
+    if (octet < 0) octet = 0;
+    if (octet > 255) octet = 255;
+    pairingDisplay.showNumberDec(octet, false, 4, 0);
+    delay(IP_PAGE_MS);
+
+    const char *dot = strchr(part, '.');
+    if (!dot) break;
+    part = dot + 1;
+  }
+
+  restoreDisplayAfterTemporaryMessage();
+}
+
+static void sendControlCommand(const char *command) {
+  Serial.println(F("UNO command->ESP:"));
+  Serial.println(command);
+  esp.println(command);
 }
 
 static void postMeasurements() {
@@ -415,6 +538,50 @@ static void checkRelayWatchdogs() {
   }
 }
 
+static void handleButtons(unsigned long now) {
+  bool factoryDown = digitalRead(FACTORY_RESET_BUTTON_PIN) == LOW;
+  if (factoryDown && !factoryButtonPressed) {
+    factoryButtonPressed = true;
+    factoryResetSent = false;
+    factoryButtonPressedAtMs = now;
+  }
+
+  if (factoryDown && !factoryResetSent && (now - factoryButtonPressedAtMs) >= FACTORY_RESET_HOLD_MS) {
+    setAllRelaysOff();
+    showTextOnDisplay("rSt");
+    sendControlCommand("command=factory_reset");
+    factoryResetSent = true;
+  }
+
+  if (!factoryDown && factoryButtonPressed) {
+    factoryButtonPressed = false;
+  }
+
+  bool sleepDown = digitalRead(SLEEP_BUTTON_PIN) == LOW;
+  if (sleepDown && !sleepButtonPressed) {
+    sleepButtonPressed = true;
+    sleepToggleSent = false;
+    sleepButtonPressedAtMs = now;
+  }
+
+  if (sleepDown && !sleepToggleSent && (now - sleepButtonPressedAtMs) >= SLEEP_BUTTON_HOLD_MS) {
+    setAllRelaysOff();
+    showTextOnDisplay("SLP");
+    sendControlCommand("command=sleep_toggle");
+    sleepToggleSent = true;
+  }
+
+  if (!sleepDown && sleepButtonPressed) {
+    unsigned long heldMs = now - sleepButtonPressedAtMs;
+    sleepButtonPressed = false;
+
+    if (!sleepToggleSent && heldMs < SLEEP_BUTTON_HOLD_MS) {
+      sendControlCommand("command=status");
+      showCurrentIpOnDisplay();
+    }
+  }
+}
+
 void setup() {
   Serial.begin(9600);
   esp.begin(ESP_BAUD);
@@ -427,6 +594,8 @@ void setup() {
   for (size_t i = 0; i < DIGITAL_COUNT; i++) {
     pinMode(DIGITAL_PINS[i], OUTPUT);
   }
+  pinMode(FACTORY_RESET_BUTTON_PIN, INPUT_PULLUP);
+  pinMode(SLEEP_BUTTON_PIN, INPUT_PULLUP);
   setAllRelaysOff();
 
   pairingDisplay.setBrightness(0x0f, true);
@@ -446,6 +615,7 @@ void loop() {
   }
 
   checkRelayWatchdogs();
+  handleButtons(now);
 
   if (lastSendMs == 0 || (now - lastSendMs) >= sendIntervalMs) {
     postMeasurements();
