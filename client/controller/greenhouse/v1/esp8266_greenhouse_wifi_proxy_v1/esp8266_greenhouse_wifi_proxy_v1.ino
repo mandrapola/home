@@ -27,9 +27,9 @@ const size_t SETUP_AP_MIN_PASSWORD_LENGTH = 8;
 const size_t REQUEST_MAX = 260;
 const size_t JSON_MAX = 620;
 const size_t RESPONSE_MAX = 220;
-const unsigned long SLEEP_SEND_INTERVAL_SECONDS = 300UL;
 const char CONFIG_PATH[] = "/config.txt";
 const char CA_CERT_PATH[] = "/ca.pem";
+const char DEFAULT_SETUP_AP_PASSWORD[] = "aidvor1234";
 const char PROVISION_PATH[] = "/api/controller/provision";
 const char REPORT_PATH[] = "/api/controller/report";
 const char DASHBOARD_PATH[] = "/dashboard";
@@ -55,7 +55,6 @@ bool fallbackApActive = false;
 bool cloudOnline = false;
 bool safeOffActive = false;
 bool restartPending = false;
-bool sleepMode = false;
 int lastHttpStatus = 0;
 unsigned long lastTelemetryMs = 0;
 unsigned long lastCloudSuccessMs = 0;
@@ -403,11 +402,10 @@ static bool appendStatusFields(char *out, size_t outSize, size_t *used, bool has
     out,
     outSize,
     used,
-    "%sip=%s;wifi_mode=%s;sleep=%d",
+    "%sip=%s;wifi_mode=%s",
     hasValue ? ";" : "",
     ip.c_str(),
-    wifiModeName(),
-    sleepMode ? 1 : 0
+    wifiModeName()
   );
 }
 
@@ -417,8 +415,7 @@ static void sendStatusToUno(const char *monitor) {
     requestLine,
     sizeof(requestLine),
     &used,
-    "send_interval_seconds=%lu;relay_1=%c;relay_2=%c;relay_3=%c;relay_4=%c;monitor=%s",
-    sleepMode ? SLEEP_SEND_INTERVAL_SECONDS : 30UL,
+    "relay_1=%c;relay_2=%c;relay_3=%c;relay_4=%c;monitor=%s",
     relayState[0],
     relayState[1],
     relayState[2],
@@ -628,17 +625,11 @@ static const char *fallbackApPassword() {
     return config.localPassword;
   }
 
-  return NULL;
+  return DEFAULT_SETUP_AP_PASSWORD;
 }
 
 static bool startFallbackAp() {
   const char *password = fallbackApPassword();
-  if (password == NULL) {
-    setLastError("setup_ap_password_missing");
-    Serial.println(F("fallback_ap=failed;error=setup_ap_password_missing"));
-    return false;
-  }
-
   snprintf(fallbackApSsid, sizeof(fallbackApSsid), "AiDvor-ESP-%06X", ESP.getChipId());
   WiFi.disconnect();
   WiFi.mode(WIFI_AP);
@@ -778,16 +769,6 @@ static bool configureTlsClient(WiFiClientSecure &client, const char **errorCode)
 }
 
 static void postToServer(const char *payload) {
-  if (sleepMode) {
-    safeOffActive = true;
-    setLastError("sleep_mode");
-    for (size_t i = 0; i < 4; i++) {
-      relayState[i] = '0';
-    }
-    sendStatusToUno("SLP");
-    return;
-  }
-
   if (!configLoaded) {
     markCloudFailure("config_missing", 0);
     sendStatusToUno(fallbackApActive ? "AP" : "NOIP");
@@ -898,8 +879,6 @@ static String buildStatusJson() {
   json += cloudOnline ? F("true") : F("false");
   json += F(",\"safe_off_active\":");
   json += safeOffActive ? F("true") : F("false");
-  json += F(",\"sleep_mode\":");
-  json += sleepMode ? F("true") : F("false");
   json += F(",\"wifi_mode\":\"");
   json += fallbackApActive ? F("fallback_ap") : F("station");
   json += F("\",\"ip\":\"");
@@ -968,7 +947,7 @@ static void sendLocalPage() {
   html += F("async function api(p,o){const r=await fetch(p,o);return r.json()}");
   html += F("async function relay(pin,value){await api('/relay',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'pin='+pin+'&value='+value});load()}");
   html += F("async function load(){const s=await api('/status');");
-  html += F("document.getElementById('summary').innerHTML='Cloud: <b class=\"'+(s.cloud_online?'ok':'bad')+'\">'+(s.cloud_online?'online':'offline')+'</b><br>Sleep mode: '+s.sleep_mode+'<br>Wi-Fi mode: '+s.wifi_mode+'<br>IP: '+s.ip+(s.fallback_ap_ssid?'<br>Setup AP: '+s.fallback_ap_ssid:'')+'<br>HTTP: '+s.last_http_status+' / '+s.last_error+'<br>Safe off: '+s.safe_off_active+'<br>Offline seconds: '+s.cloud_offline_seconds+' / '+s.cloud_grace_seconds;");
+  html += F("document.getElementById('summary').innerHTML='Cloud: <b class=\"'+(s.cloud_online?'ok':'bad')+'\">'+(s.cloud_online?'online':'offline')+'</b><br>Wi-Fi mode: '+s.wifi_mode+'<br>IP: '+s.ip+(s.fallback_ap_ssid?'<br>Setup AP: '+s.fallback_ap_ssid:'')+'<br>HTTP: '+s.last_http_status+' / '+s.last_error+'<br>Safe off: '+s.safe_off_active+'<br>Offline seconds: '+s.cloud_offline_seconds+' / '+s.cloud_grace_seconds;");
   html += F("const labels={soil_moisture_raw:'Влажность почвы',light_level_raw:'Освещенность',air_humidity:'Влажность воздуха',air_temperature:'Температура воздуха'};");
   html += F("let rh='';for(const k in s.readings){rh+='<div class=item><b>'+(labels[k]||k)+'</b><br>'+s.readings[k]+'</div>'}document.getElementById('readings').innerHTML=rh;");
   html += F("document.getElementById('control-note').textContent=s.cloud_online?'Управление выполняется сервером. Локальные кнопки доступны при потере связи.':'Сервер недоступен. Локальное управление активно.';");
@@ -1152,33 +1131,11 @@ static bool handleControlCommand(const char *csv) {
   }
 
   if (strcmp(command, "status") == 0) {
-    sendStatusToUno(sleepMode ? "SLP" : (fallbackApActive ? "AP" : "RUN"));
-    return true;
-  }
-
-  if (strcmp(command, "sleep_toggle") == 0 || strcmp(command, "sleep_on") == 0 || strcmp(command, "sleep_off") == 0) {
-    if (strcmp(command, "sleep_on") == 0) {
-      sleepMode = true;
-    } else if (strcmp(command, "sleep_off") == 0) {
-      sleepMode = false;
-      safeOffActive = false;
-    } else {
-      sleepMode = !sleepMode;
-      if (!sleepMode) {
-        safeOffActive = false;
-      }
-    }
-
-    for (size_t i = 0; i < 4; i++) {
-      relayState[i] = '0';
-    }
-
-    sendStatusToUno(sleepMode ? "SLP" : "RUN");
+    sendStatusToUno(fallbackApActive ? "AP" : "RUN");
     return true;
   }
 
   if (strcmp(command, "factory_reset") == 0) {
-    sleepMode = false;
     for (size_t i = 0; i < 4; i++) {
       relayState[i] = '0';
     }

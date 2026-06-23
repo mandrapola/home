@@ -45,10 +45,12 @@ const uint8_t TM1637_CLK_PIN = 8;
 TM1637Display pairingDisplay(TM1637_CLK_PIN, TM1637_DIO_PIN);
 
 const uint8_t FACTORY_RESET_BUTTON_PIN = 9;
-const uint8_t SLEEP_BUTTON_PIN = 12;
+const uint8_t INFO_BUTTON_PIN = 12;
 const unsigned long FACTORY_RESET_HOLD_MS = 7000UL;
-const unsigned long SLEEP_BUTTON_HOLD_MS = 2500UL;
-const unsigned long IP_PAGE_MS = 850UL;
+const unsigned long IP_LABEL_MS = 1000UL;
+const unsigned long IP_OCTET_MS = 1500UL;
+const unsigned long IP_LAST_OCTET_MS = 4000UL;
+const unsigned long IP_STATUS_RESPONSE_TIMEOUT_MS = 4000UL;
 
 const uint8_t DIGITAL_PINS[] = { 3, 4, 5, 6 };
 const char *DIGITAL_KEYS[] = { "relay_1", "relay_2", "relay_3", "relay_4" };
@@ -73,9 +75,9 @@ char currentIp[16] = "";
 bool factoryButtonPressed = false;
 bool factoryResetSent = false;
 unsigned long factoryButtonPressedAtMs = 0;
-bool sleepButtonPressed = false;
-bool sleepToggleSent = false;
-unsigned long sleepButtonPressedAtMs = 0;
+bool infoButtonPressed = false;
+bool showIpWhenStatusArrives = false;
+unsigned long ipStatusRequestedAtMs = 0;
 
 static bool appendFmt(char *dst, size_t dstSize, size_t *used, const char *fmt, ...) {
   if (*used >= dstSize) return false;
@@ -250,6 +252,8 @@ static void rememberValue(char *dst, size_t dstSize, const char *value) {
   dst[dstSize - 1] = '\0';
 }
 
+static void showCurrentIpOnDisplay();
+
 static void applyDigitalOutputsFromCsv(const char *csv) {
   for (size_t i = 0; i < DIGITAL_COUNT; i++) {
     long v = findCsvLong(csv, DIGITAL_KEYS[i], -1);
@@ -409,7 +413,8 @@ static void applyEspCsvCommand(const char *csv) {
   rememberValue(lastEspCsv, sizeof(lastEspCsv), csv);
 
   char ipValue[16];
-  if (findCsvString(csv, "ip", ipValue, sizeof(ipValue)) && ipValue[0] != '\0') {
+  bool hasIp = findCsvString(csv, "ip", ipValue, sizeof(ipValue)) && ipValue[0] != '\0';
+  if (hasIp) {
     rememberValue(currentIp, sizeof(currentIp), ipValue);
   }
 
@@ -425,6 +430,13 @@ static void applyEspCsvCommand(const char *csv) {
   }
 
   applyDigitalOutputsFromCsv(csv);
+
+  if (showIpWhenStatusArrives && hasIp) {
+    showIpWhenStatusArrives = false;
+    showCurrentIpOnDisplay();
+    return;
+  }
+
   updatePairingDisplayFromCsv(csv);
 }
 
@@ -455,13 +467,13 @@ static void restoreDisplayAfterTemporaryMessage() {
 static void showCurrentIpOnDisplay() {
   if (currentIp[0] == '\0' || strcmp(currentIp, "0.0.0.0") == 0) {
     showTextOnDisplay("NOIP");
-    delay(IP_PAGE_MS);
+    delay(IP_OCTET_MS);
     restoreDisplayAfterTemporaryMessage();
     return;
   }
 
   showTextOnDisplay("IP");
-  delay(IP_PAGE_MS);
+  delay(IP_LABEL_MS);
 
   const char *part = currentIp;
   for (uint8_t shown = 0; shown < 4 && *part != '\0'; shown++) {
@@ -469,9 +481,9 @@ static void showCurrentIpOnDisplay() {
     if (octet < 0) octet = 0;
     if (octet > 255) octet = 255;
     pairingDisplay.showNumberDec(octet, false, 4, 0);
-    delay(IP_PAGE_MS);
 
     const char *dot = strchr(part, '.');
+    delay(dot ? IP_OCTET_MS : IP_LAST_OCTET_MS);
     if (!dot) break;
     part = dot + 1;
   }
@@ -539,6 +551,12 @@ static void checkRelayWatchdogs() {
 }
 
 static void handleButtons(unsigned long now) {
+  if (showIpWhenStatusArrives && (now - ipStatusRequestedAtMs) >= IP_STATUS_RESPONSE_TIMEOUT_MS) {
+    showIpWhenStatusArrives = false;
+    currentIp[0] = '\0';
+    showCurrentIpOnDisplay();
+  }
+
   bool factoryDown = digitalRead(FACTORY_RESET_BUTTON_PIN) == LOW;
   if (factoryDown && !factoryButtonPressed) {
     factoryButtonPressed = true;
@@ -557,28 +575,17 @@ static void handleButtons(unsigned long now) {
     factoryButtonPressed = false;
   }
 
-  bool sleepDown = digitalRead(SLEEP_BUTTON_PIN) == LOW;
-  if (sleepDown && !sleepButtonPressed) {
-    sleepButtonPressed = true;
-    sleepToggleSent = false;
-    sleepButtonPressedAtMs = now;
+  bool infoDown = digitalRead(INFO_BUTTON_PIN) == LOW;
+  if (infoDown && !infoButtonPressed) {
+    infoButtonPressed = true;
   }
 
-  if (sleepDown && !sleepToggleSent && (now - sleepButtonPressedAtMs) >= SLEEP_BUTTON_HOLD_MS) {
-    setAllRelaysOff();
-    showTextOnDisplay("SLP");
-    sendControlCommand("command=sleep_toggle");
-    sleepToggleSent = true;
-  }
-
-  if (!sleepDown && sleepButtonPressed) {
-    unsigned long heldMs = now - sleepButtonPressedAtMs;
-    sleepButtonPressed = false;
-
-    if (!sleepToggleSent && heldMs < SLEEP_BUTTON_HOLD_MS) {
-      sendControlCommand("command=status");
-      showCurrentIpOnDisplay();
-    }
+  if (!infoDown && infoButtonPressed) {
+    infoButtonPressed = false;
+    sendControlCommand("command=status");
+    showIpWhenStatusArrives = true;
+    ipStatusRequestedAtMs = now;
+    showTextOnDisplay("IP--");
   }
 }
 
@@ -595,7 +602,7 @@ void setup() {
     pinMode(DIGITAL_PINS[i], OUTPUT);
   }
   pinMode(FACTORY_RESET_BUTTON_PIN, INPUT_PULLUP);
-  pinMode(SLEEP_BUTTON_PIN, INPUT_PULLUP);
+  pinMode(INFO_BUTTON_PIN, INPUT_PULLUP);
   setAllRelaysOff();
 
   pairingDisplay.setBrightness(0x0f, true);
