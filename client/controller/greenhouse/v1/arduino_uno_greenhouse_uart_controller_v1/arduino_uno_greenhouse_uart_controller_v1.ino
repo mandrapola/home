@@ -47,10 +47,9 @@ TM1637Display pairingDisplay(TM1637_CLK_PIN, TM1637_DIO_PIN);
 const uint8_t FACTORY_RESET_BUTTON_PIN = 9;
 const uint8_t INFO_BUTTON_PIN = 12;
 const unsigned long FACTORY_RESET_HOLD_MS = 7000UL;
-const unsigned long IP_LABEL_MS = 1000UL;
-const unsigned long IP_OCTET_MS = 1500UL;
-const unsigned long IP_LAST_OCTET_MS = 4000UL;
-const unsigned long IP_STATUS_RESPONSE_TIMEOUT_MS = 4000UL;
+const unsigned long INFO_STATUS_RESPONSE_TIMEOUT_MS = 4000UL;
+const unsigned long INFO_SCROLL_FRAME_MS = 450UL;
+const unsigned long INFO_FIELD_PAUSE_MS = 700UL;
 
 const uint8_t DIGITAL_PINS[] = { 3, 4, 5, 6 };
 const char *DIGITAL_KEYS[] = { "relay_1", "relay_2", "relay_3", "relay_4" };
@@ -71,13 +70,22 @@ char responseBody[160];
 char asyncEspLine[160];
 char lastEspCsv[160] = "";
 char currentIp[16] = "";
+char currentWifiMode[8] = "";
+char currentRssi[8] = "";
+
+enum DisplayMode : uint8_t {
+  DISPLAY_SERVER_MONITOR = 0,
+  DISPLAY_CONTROLLER_INFO = 1,
+};
 
 bool factoryButtonPressed = false;
 bool factoryResetSent = false;
 unsigned long factoryButtonPressedAtMs = 0;
 bool infoButtonPressed = false;
-bool showIpWhenStatusArrives = false;
-unsigned long ipStatusRequestedAtMs = 0;
+bool infoStatusResponsePending = false;
+unsigned long infoStatusRequestedAtMs = 0;
+DisplayMode displayMode = DISPLAY_SERVER_MONITOR;
+uint8_t controllerInfoFieldIndex = 0;
 
 static bool appendFmt(char *dst, size_t dstSize, size_t *used, const char *fmt, ...) {
   if (*used >= dstSize) return false;
@@ -162,10 +170,16 @@ static uint8_t segmentForChar(char c) {
     case '8': return pairingDisplay.encodeDigit(8);
     case '9': return pairingDisplay.encodeDigit(9);
     case 'A': return (uint8_t) (SEG_A | SEG_B | SEG_C | SEG_E | SEG_F | SEG_G);
+    case 'B': return (uint8_t) (SEG_C | SEG_D | SEG_E | SEG_F | SEG_G);
     case 'C': return (uint8_t) (SEG_A | SEG_D | SEG_E | SEG_F);
+    case 'D': return (uint8_t) (SEG_B | SEG_C | SEG_D | SEG_E | SEG_G);
     case 'E': return (uint8_t) (SEG_A | SEG_D | SEG_E | SEG_F | SEG_G);
+    case 'F': return (uint8_t) (SEG_A | SEG_E | SEG_F | SEG_G);
+    case 'G': return (uint8_t) (SEG_A | SEG_C | SEG_D | SEG_E | SEG_F);
+    case 'H': return (uint8_t) (SEG_B | SEG_C | SEG_E | SEG_F | SEG_G);
     case 'I': return (uint8_t) (SEG_B | SEG_C);
     case 'L': return (uint8_t) (SEG_D | SEG_E | SEG_F);
+    case 'M': return (uint8_t) (SEG_C | SEG_E | SEG_G);
     case 'N': return (uint8_t) (SEG_C | SEG_E | SEG_G);
     case 'O': return (uint8_t) (SEG_A | SEG_B | SEG_C | SEG_D | SEG_E | SEG_F);
     case 'P': return (uint8_t) (SEG_A | SEG_B | SEG_E | SEG_F | SEG_G);
@@ -173,6 +187,9 @@ static uint8_t segmentForChar(char c) {
     case 'S': return (uint8_t) (SEG_A | SEG_C | SEG_D | SEG_F | SEG_G);
     case 'T': return (uint8_t) (SEG_D | SEG_E | SEG_F | SEG_G);
     case 'U': return (uint8_t) (SEG_B | SEG_C | SEG_D | SEG_E | SEG_F);
+    case 'W': return (uint8_t) (SEG_B | SEG_D | SEG_F);
+    case 'Y': return (uint8_t) (SEG_B | SEG_C | SEG_D | SEG_F | SEG_G);
+    case '.': return SEG_G;
     case '-': return SEG_G;
     default: return 0x00;
   }
@@ -186,6 +203,23 @@ static void showTextOnDisplay(const char *text) {
   }
 
   pairingDisplay.setSegments(segments);
+}
+
+static void showScrollTextOnDisplay(const char *text) {
+  size_t len = strlen(text);
+  for (int offset = -3; offset <= (int) len; offset++) {
+    uint8_t segments[4] = { 0x00, 0x00, 0x00, 0x00 };
+
+    for (uint8_t i = 0; i < 4; i++) {
+      int source = offset + i;
+      if (source >= 0 && source < (int) len) {
+        segments[i] = segmentForChar(text[source]);
+      }
+    }
+
+    pairingDisplay.setSegments(segments);
+    delay(INFO_SCROLL_FRAME_MS);
+  }
 }
 
 static long findCsvLong(const char *csv, const char *key, long fallback) {
@@ -252,7 +286,8 @@ static void rememberValue(char *dst, size_t dstSize, const char *value) {
   dst[dstSize - 1] = '\0';
 }
 
-static void showCurrentIpOnDisplay();
+static void showControllerInfoOnDisplay();
+static void applyControllerInfoFromCsv(const char *csv);
 
 static void applyDigitalOutputsFromCsv(const char *csv) {
   for (size_t i = 0; i < DIGITAL_COUNT; i++) {
@@ -410,17 +445,14 @@ static bool readEspLineNonBlocking(char *out, size_t outSize) {
 }
 
 static void applyEspCsvCommand(const char *csv) {
-  rememberValue(lastEspCsv, sizeof(lastEspCsv), csv);
-
-  char ipValue[16];
-  bool hasIp = findCsvString(csv, "ip", ipValue, sizeof(ipValue)) && ipValue[0] != '\0';
-  if (hasIp) {
-    rememberValue(currentIp, sizeof(currentIp), ipValue);
+  bool temporaryInfoResponse = infoStatusResponsePending;
+  if (!temporaryInfoResponse) {
+    rememberValue(lastEspCsv, sizeof(lastEspCsv), csv);
   }
 
-  long httpStatus = findCsvLong(csv, "http_status", 200);
-  if (httpStatus >= 400) {
-    showHttpStatusErrorOnDisplay((int) httpStatus);
+  long statusForErrorDisplay = findCsvLong(csv, "http_status", 200);
+  if (statusForErrorDisplay >= 400) {
+    showHttpStatusErrorOnDisplay((int) statusForErrorDisplay);
     return;
   }
 
@@ -431,13 +463,18 @@ static void applyEspCsvCommand(const char *csv) {
 
   applyDigitalOutputsFromCsv(csv);
 
-  if (showIpWhenStatusArrives && hasIp) {
-    showIpWhenStatusArrives = false;
-    showCurrentIpOnDisplay();
+  if (temporaryInfoResponse) {
+    infoStatusResponsePending = false;
+    applyControllerInfoFromCsv(csv);
+    showControllerInfoOnDisplay();
     return;
   }
 
-  updatePairingDisplayFromCsv(csv);
+  if (displayMode == DISPLAY_SERVER_MONITOR) {
+    updatePairingDisplayFromCsv(csv);
+  } else {
+    showControllerInfoOnDisplay();
+  }
 }
 
 static bool exchangeWithEsp(const char *request, char *response, size_t responseSize) {
@@ -464,37 +501,51 @@ static void restoreDisplayAfterTemporaryMessage() {
   showConnectionErrorOnDisplay();
 }
 
-static void showCurrentIpOnDisplay() {
-  if (currentIp[0] == '\0' || strcmp(currentIp, "0.0.0.0") == 0) {
-    showTextOnDisplay("NOIP");
-    delay(IP_OCTET_MS);
-    restoreDisplayAfterTemporaryMessage();
-    return;
-  }
-
-  showTextOnDisplay("IP");
-  delay(IP_LABEL_MS);
-
-  const char *part = currentIp;
-  for (uint8_t shown = 0; shown < 4 && *part != '\0'; shown++) {
-    int octet = atoi(part);
-    if (octet < 0) octet = 0;
-    if (octet > 255) octet = 255;
-    pairingDisplay.showNumberDec(octet, false, 4, 0);
-
-    const char *dot = strchr(part, '.');
-    delay(dot ? IP_OCTET_MS : IP_LAST_OCTET_MS);
-    if (!dot) break;
-    part = dot + 1;
-  }
-
-  restoreDisplayAfterTemporaryMessage();
-}
-
 static void sendControlCommand(const char *command) {
   Serial.println(F("UNO command->ESP:"));
   Serial.println(command);
   esp.println(command);
+}
+
+static void requestControllerInfo() {
+  sendControlCommand("command=status");
+  infoStatusResponsePending = true;
+  infoStatusRequestedAtMs = millis();
+  showTextOnDisplay("INFO");
+}
+
+static void applyControllerInfoFromCsv(const char *csv) {
+  char value[16];
+  if (findCsvString(csv, "ip", value, sizeof(value)) && value[0] != '\0') {
+    rememberValue(currentIp, sizeof(currentIp), value);
+  }
+
+  if (findCsvString(csv, "wifi", value, sizeof(value)) && value[0] != '\0') {
+    rememberValue(currentWifiMode, sizeof(currentWifiMode), value);
+  }
+
+  if (findCsvString(csv, "rssi", value, sizeof(value)) && value[0] != '\0') {
+    rememberValue(currentRssi, sizeof(currentRssi), value);
+  }
+}
+
+static void showControllerInfoField(const char *label, const char *value) {
+  char message[32];
+  snprintf(message, sizeof(message), "%s %s", label, value[0] != '\0' ? value : "-");
+  showScrollTextOnDisplay(message);
+  delay(INFO_FIELD_PAUSE_MS);
+}
+
+static void showControllerInfoOnDisplay() {
+  if (controllerInfoFieldIndex == 0) {
+    showControllerInfoField("IP", currentIp);
+  } else if (controllerInfoFieldIndex == 1) {
+    showControllerInfoField("WIFI", currentWifiMode);
+  } else {
+    showControllerInfoField("RSSI", currentRssi);
+  }
+
+  controllerInfoFieldIndex = (controllerInfoFieldIndex + 1) % 3;
 }
 
 static void postMeasurements() {
@@ -551,10 +602,11 @@ static void checkRelayWatchdogs() {
 }
 
 static void handleButtons(unsigned long now) {
-  if (showIpWhenStatusArrives && (now - ipStatusRequestedAtMs) >= IP_STATUS_RESPONSE_TIMEOUT_MS) {
-    showIpWhenStatusArrives = false;
-    currentIp[0] = '\0';
-    showCurrentIpOnDisplay();
+  if (infoStatusResponsePending && (now - infoStatusRequestedAtMs) >= INFO_STATUS_RESPONSE_TIMEOUT_MS) {
+    infoStatusResponsePending = false;
+    showTextOnDisplay("NOSt");
+    delay(INFO_FIELD_PAUSE_MS);
+    restoreDisplayAfterTemporaryMessage();
   }
 
   bool factoryDown = digitalRead(FACTORY_RESET_BUTTON_PIN) == LOW;
@@ -582,10 +634,16 @@ static void handleButtons(unsigned long now) {
 
   if (!infoDown && infoButtonPressed) {
     infoButtonPressed = false;
-    sendControlCommand("command=status");
-    showIpWhenStatusArrives = true;
-    ipStatusRequestedAtMs = now;
-    showTextOnDisplay("IP--");
+    if (!infoStatusResponsePending) {
+      if (displayMode == DISPLAY_SERVER_MONITOR) {
+        displayMode = DISPLAY_CONTROLLER_INFO;
+        controllerInfoFieldIndex = 0;
+        requestControllerInfo();
+      } else {
+        displayMode = DISPLAY_SERVER_MONITOR;
+        restoreDisplayAfterTemporaryMessage();
+      }
+    }
   }
 }
 

@@ -1,0 +1,20 @@
+# AiDvor ESP8266 proxy runtime config.
+# Copy this file to config.txt before uploading LittleFS to the ESP8266.
+# Do not commit real passwords or secrets.
+
+wifi_ssid=YOUR_WIFI_SSID
+wifi_password=YOUR_WIFI_PASSWORD
+server_url=https://home.aidvor.ru
+controller_id=
+# Generated automatically by ESP during unregistered provisioning.
+provisioning_token=
+api_token=
+# Set tls_insecure=1 only for a local development HTTPS server.
+# For production HTTPS keep tls_insecure=0 and upload CA certificate to data/ca.pem.
+tls_insecure=0
+local_login=admin
+local_password=CHANGE_ME_LOCAL_ADMIN_PASSWORD
+# Used by the fallback setup AP AiDvor-ESP-<chipId>; minimum 8 characters.
+# If omitted, local_password is used for backward compatibility.
+setup_ap_password=CHANGE_ME_SETUP_AP_PASSWORD
+cloud_grace_seconds=300

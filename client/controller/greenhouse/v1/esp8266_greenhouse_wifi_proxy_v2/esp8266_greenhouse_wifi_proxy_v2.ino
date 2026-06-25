@@ -23,6 +23,8 @@
 #include <time.h>
 
 const unsigned long WIFI_CONNECT_TIMEOUT_MS = 30000UL;
+const unsigned long TLS_TIME_SYNC_TIMEOUT_MS = 6000UL;
+const uint16_t HTTP_POST_TIMEOUT_MS = 8000;
 const size_t SETUP_AP_MIN_PASSWORD_LENGTH = 8;
 const size_t REQUEST_MAX = 260;
 const size_t JSON_MAX = 620;
@@ -367,10 +369,16 @@ static unsigned long cloudOfflineSeconds() {
   return (millis() - cloudLostAtMs) / 1000UL;
 }
 
+static void sendCsvLineToUno(const char *line) {
+  Serial.println(line);
+  Serial.flush();
+  delay(40);
+}
+
 static void sendAllRelaysOffToUno() {
   int status = lastHttpStatus > 0 ? lastHttpStatus : 0;
   snprintf(requestLine, sizeof(requestLine), "relay_1=0;relay_2=0;relay_3=0;relay_4=0;monitor=E%03d", status);
-  Serial.println(requestLine);
+  sendCsvLineToUno(requestLine);
   for (size_t i = 0; i < 4; i++) {
     relayState[i] = '0';
   }
@@ -431,20 +439,41 @@ static bool appendStatusFields(char *out, size_t outSize, size_t *used, bool has
 }
 
 static void sendStatusToUno(const char *monitor) {
-  String ip = currentIpString();
-  int rssi = WiFi.status() == WL_CONNECTED ? WiFi.RSSI() : 0;
   snprintf(
     requestLine,
     sizeof(requestLine),
-    "monitor=%s;ip=%s;wifi=%s;http=%d;err=%s;rssi=%d",
-    monitor,
+    "monitor=%s",
+    monitor
+  );
+  sendCsvLineToUno(requestLine);
+}
+
+static void sendMonitorStringToUno(const String &monitor) {
+  snprintf(requestLine, sizeof(requestLine), "monitor=%s", monitor.c_str());
+  sendCsvLineToUno(requestLine);
+}
+
+static void sendMonitorIntToUno(int value) {
+  snprintf(requestLine, sizeof(requestLine), "monitor=%d", value);
+  sendCsvLineToUno(requestLine);
+}
+
+static void sendControllerInfoToUno() {
+  String ip = currentIpString();
+  snprintf(
+    requestLine,
+    sizeof(requestLine),
+    "ip=%s;wifi=%s;rssi=%d",
     ip.c_str(),
     shortWifiModeName(),
-    lastHttpStatus,
-    shortErrorCode(),
-    rssi
+    WiFi.status() == WL_CONNECTED ? WiFi.RSSI() : 0
   );
-  Serial.println(requestLine);
+  sendCsvLineToUno(requestLine);
+}
+
+static void sendCloudFailureToUno(const char *error, int statusCode, const char *monitor) {
+  markCloudFailure(error, statusCode);
+  sendStatusToUno(monitor);
 }
 
 static void checkSafeOff() {
@@ -582,6 +611,45 @@ static String extractJsonStringField(const String &json, const char *fieldName) 
   return json.substring(firstQuote + 1, secondQuote);
 }
 
+static String extractJsonScalarField(const String &json, const char *fieldName) {
+  String token = "\"";
+  token += fieldName;
+  token += "\"";
+
+  int fieldIndex = json.indexOf(token);
+  if (fieldIndex < 0) return "";
+
+  int colonIndex = json.indexOf(':', fieldIndex + token.length());
+  if (colonIndex < 0) return "";
+
+  int valueStart = colonIndex + 1;
+  while (valueStart < json.length() && isspace((unsigned char) json.charAt(valueStart))) {
+    valueStart++;
+  }
+
+  if (valueStart >= json.length()) return "";
+
+  if (json.charAt(valueStart) == '"') {
+    int valueEnd = json.indexOf('"', valueStart + 1);
+    if (valueEnd <= valueStart) return "";
+    return json.substring(valueStart + 1, valueEnd);
+  }
+
+  int valueEnd = valueStart;
+  while (valueEnd < json.length()) {
+    char c = json.charAt(valueEnd);
+    if (c == ',' || c == '}' || c == '\r' || c == '\n' || c == ' ' || c == '\t') break;
+    valueEnd++;
+  }
+
+  if (valueEnd <= valueStart) return "";
+
+  String value = json.substring(valueStart, valueEnd);
+  value.trim();
+  if (value.equals("null")) return "";
+  return value;
+}
+
 static void saveProvisioningTokenFromResponse(const String &json) {
   String controllerId = extractJsonStringField(json, "controller_id");
   String apiToken = extractJsonStringField(json, "api_token");
@@ -624,13 +692,14 @@ static bool jsonToUnoCsv(const String &json, char *out, size_t outSize) {
     hasValue = true;
   }
 
-  String monitor = extractJsonStringField(json, "monitor");
+  String monitor = extractJsonScalarField(json, "monitor");
   if (monitor.length() > 0) {
     if (!appendFmt(out, outSize, &used, "%smonitor=%s", hasValue ? ";" : "", monitor.c_str())) return false;
     hasValue = true;
   }
 
-  return appendStatusFields(out, outSize, &used, hasValue);
+  out[used] = '\0';
+  return hasValue;
 }
 
 static const char *fallbackApPassword() {
@@ -703,7 +772,7 @@ static bool ensureClockSynced() {
   configTime(0, 0, "pool.ntp.org", "time.nist.gov");
 
   unsigned long startedAt = millis();
-  while ((millis() - startedAt) < 15000UL) {
+  while ((millis() - startedAt) < TLS_TIME_SYNC_TIMEOUT_MS) {
     now = time(nullptr);
     if (now > 1700000000) {
       return true;
@@ -787,26 +856,22 @@ static bool configureTlsClient(WiFiClientSecure &client, const char **errorCode)
 
 static void postToServer(const char *payload) {
   if (!configLoaded) {
-    markCloudFailure("config_missing", 0);
-    sendStatusToUno(fallbackApActive ? "AP" : "NOIP");
+    sendCloudFailureToUno("config_missing", 0, fallbackApActive ? "AP" : "NOIP");
     return;
   }
 
   if (!csvToJson(payload, jsonPayload, sizeof(jsonPayload))) {
-    markCloudFailure("csv_to_json_failed", 0);
-    Serial.println(F("http_status=0;error=csv_to_json_failed"));
+    sendCloudFailureToUno("csv_to_json_failed", 0, "Err");
     return;
   }
 
   if (!ensureWifi()) {
-    markCloudFailure("wifi_connect_failed", 0);
-    Serial.println(F("http_status=0;error=wifi_connect_failed"));
+    sendCloudFailureToUno("wifi_connect_failed", 0, "NOIP");
     return;
   }
 
   if (!ensureProvisioningToken()) {
-    markCloudFailure("token_save_failed", 0);
-    Serial.println(F("http_status=0;error=token_save_failed"));
+    sendCloudFailureToUno("token_save_failed", 0, "Err");
     return;
   }
   bool provisionMode = config.apiToken[0] == '\0';
@@ -814,20 +879,17 @@ static void postToServer(const char *payload) {
   WiFiClientSecure client;
   const char *tlsError = "tls_config_missing";
   if (!configureTlsClient(client, &tlsError)) {
-    markCloudFailure(tlsError, 0);
-    Serial.print(F("http_status=0;error="));
-    Serial.println(tlsError);
+    sendCloudFailureToUno(tlsError, 0, "Err");
     return;
   }
 
   HTTPClient http;
-  http.setTimeout(15000);
+  http.setTimeout(HTTP_POST_TIMEOUT_MS);
   http.setFollowRedirects(HTTPC_DISABLE_FOLLOW_REDIRECTS);
 
   String reportUrl = buildServerUrl(provisionMode ? PROVISION_PATH : REPORT_PATH);
   if (!http.begin(client, reportUrl)) {
-    markCloudFailure("http_begin_failed", 0);
-    Serial.println(F("http_status=0;error=http_begin_failed"));
+    sendCloudFailureToUno("http_begin_failed", 0, "Err");
     return;
   }
 
@@ -845,22 +907,20 @@ static void postToServer(const char *payload) {
 
   body.trim();
   if (statusCode < 0) {
-    markCloudFailure("http_post_failed", statusCode);
-    Serial.print(F("http_status=0;error=http_post_failed;code="));
-    Serial.println(statusCode);
+    sendCloudFailureToUno("http_post_failed", statusCode, "Err");
     return;
   }
 
   if (statusCode != 200) {
-    markCloudFailure("http_not_200", statusCode);
-    Serial.print(F("http_status="));
-    Serial.print(statusCode);
-    Serial.println(F(";error=http_not_200"));
+    char monitor[5];
+    snprintf(monitor, sizeof(monitor), "E%03d", statusCode > 999 ? 999 : statusCode);
+    sendCloudFailureToUno("http_not_200", statusCode, monitor);
     return;
   }
 
   markCloudSuccess(statusCode);
   if (body.length() == 0) {
+    sendStatusToUno("RUN");
     return;
   }
 
@@ -868,8 +928,11 @@ static void postToServer(const char *payload) {
 
   if (jsonToUnoCsv(body, requestLine, sizeof(requestLine))) {
     updateStateFromCsv(requestLine);
-    Serial.println(requestLine);
+    sendCsvLineToUno(requestLine);
+    return;
   }
+
+  sendStatusToUno("RUN");
 }
 
 static bool requireLocalAuth() {
@@ -1147,8 +1210,11 @@ static bool handleControlCommand(const char *csv) {
     return false;
   }
 
-  if (strcmp(command, "status") == 0) {
-    sendStatusToUno(fallbackApActive ? "AP" : "RUN");
+  if (strcmp(command, "status") == 0
+      || strcmp(command, "status_ip") == 0
+      || strcmp(command, "status_wifi") == 0
+      || strcmp(command, "status_rssi") == 0) {
+    sendControllerInfoToUno();
     return true;
   }
 
@@ -1217,7 +1283,7 @@ static void handleRelay() {
 
   relayState[relayIndex] = value == "1" ? '1' : '0';
   snprintf(requestLine, sizeof(requestLine), "relay_1=%c;relay_2=%c;relay_3=%c;relay_4=%c;monitor=local", relayState[0], relayState[1], relayState[2], relayState[3]);
-  Serial.println(requestLine);
+  sendCsvLineToUno(requestLine);
   safeOffActive = false;
 
   webServer.send(200, F("application/json"), buildStatusJson());
@@ -1251,9 +1317,7 @@ void setup() {
   }
   setupWebServer();
   delay(500);
-  Serial.println(F("ready=esp8266_proxy"));
-  Serial.print(F("config_loaded="));
-  Serial.println(configLoaded ? F("1") : F("0"));
+  sendStatusToUno(configLoaded ? (fallbackApActive ? "AP" : "RUN") : "AP");
 }
 
 void loop() {
@@ -1266,7 +1330,6 @@ void loop() {
 
   if (readCsvLine(requestLine, sizeof(requestLine))) {
     if (handleControlCommand(requestLine)) {
-      checkSafeOff();
       return;
     }
 
